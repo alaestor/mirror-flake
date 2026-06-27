@@ -1,15 +1,10 @@
 ## lib
 
-#### Helper functions for creating system / home-manager configurations
-- mkNixos system name nixpkgs;
-- mkDarwin system name nixpkgs nix-darwin;
-- mkHomeManager system name nixpkgs home-manager;
+Creates a script which writes a NixOS ISO to a block device. `postWrite`
+can add host-specific operations after the ISO has been written.
 
-E.g.
-```
-flake.nixosConfigurations = inputs.self.lib.mkNixos
-"x86_64-linux" "desktop" inputs.unstable-nixpkgs;
-```
+Creates a nixos-anywhere deployer for a host using the `ssh-host` and
+`standard-disk` modules.
 
 ## mkflakedocs
 
