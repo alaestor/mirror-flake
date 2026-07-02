@@ -53,7 +53,7 @@ Constructed with a careful balance of usability and security, CRYPTID is a solid
 
 CRYPTID provides "greater" scripts to automate complex sequences for key generation, extension, and rotation. More granular control can be achieved by using the "lesser" component scripts separately as desired, or only using the underlying tools directly.
 
-See the `cryptid.nix` source code for specifics, or the in-system `?` help menu.
+See the script definitions under `data/cryptid/scripts/` for specifics, or the in-system `?` help menu.
 
 #### Redundancy
 `cryptid` encourages physical redundancy by making it trivial to clone the entire drive with a single `dd` command. For best results, the clones should be geographically separated before practical usage begins.
@@ -130,7 +130,7 @@ nix run nixpkgs#nushell -- -c "lsblk --json | from json | get blockdevices | whe
 
 The scripts are intended only for this particular usecase and provide sensible defaults, but likely won't be suitable for more complex needs. In descending order of complexity and flexibility: you can use the tools directly, use the lesser-scripts as needed to help some but not all operations, or use the greater-scripts to automate entire sequences.
 
-If you want details about the lesser scripts, refer to CRYPTID's `?`-command help menu for a summary or the `cryptid.nix` sourcecode to see exactly what the scripts do.
+If you want details about the lesser scripts, refer to CRYPTID's `?` command for a generated summary or the definitions under `data/cryptid/scripts/` to see exactly what the scripts do.
 
 For the intended use, simply:
 
