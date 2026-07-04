@@ -12,7 +12,7 @@
   };
   flake.modules.nixos.crypto-yubikey = { pkgs, ... } : {
   imports =  with inputs.self.modules.nixos; [ crypto-yubikey-cli ];
-    environment.systemPackages = with pkgs; [];
+    #environment.systemPackages = with pkgs; [];
     services.udev.packages = [ pkgs.yubikey-personalization ];
   };
 
