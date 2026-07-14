@@ -6,6 +6,11 @@
     stateVersion = "26.11";
     capabilities.nixosAnywhere = true;
 
+    userEnvironment.${primaryUser} = {
+      mode = "integrated";
+      profile = "workstation";
+    };
+
     modules = (with inputs.self.modules.nixos; [
       crypto-yubikey
       ssh-host
