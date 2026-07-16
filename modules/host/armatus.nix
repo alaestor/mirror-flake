@@ -12,6 +12,8 @@
     };
 
     modules = (with inputs.self.modules.nixos; [
+      kde
+      auto-login
       crypto-yubikey
       ssh-host
       standard-disk
