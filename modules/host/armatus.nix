@@ -9,6 +9,17 @@
     userEnvironment.${primaryUser} = {
       mode = "integrated";
       profile = "workstation";
+      preferences = "alaestor";
+      modules = [
+        (
+          { pkgs, ... }:
+          {
+            home.packages = with pkgs; [
+              keepassxc
+            ];
+          }
+        )
+      ];
     };
 
     modules = (with inputs.self.modules.nixos; [
