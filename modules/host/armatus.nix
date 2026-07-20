@@ -26,6 +26,9 @@
       kde
       auto-login
       crypto-yubikey
+      hifi-audio
+      printers
+      nas
       ssh-host
       standard-disk
     ])
