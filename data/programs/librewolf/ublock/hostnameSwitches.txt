@@ -1,0 +1,8 @@
+no-large-media: behind-the-scene false
+no-csp-reports: * true
+no-scripting: * true
+no-scripting: fitgirl-repacks.site false
+no-scripting: youtube-ui.l.google.com false
+no-scripting: www.protondb.com false
+no-scripting: www.youtube.com false
+no-scripting: kagi.com false

@@ -1,0 +1,15 @@
+chrome-extension-scheme
+moz-extension-scheme
+about-scheme
+chrome-scheme
+edge-scheme
+opera-scheme
+vivaldi-scheme
+wyciwyg-scheme
+192.168.1.1
+172.16.0.1
+172.16.0.2
+172.16.0.4
+quickbooks.intuit.com
+secure.newegg.ca
+business.bell.ca
