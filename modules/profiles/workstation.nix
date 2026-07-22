@@ -6,6 +6,7 @@
     inputs.self.modules.homeManager.coding
     inputs.self.modules.homeManager.librewolf
     inputs.self.modules.homeManager.discord
+    inputs.self.modules.homeManager.mpv
     {
       programs.home-manager.enable = true;
     }

@@ -6,6 +6,10 @@
   inputs = {
     agenix.url = "github:ryantm/agenix";
     agenix-rekey.url = "github:oddlama/agenix-rekey";
+    alpkgs = {
+      url = "git+https://codeberg.org/alaestor/pkgs.git";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     cryptid-nixpkgs.url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";
     disko = {
       url = "github:nix-community/disko";
@@ -24,7 +28,18 @@
       };
     };
     import-tree.url = "github:vic/import-tree";
+    nix-wrapper-modules = {
+      url = "github:BirdeeHub/nix-wrapper-modules";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixpkgs.url = "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.xz";
+    plasma-manager = {
+      url = "github:nix-community/plasma-manager";
+      inputs = {
+        home-manager.follows = "unstable-home-manager";
+        nixpkgs.follows = "unstable-nixpkgs";
+      };
+    };
     stable-home-manager = {
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "stable-nixpkgs";
