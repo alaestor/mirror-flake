@@ -617,6 +617,15 @@ mount points, hardware, and host-specific refinements remain in
 `modules/host/lanser.nix`. General machine policy such as `server-hardening`
 remains a regular host feature.
 
+The Jellyfin service also installs `jellybuilder`, which projects the NAS media
+tree into a Jellyfin-friendly alias library. Its source defaults to
+`${config.nas.vault.mountpoint}/Media` when the NAS module is present, and its
+destination defaults to `/var/lib/jellyfin/jellymedia`; both are configurable
+under `serve.jellyfin.libraryBuilder`. Run `jellybuilder --help` for category,
+overwrite, and path overrides. The implementation lives under
+`data/serve/jellyfin/`, while flake check `jellybuilder` exercises the filesystem
+contract and compatibility with existing `Shows/**/jellylink.py` rules.
+
 ## Design guidelines
 
 When extending this system:
