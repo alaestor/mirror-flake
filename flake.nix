@@ -50,5 +50,6 @@
       inputs.nixpkgs.follows = "unstable-nixpkgs";
     };
     unstable-nixpkgs.url = "nixpkgs/nixos-unstable";
+    vpn-confinement.url = "github:Maroka-chan/VPN-Confinement";
   };
 }

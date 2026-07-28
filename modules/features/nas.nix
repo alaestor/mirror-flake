@@ -17,6 +17,11 @@
             default = false;
             description = "Whether to mount the ${name} NAS share read-only.";
           };
+          mountpoint = lib.mkOption {
+            type = lib.types.str;
+            default = "/mnt/${name}";
+            description = "Local mount point for the ${name} NAS share.";
+          };
         };
 
       shares = [
@@ -28,7 +33,7 @@
       mkFileSystem =
         optionName: shareName:
         lib.mkIf cfg.${optionName}.enable {
-          "/mnt/${shareName}" = {
+          "${cfg.${optionName}.mountpoint}" = {
             device = "${cfg.server}:/mnt/${shareName}/Storage";
             fsType = "nfs";
             options = [

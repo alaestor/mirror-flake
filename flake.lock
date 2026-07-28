@@ -468,7 +468,8 @@
         "stable-home-manager": "stable-home-manager",
         "stable-nixpkgs": "stable-nixpkgs",
         "unstable-home-manager": "unstable-home-manager",
-        "unstable-nixpkgs": "unstable-nixpkgs"
+        "unstable-nixpkgs": "unstable-nixpkgs",
+        "vpn-confinement": "vpn-confinement"
       }
     },
     "stable-home-manager": {
@@ -574,6 +575,21 @@
         "id": "nixpkgs",
         "ref": "nixos-unstable",
         "type": "indirect"
+      }
+    },
+    "vpn-confinement": {
+      "locked": {
+        "lastModified": 1785142579,
+        "narHash": "sha256-WEPxDMiKt3uGVVu/aorHnIgYYW62mEq2Q+rlN3qH6bg=",
+        "owner": "Maroka-chan",
+        "repo": "VPN-Confinement",
+        "rev": "b3aa71a7edfe6af748c23729d1bdec3b499741ff",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Maroka-chan",
+        "repo": "VPN-Confinement",
+        "type": "github"
       }
     }
   },

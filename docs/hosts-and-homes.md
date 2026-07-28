@@ -593,6 +593,30 @@ same effective environment.
 | `modules/de/kde.nix` | Example of a feature contributing a Home Manager module. |
 | `modules/host/*.nix` | Concrete host declarations. |
 
+## Server and domain modules
+
+Server applications live under `modules/serve/services/`, separately from
+interactive host features. These modules configure local daemons or artifacts
+and expose reusable options under `serve.<service>`. They do not own public
+hostnames, TLS policy, reverse-proxy routes, or public firewall exposure.
+
+Public ingress compositions live under `modules/serve/domains/`. A domain module
+imports the services it exposes and owns their Caddy virtual hosts,
+authentication, TLS behavior, and public ports. Lanser imports `domain-0x04cc`
+for its static site, Matrix, and Cinny, and `domain-remotehost` for Filebrowser
+and Jellyfin.
+
+Private services that do not belong to a public domain are imported directly by
+the host. Lanser therefore imports `serve-torrenting` separately; its
+qBittorrent ports remain confined to its VPN namespace and private network
+policy.
+
+Static service configuration belongs under `data/serve/` and is accessed
+through `self.data`, as with Cinny's homeserver policy. Concrete addresses,
+mount points, hardware, and host-specific refinements remain in
+`modules/host/lanser.nix`. General machine policy such as `server-hardening`
+remains a regular host feature.
+
 ## Design guidelines
 
 When extending this system:
