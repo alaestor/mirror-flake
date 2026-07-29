@@ -1,5 +1,12 @@
+{ lib, ... }:
 {
-  flake.nixOnDroidModules.base =
+  options.flake.nixOnDroidModules = lib.mkOption {
+    type = lib.types.lazyAttrsOf lib.types.deferredModule;
+    default = { };
+    description = "Reusable nix-on-droid modules exported by this flake.";
+  };
+
+  config.flake.nixOnDroidModules.base =
     { pkgs, ... }:
     {
       environment = {

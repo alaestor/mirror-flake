@@ -13,7 +13,9 @@ Nix-on-Droid devices are separate from the NixOS host registry. Reusable
 Nix-on-Droid modules are exported under `nixOnDroidModules`, and complete device
 configurations are exported under `nixOnDroidConfigurations`. Their embedded
 Home Manager configurations may consume the same `homeProfile` collections,
-but do not receive NixOS feature contributions or host identity metadata.
+but do not receive NixOS feature contributions. A nix-on-droid device receives
+the same `hostIdentity` metadata shape as a NixOS host, although its name is not
+wired to Android's kernel hostname.
 
 ## Architecture at a glance
 
@@ -108,7 +110,7 @@ advanced automatically when updating Nixpkgs.
 
 ## Host identity
 
-Every generated NixOS configuration receives a read-only `hostIdentity` set:
+The class-neutral host identity contract defines a read-only `hostIdentity` set:
 
 ```nix
 hostIdentity = {
@@ -119,8 +121,13 @@ hostIdentity = {
 };
 ```
 
-The registry derives it from the host declaration. `hostIdentity.name` is also
-wired to `networking.hostName`.
+Platform implementations add their own behavior around this shared metadata.
+The NixOS implementation wires `hostIdentity.name` to `networking.hostName`.
+The nix-on-droid implementation derives `system.stateVersion` from
+`hostIdentity.stateVersion`, but does not attempt to change Android's kernel
+hostname.
+
+The NixOS registry derives the identity from each host declaration.
 
 Host modules can use this metadata rather than repeating literal values:
 
@@ -593,7 +600,7 @@ same effective environment.
 | File | Responsibility |
 |---|---|
 | `modules/host-plumbing/registry.nix` | Host schema, environment assembly, and output generation. |
-| `modules/host-plumbing/host-identity.nix` | Read-only host identity module. |
+| `modules/host-identity.nix` | Shared identity contract with platform-specific implementations. |
 | `modules/host-plumbing/global-config.nix` | NixOS configuration automatically imported by every host. |
 | `modules/inputs/home-manager.nix` | Home Manager inputs, flake integration, and initial profiles. |
 | `modules/de/kde.nix` | Example of a feature contributing a Home Manager module. |
