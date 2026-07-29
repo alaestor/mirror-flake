@@ -1,9 +1,15 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ssh-client =
-    { config, lib, ... }:
+    {
+      config,
+      lib,
+      options,
+      ...
+    }:
     let
       cfg = config.ssh-client;
+      hasStructuredSettings = options.programs.ssh ? settings;
     in
     {
       imports = [ inputs.self.modules.homeManager.ssh ];
@@ -16,10 +22,23 @@
       };
 
       config = {
-        programs.ssh.settings."*" = lib.mkIf (cfg.identityFile != null) {
-          IdentityFile = cfg.identityFile;
-          IdentitiesOnly = true;
-        };
+        programs.ssh =
+          lib.mkIf (cfg.identityFile != null) (
+            if hasStructuredSettings then
+              {
+                settings."*" = {
+                  IdentityFile = cfg.identityFile;
+                  IdentitiesOnly = true;
+                };
+              }
+            else
+              {
+                matchBlocks."*" = {
+                  identityFile = cfg.identityFile;
+                  identitiesOnly = true;
+                };
+              }
+          );
 
         programs.nushell.extraConfig = lib.mkAfter ''
           # Deliberately bypass host-key verification for an ad-hoc connection.
