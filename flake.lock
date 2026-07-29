@@ -52,11 +52,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1784217800,
-        "narHash": "sha256-GSF2M41FNNrs9z1Gkhy2F6Xwh/GH//TgKTPzq6Rk6hU=",
+        "lastModified": 1785165029,
+        "narHash": "sha256-/49mc0PEMtfOF6LLxrXMiJ2oODpD5kKBe5uNJtVR+Lc=",
         "ref": "refs/heads/main",
-        "rev": "6f7a0f527dbc5ab1b12a9be829dde0b50ac55884",
-        "revCount": 10,
+        "rev": "2deaa606a2c22e69e5a3a2a7d9fb1bbb07cd92bc",
+        "revCount": 20,
         "type": "git",
         "url": "https://codeberg.org/alaestor/pkgs.git"
       },
