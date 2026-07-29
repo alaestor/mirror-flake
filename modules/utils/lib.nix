@@ -247,7 +247,7 @@
             SECRETS_DIR="$FLAKE_ROOT/secrets/hosts/$HOST"
             AGE_FILE="$SECRETS_DIR/initrd-hostkey.age"
             AGE_IDENTITY_FILE="$FLAKE_ROOT/secrets/age_sk.txt"
-            RECIPIENT_FILE="$FLAKE_ROOT/data/recipients.txt"
+            RECIPIENT_FILE="$FLAKE_ROOT/data/identities/cryptidprotocol_age"
             STAGING_KEYPATH="''${STAGING_DIR}${system-config.ssh-host.initrd.hostKeyPath}"
             install -d -m755 "$(dirname "''${STAGING_KEYPATH}")"
 

@@ -526,7 +526,8 @@ nix run .#deploy-example -- root@192.168.0.5
 
 When initrd SSH is enabled, the deployer maintains an encrypted, stable initrd
 host key under `secrets/hosts/<host>/initrd-hostkey.age`. On first deployment it
-encrypts the generated key to the public recipients in `data/recipients.txt`.
+encrypts the generated key to the public recipients in
+`data/identities/cryptidprotocol_age`.
 Later deployments decrypt that file with `secrets/age_sk.txt`; a hardware-backed
 identity stub requires its corresponding YubiKey and `age-plugin-yubikey` is
 included in the deployer's runtime dependencies. Public recipients can encrypt

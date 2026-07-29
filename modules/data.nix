@@ -32,8 +32,9 @@ in
     /**
       Common representations of frequently used data files
     */
-    vars = {
-      sshAuthorizedKeys = readNonEmptyLines "authorized_keys";
+    vars = rec {
+      cryptidProtocolSshAuthorizedKeys = readNonEmptyLines "identities/cryptidprotocol_ssh";
+      sshAuthorizedKeys = cryptidProtocolSshAuthorizedKeys;
       textart.boykisser = path "textart/boykisser.txt";
     };
   };
