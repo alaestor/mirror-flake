@@ -34,7 +34,8 @@ in
     */
     vars = rec {
       cryptidProtocolSshAuthorizedKeys = readNonEmptyLines "identities/cryptidprotocol_ssh";
-      sshAuthorizedKeys = cryptidProtocolSshAuthorizedKeys;
+      noblesseSshAuthorizedKeys = readNonEmptyLines "identities/id_ed25519_noblesse.pub";
+      sshAuthorizedKeys = cryptidProtocolSshAuthorizedKeys ++ noblesseSshAuthorizedKeys;
       textart.boykisser = path "textart/boykisser.txt";
     };
   };
