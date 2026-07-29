@@ -114,7 +114,6 @@
 
           environment.systemPackages = with pkgs; [
             git
-            croc
             openssh
             pinentry-tty
             btop
