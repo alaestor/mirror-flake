@@ -5,9 +5,15 @@ Home Manager user environments to those systems. Host features, reusable
 profiles, personal preferences, and host-specific overrides remain separate, but
 are composed into one Home Manager configuration for each managed user.
 
-All targets described here are NixOS hosts. A standalone Home Manager environment
-is still associated with a registered NixOS host; “standalone” only means that it
-is activated separately from `nixos-rebuild`.
+The host registry described here manages NixOS hosts. A standalone Home Manager
+environment is still associated with a registered NixOS host; “standalone” only
+means that it is activated separately from `nixos-rebuild`.
+
+Nix-on-Droid devices are separate from the NixOS host registry. Reusable
+Nix-on-Droid modules are exported under `nixOnDroidModules`, and complete device
+configurations are exported under `nixOnDroidConfigurations`. Their embedded
+Home Manager configurations may consume the same `homeProfile` collections,
+but do not receive NixOS feature contributions or host identity metadata.
 
 ## Architecture at a glance
 

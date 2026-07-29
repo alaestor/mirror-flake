@@ -10,6 +10,11 @@
       url = "git+https://codeberg.org/alaestor/pkgs.git";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    android-home-manager = {
+      url = "github:nix-community/home-manager/release-24.05";
+      inputs.nixpkgs.follows = "android-nixpkgs";
+    };
+    android-nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     cryptid-nixpkgs.url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";
     disko = {
       url = "github:nix-community/disko";
@@ -28,6 +33,13 @@
       };
     };
     import-tree.url = "github:vic/import-tree";
+    nix-on-droid = {
+      url = "github:nix-community/nix-on-droid/release-24.05";
+      inputs = {
+        home-manager.follows = "android-home-manager";
+        nixpkgs.follows = "android-nixpkgs";
+      };
+    };
     nix-wrapper-modules = {
       url = "github:BirdeeHub/nix-wrapper-modules";
       inputs.nixpkgs.follows = "nixpkgs";
