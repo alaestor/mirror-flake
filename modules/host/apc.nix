@@ -155,7 +155,6 @@
       crypto-yubikey
       hifi-audio
       kde
-      locale
       nas
       printers
     ]) ++ [

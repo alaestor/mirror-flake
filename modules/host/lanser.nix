@@ -6,7 +6,6 @@
     stateVersion = "24.11";
 
     modules = (with inputs.self.modules.nixos; [
-      locale
       nas
       ssh-host
       server-hardening
