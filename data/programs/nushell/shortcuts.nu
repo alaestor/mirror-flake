@@ -53,6 +53,11 @@ def spell-check [...words: string --limit: int = 5] {
   }
 }
 
+# ssh without verifying fingerprint or adding to knownhosts
+#def sshu [...args] {
+#  ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" ...$args
+#}
+
 # Run a package exposed by this flake.
 def nr [package: string, ...args: string] {
   let installable = $"($env.CURRENT_FLAKE)#($package)"

@@ -380,6 +380,22 @@ The deferred module must be a Home Manager module or a module that is neutral
 between module classes. A NixOS module cannot be placed in
 `userEnvironment.sharedModules`.
 
+### Sharing simple host configuration state
+
+Host features can also use `hostContext` to expose selected NixOS state to the
+Home Manager modules they consume. The contributed module declares a narrow,
+typed option under `hostContext.${module-name}` and assigns it from the NixOS
+feature's configuration. Home Manager consumers can test for that option's
+presence, allowing the same module to work with integrated and standalone
+environments without depending on the integrated-only `osConfig` argument.
+Expose only the state required by consumers rather than mirroring the full NixOS 
+configuration.
+
+For example, take te NAS feature module: when its Vault share is enabled, module
+exposes its mount point as the internal `hostContext.nas.vaultMountpoint` option.
+The Nushell feature module uses it to load local-flake helpers from
+`<mountpoint>/.dotfiles/flake`; hosts without that context omit those helpers.
+
 ### KDE and Plasma Manager
 
 `modules/de/kde.nix` uses this pattern. It exports both:

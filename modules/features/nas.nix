@@ -73,6 +73,20 @@
           (mkFileSystem "vault" "Vault")
           (mkFileSystem "pocket" "Pocket")
         ];
+
+        userEnvironment.sharedModules = lib.optional cfg.vault.enable (
+          { lib, ... }:
+          {
+            options.hostContext.nas.vaultMountpoint = lib.mkOption {
+              type = lib.types.str;
+              readOnly = true;
+              internal = true;
+              description = "Mount point of the host's enabled NAS Vault share.";
+            };
+
+            config.hostContext.nas.vaultMountpoint = cfg.vault.mountpoint;
+          }
+        );
       };
     };
 }

@@ -20,6 +20,10 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    firefox-extensions-declarative = {
+      url = "github:firefox-extensions-declarative/firefox-extensions-declarative";
+      inputs.nixpkgs.follows = "unstable-nixpkgs";
+    };
     flake-file.url = "github:vic/flake-file";
     flake-parts = {
       url = "github:hercules-ci/flake-parts";

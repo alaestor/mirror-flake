@@ -45,9 +45,9 @@
           "general.smoothScroll"                                  = false;
           "widget.gtk.overlay-scrollbars.enabled"                 = false; # static size, push content
         # One-off search buttons
-          "browser.urlbar.shortcuts.bookmarks"                    =  false;
-          "browser.urlbar.shortcuts.history"                      =  false;
-          "browser.urlbar.shortcuts.tabs"                         =  false;
+          "browser.urlbar.shortcuts.bookmarks"                    = false;
+          "browser.urlbar.shortcuts.history"                      = false;
+          "browser.urlbar.shortcuts.tabs"                         = false;
         # these settings can't be in firefox's global policies
           "security.sandbox.gpu.level"                            = 1;
           "privacy.donottrackheader.enabled"                      = true;
@@ -254,7 +254,7 @@
         (allow   "cookie-quick-manager"           "{60f82f00-9ad5-4de5-b31c-b16a47c51558}")
         (allow   "user-agent-string-switcher"     "{a6c4a591-f1b2-4f03-b3ff-767e5bedf4e7}")
         (allow   "tabzen"                         "tabzen@tabzen.org")
-        (allow   "stylus-declarative"             "{7a7a4a92-a2a0-41d1-9fd7-1e92480d612d}")
+        (allow   "stylus-declarative"             "{7a7a4a92-a2a0-41d1-9fd7-1e92480d612d}") # NOTE: unsigned, requires setting `xpinstall.signatures.required = false`
         (allow   "wayback-machine_new"            "wayback_machine@mozilla.org")
         (allow   "proton-vpn-firefox-extension"   "vpn@proton.ch")
         (allow   "darkreader"                     "addon@darkreader.org")
@@ -319,6 +319,7 @@
         # ui
         "extensions.activeThemeID"                                    = "firefox-compact-dark@mozilla.org";
         # general
+        "xpinstall.signatures.required"                               = false; # WARN(security): degrades posture but required for unsigned declarative-fork extensions.
         "browser.contentblocking.category"                            = { Value = "strict"; Status = "locked"; };
         "browser.aboutConfig.showWarning"                             = false;
         "browser.startup.page"                                        = 3; # Resume

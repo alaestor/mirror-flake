@@ -1,14 +1,29 @@
 { inputs, self, ... }:
 {
   flake.modules.homeManager.nushell =
-    { lib, pkgs, ... }:
+    {
+      config,
+      lib,
+      options,
+      pkgs,
+      ...
+    }:
     let
+      hasNasVault = lib.hasAttrByPath [ "hostContext" "nas" "vaultMountpoint" ] options;
       shortcuts = builtins.replaceStrings [ "@CURRENT_FLAKE@" ] [ (toString inputs.self) ] (
         self.data.read "programs/nushell/shortcuts.nu"
       );
       passwordHelper = builtins.replaceStrings [ "@DICEWARE@" ] [ (lib.getExe pkgs.diceware) ] (
-        self.data.read "programs/nushell/password.nu"
+        self.data.read "programs/nushell/diceware-helper.nu"
       );
+      flakeHelper =
+        if !hasNasVault then
+          ""
+        else
+          builtins.replaceStrings
+            [ "@LOCAL_FLAKE@" ]
+            [ "${config.hostContext.nas.vaultMountpoint}/.dotfiles/flake" ]
+            (self.data.read "programs/nushell/flake-helpers.nu");
     in
     {
       home.packages = [ pkgs.aspell ];
@@ -37,6 +52,7 @@
           ${shortcuts}
           ${self.data.read "programs/nushell/fish-protocol.nu"}
           ${passwordHelper}
+          ${flakeHelper}
         '';
       };
     };
