@@ -136,7 +136,7 @@
       DisableFeedbackCommands = true;
       DisableFormHistory = true;
       DisableMasterPasswordCreation = true;         # since we're disabling passwords anyways
-      DisableProfileImport = true;                  # profiles should handled by nix
+      DisableProfileImport = true;                  # profiles should be handled by nix
       DisableProfileRefresh = true;
       DisableSetDesktopBackground = true;           # The set-wallpaper context menu item for images
       DisablePasswordReveal = false;                # WARN(security): should disable
@@ -290,15 +290,8 @@
           }
         ];
 
-        "uBlock0@raymondhill.net".adminSettings = let
-          readFileEscaped = path: let
-              escapes = [ "\n"  "\t"  "\v"  "\\"   ];
-              escaped = [ "\\n" "\\t" "\\v" "\\\\" ];
-            in
-            builtins.replaceStrings escapes escaped (builtins.readFile path);
-        in
-        {
-          userSettings = rec {
+        "uBlock0@raymondhill.net".adminSettings = {
+          userSettings = {
             uiTheme = "dark";
             uiAccentCustom = true;
             uiAccentCustom0 = "#8300ff";

@@ -1,4 +1,4 @@
-{ inputs, lib, ... }:
+{ inputs, ... }:
 {
   host.apc = rec {
     description = "APC desktop workstation.";

@@ -1,6 +1,6 @@
 { inputs, lib, ... }:
 {
-  host.lanser = rec {
+  host.lanser = {
     description = "Home server and public service host.";
     primaryUser = "user";
     stateVersion = "24.11";
