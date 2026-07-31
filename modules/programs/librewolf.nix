@@ -9,8 +9,13 @@
     https://github.com/arkenfox
 */
 
-{ self, ... }:
+{ inputs, self, ... }:
 {
+  flake-file.inputs.firefox-extensions-declarative = {
+    url = "github:firefox-extensions-declarative/firefox-extensions-declarative";
+    inputs.nixpkgs.follows = "unstable-nixpkgs";
+  };
+
   flake.modules.homeManager.librewolf =
     { lib, pkgs, ... }:
     let
@@ -28,6 +33,9 @@
         id = 0;
         name = "${default-profile-name}";
         isDefault = true;
+        extensions.packages = [
+          inputs.firefox-extensions-declarative.packages.${pkgs.stdenv.hostPlatform.system}.stylus-declarative
+        ];
         settings = {
           "extensions.autoDisableScopes"                          = 0; # automatically enable installed extensions
           "browser.uiCustomization.state"                         = builtins.replaceStrings ["\n" "  "] ["" ""] (self.data.read "programs/librewolf/firefox/uiCustomizationState.json");
@@ -246,7 +254,7 @@
         (allow   "cookie-quick-manager"           "{60f82f00-9ad5-4de5-b31c-b16a47c51558}")
         (allow   "user-agent-string-switcher"     "{a6c4a591-f1b2-4f03-b3ff-767e5bedf4e7}")
         (allow   "tabzen"                         "tabzen@tabzen.org")
-        (allow   "styl-us"                        "{7a7a4a92-a2a0-41d1-9fd7-1e92480d612d}") # TODO: https://github.com/firefox-extensions-declarative/stylus-declarative
+        (allow   "stylus-declarative"             "{7a7a4a92-a2a0-41d1-9fd7-1e92480d612d}")
         (allow   "wayback-machine_new"            "wayback_machine@mozilla.org")
         (allow   "proton-vpn-firefox-extension"   "vpn@proton.ch")
         (allow   "darkreader"                     "addon@darkreader.org")
@@ -276,6 +284,12 @@
       ];
 
       "3rdparty".Extensions = {
+        "{7a7a4a92-a2a0-41d1-9fd7-1e92480d612d}".styles = [
+          {
+            code = self.data.read "programs/librewolf/stylus/opentogethertube.user.css";
+          }
+        ];
+
         "uBlock0@raymondhill.net".adminSettings = let
           readFileEscaped = path: let
               escapes = [ "\n"  "\t"  "\v"  "\\"   ];

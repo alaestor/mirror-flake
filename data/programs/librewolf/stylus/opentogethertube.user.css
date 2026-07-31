@@ -1,0 +1,21 @@
+/* ==UserStyle==
+@name         OpenTogetherTube player layout
+@namespace    alaestor
+@version      1.0.0
+@description  Remove chat and let the player use the released space.
+==/UserStyle== */
+
+@-moz-document domain("opentogethertube.com") {
+  /* Remove chat */
+  .grid.grid-cols-\[1fr_auto\] > div.pointer-events-none:nth-child(2) {
+    display: none !important;
+  }
+
+  /* Let the player take the released space */
+  .grid.grid-cols-\[1fr_auto\] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(500px, 85vh) !important;
+    /* max-width: 1600px; */
+    margin-inline: auto;
+  }
+}
