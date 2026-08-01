@@ -39,11 +39,6 @@
               stateVersion = "23.11";
               packages = with pkgs; [
                 (bottles.override { removeWarningPopup = true; })
-                cosmic-files
-                aspell
-                aspellDicts.en
-                aspellDicts.en-computers
-                aspellDicts.en-science
                 veracrypt
                 keepassxc
                 btop-rocm
@@ -52,7 +47,7 @@
                 tauon
                 colordiff
                 podman-compose
-                podman-tui
+                #podman-tui
                 mediainfo
                 protonmail-desktop
                 libreoffice-qt6-fresh
@@ -60,9 +55,6 @@
                 discord
                 webcord
                 element-desktop
-                diceware
-                age
-                age-plugin-yubikey
                 jellyfin-desktop
                 ffmpeg-hdr
               ];
@@ -391,7 +383,6 @@
               enable = true;
               enableNotifications = true;
             };
-            pcscd.enable = true;
             ratbagd = {
               enable = true;
               package = pkgs.libratbag;

@@ -6,6 +6,7 @@
     environment.systemPackages = with pkgs; [
       pcsc-tools
       yubikey-manager
+      age-plugin-yubikey
     ];
     hardware.gpgSmartcards.enable = true;
     services.pcscd.enable = true;
@@ -21,6 +22,7 @@
     environment.systemPackages = with pkgs; [
       pinentry-tty
       gnupg
+      age
     ];
   };
   flake.modules.nixos.crypto = {config, pkgs, ... } : {
