@@ -1,6 +1,7 @@
 {
   inputs,
   lib,
+  self,
   ...
 }:
 {
@@ -247,24 +248,19 @@
             SECRETS_DIR="$FLAKE_ROOT/secrets/hosts/$HOST"
             AGE_FILE="$SECRETS_DIR/initrd-hostkey.age"
             AGE_IDENTITY_FILE="$FLAKE_ROOT/secrets/age_sk.txt"
-            RECIPIENT_FILE="$FLAKE_ROOT/data/identities/cryptidprotocol_age"
             STAGING_KEYPATH="''${STAGING_DIR}${system-config.ssh-host.initrd.hostKeyPath}"
             install -d -m755 "$(dirname "''${STAGING_KEYPATH}")"
 
             # Create and retain a stable initrd host key. The first installation
             # stages the generated key directly, avoiding a second deploy.
             if [ ! -f "$AGE_FILE" ]; then
-              if [ ! -f "$RECIPIENT_FILE" ]; then
-                echo "ERROR: age recipient file not found: $RECIPIENT_FILE" >&2
-                exit 1
-              fi
-
               echo "No initrd-hostkey.age for $HOST, generating and encrypting..."
               install -d -m700 "$SECRETS_DIR"
               KEY_GENERATION_DIR=$(mktemp -d)
               GENERATED_KEY="$KEY_GENERATION_DIR/initrd-hostkey"
               ssh-keygen -q -t ed25519 -N "" -C "''${HOST}_initrd" -f "$GENERATED_KEY"
-              age -R "$RECIPIENT_FILE" -o "$AGE_FILE.tmp" "$GENERATED_KEY"
+              age ${lib.concatMapStringsSep " " (recipient: "-r ${lib.escapeShellArg recipient}") self.data.vars.administrativeAgeRecipients} \
+                -o "$AGE_FILE.tmp" "$GENERATED_KEY"
               mv "$AGE_FILE.tmp" "$AGE_FILE"
               mv "$GENERATED_KEY.pub" "$SECRETS_DIR/initrd-hostkey.pub"
               install -m600 "$GENERATED_KEY" "$STAGING_KEYPATH"
@@ -277,7 +273,7 @@
             else
               if [ ! -r "$AGE_IDENTITY_FILE" ]; then
                 echo "ERROR: age identity file not found or unreadable: $AGE_IDENTITY_FILE" >&2
-                echo "An identity matching a recipient in $RECIPIENT_FILE is required to decrypt $AGE_FILE." >&2
+                echo "An administrative age identity is required to decrypt $AGE_FILE." >&2
                 exit 1
               fi
 

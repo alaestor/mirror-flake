@@ -33,9 +33,21 @@ in
       Common representations of frequently used data files
     */
     vars = rec {
-      cryptidProtocolSshAuthorizedKeys = readNonEmptyLines "identities/cryptidprotocol_ssh";
-      noblesseSshAuthorizedKeys = readNonEmptyLines "identities/id_ed25519_noblesse.pub";
-      sshAuthorizedKeys = cryptidProtocolSshAuthorizedKeys ++ noblesseSshAuthorizedKeys;
+      identities = import (path "identities");
+
+      identityLines = value:
+        lib.filter
+          (line: line != "" && !(lib.hasPrefix "#" line))
+          (lib.splitString "\n" value);
+
+      administrativeAgeRecipients =
+        lib.concatMap identityLines identities.administrative.age-keys;
+
+      sshAuthorizedKeys = lib.concatMap identityLines (
+        identities.administrative.ssh-keys
+        ++ builtins.attrValues identities.host
+      );
+
       textart.boykisser = path "textart/boykisser.txt";
     };
   };

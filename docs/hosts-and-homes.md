@@ -548,8 +548,9 @@ encrypts the generated key to the public recipients in
 `data/identities/cryptidprotocol_age`.
 Later deployments decrypt that file with `secrets/age_sk.txt`; a hardware-backed
 identity stub requires its corresponding YubiKey and `age-plugin-yubikey` is
-included in the deployer's runtime dependencies. Public recipients can encrypt
-new material, but cannot decrypt existing material.
+included in the deployer's runtime dependencies. Administrative age recipients
+come from `self.data.vars.identities.administrative.age`; public recipients can
+encrypt new material, but cannot decrypt existing material.
 
 A capability controls an auxiliary flake output. An environment `mode`, by
 contrast, controls how user configuration is activated; it is deliberately not

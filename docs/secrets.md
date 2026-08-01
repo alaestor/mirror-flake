@@ -42,23 +42,10 @@ records as one coordinated change.
 
 ## Recipient policy
 
-Every ordinary secret must be encrypted to:
-
-- all hosts that consume it;
-- the primary administrative YubiKey recipient; and
-- at least one recovery administrative recipient.
-
-For example, a secret used only by `armatus` has the conceptual recipient set:
-
-```text
-administrators + hosts.armatus
-```
-
-A secret shared by several hosts includes each of those hosts:
-
-```text
-administrators + hosts.armatus + hosts.example
-```
+Every ordinary secret must be encrypted to all hosts that consume it, plus the
+administrative age recipients exposed by
+`self.data.vars.identities.administrative.age`. Host private-key backups are a
+bootstrap exception.
 
 Host private-key backups are a bootstrap exception. Encrypting a private host
 key to its own public key does not provide recovery when that private key is
