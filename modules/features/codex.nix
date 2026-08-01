@@ -69,16 +69,7 @@
         - `rtk proxy <cmd>` runs a command without filtering but tracks usage
       '';
 
-      # Headroom uses this same uvx-based mechanism internally. Serena is not
-      # included in the Headroom package, so first use requires network access.
-      serena = pkgs.writeShellApplication {
-        name = "serena";
-        text = ''
-          exec ${lib.getExe pkgs.uv} tool run \
-            --from git+https://github.com/oraios/serena \
-            serena "$@"
-        '';
-      };
+      serena = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
 
       proxyUrl = "http://${proxy.address}:${toString proxy.port}/v1";
       baseOverrides = [

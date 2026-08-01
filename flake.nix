@@ -4,11 +4,12 @@
   outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
 
   inputs = {
-    agenix.url = "github:ryantm/agenix";
-    agenix-rekey.url = "github:oddlama/agenix-rekey";
     alpkgs = {
       url = "git+https://codeberg.org/alaestor/pkgs.git";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        flake-file.follows = "flake-file";
+        nixpkgs.follows = "nixpkgs";
+      };
     };
     android-home-manager = {
       url = "github:nix-community/home-manager/release-24.05";
