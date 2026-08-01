@@ -42,11 +42,11 @@
         "serena": "serena"
       },
       "locked": {
-        "lastModified": 1785555641,
-        "narHash": "sha256-Ndj+DJIPBDk/7eZ2URWliCBMN5o9eJ/ngiBT2U3J0Zo=",
+        "lastModified": 1785557329,
+        "narHash": "sha256-i3uF8OAivthhvL4/0kz4A15k0iSCfz6DGdv0RuohK6g=",
         "ref": "refs/heads/main",
-        "rev": "af02d225c33ad75fafa4a5cac1b25c65d0237cac",
-        "revCount": 21,
+        "rev": "b01028dff4bdc9eb1e58095825e49f2959998cc3",
+        "revCount": 22,
         "type": "git",
         "url": "https://codeberg.org/alaestor/pkgs.git"
       },
