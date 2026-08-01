@@ -1,7 +1,7 @@
 { inputs, self, ... }:
 {
   flake.modules.homeManager.standard-terminal =
-    { lib, pkgs, ... }:
+    { config, lib, pkgs, ... }:
     let
       customLogoPath = self.data.vars.textart.boykisser;
       fastfetchUwuSettingsPath = pkgs.writeText "fastfetch-uwu.json" (
@@ -17,7 +17,10 @@
       ];
 
       programs = {
-        ghostty.settings.command = lib.mkDefault "nu";
+        ghostty.settings = {
+          command = lib.mkDefault "nu";
+          working-directory = lib.mkDefault config.home.homeDirectory;
+        };
 
         fastfetch = {
           enable = lib.mkDefault true;
