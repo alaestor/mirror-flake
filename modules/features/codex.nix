@@ -174,12 +174,31 @@
         normalizeSettingsValue (builtins.fromTOML (self.data.read "programs/codex/config.toml"))
       ) [ "model_instructions_file" ];
       defaultSettings = lib.mapAttrsRecursive (_: lib.mkDefault) referenceSettings;
+      skillsRoot = self.data.path "agents/skills";
+      collectSkills =
+        relativeDirectory:
+        let
+          directory = "${skillsRoot}${lib.optionalString (relativeDirectory != "") "/${relativeDirectory}"}";
+        in
+        lib.concatMapAttrs (
+          entryName: entryType:
+          let
+            relativePath =
+              if relativeDirectory == "" then entryName else "${relativeDirectory}/${entryName}";
+            entryPath = "${skillsRoot}/${relativePath}";
+          in
+          if entryType != "directory" then
+            { }
+          else if builtins.pathExists "${entryPath}/SKILL.md" then
+            {
+              ${builtins.replaceStrings [ "/" ] [ "-" ] relativePath} = entryPath;
+            }
+          else
+            collectSkills relativePath
+        ) (builtins.readDir directory);
     in
     {
-      imports = with inputs.self.modules.homeManager; [
-        dot-agents
-        headroom
-      ];
+      imports = [ inputs.self.modules.homeManager.headroom ];
 
       # Quick references retained from the old README:
       # - `codex features list` shows current feature flags.
@@ -204,8 +223,9 @@
 
         programs.codex = {
           enable = lib.mkDefault true;
-          context = self.data.path "agents/AGENTS.md";
+          context = self.data.read "agents/AGENTS.md";
           rules.default = self.data.path "programs/codex/default.rules";
+          skills = collectSkills "";
           settings = lib.mkMerge [
             defaultSettings
             (lib.optionalAttrs (cfg.modelInstructionsFile != null) {
