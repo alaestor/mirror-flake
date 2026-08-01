@@ -61,7 +61,7 @@
 
         ## RTK Rules
 
-        Rust Token Killer reduces CLI context usage. If rtk has no filter for a command, it passes through unchanged — so it is always safe to use.
+        Rust Token Killer reduces CLI context usage. It's always safe to use: if rtk has no filter for a command, it passes through unchanged.
 
         - When running shell commands, **always prefix with `rtk`**
         - In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
@@ -98,7 +98,12 @@
           "False"
         ]}"
       ];
-      mkOverrideArgs = values: lib.concatMapStringsSep "\n" (value: "codex_args+=( -c ${lib.escapeShellArg value} )") values;
+      mkOverrideArgs =
+        values:
+        lib.concatMapStringsSep "\n" (value: ''
+          # shellcheck disable=SC2016 # Config values are intentionally literal.
+          codex_args+=( -c ${lib.escapeShellArg value} )
+        '') values;
 
       mkCodexWrapper =
         name: withSerena:
