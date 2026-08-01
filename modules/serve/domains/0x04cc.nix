@@ -4,11 +4,39 @@
 { inputs, ... }:
 {
   flake.modules.nixos.domain-0x04cc =
-    { config, ... }:
+    { config, lib, options, ... }:
     let
       domain = "0x04.cc";
       matrixDomain = "matrix.${domain}";
       matrix = config.serve.matrix;
+      hasHeadscale = lib.hasAttrByPath [ "serve" "headscale" "enable" ] options;
+      headscaleEnabled = hasHeadscale && config.serve.headscale.enable;
+      headscale = config.services.headscale;
+      headplane = config.services.headplane;
+      adminAllowedCIDRs = config.serve.headscale.adminAllowedCIDRs;
+      adminRoute =
+        if adminAllowedCIDRs == [ ] then
+          ''
+            @headplane-admin path /admin*
+            handle @headplane-admin {
+              respond "Headplane is not published" 403
+            }
+          ''
+        else
+          ''
+            @headplane-admin-private {
+              path /admin*
+              remote_ip ${lib.concatStringsSep " " adminAllowedCIDRs}
+            }
+            handle @headplane-admin-private {
+              reverse_proxy ${headplane.settings.server.host}:${toString headplane.settings.server.port}
+            }
+
+            @headplane-admin path /admin*
+            handle @headplane-admin {
+              respond "Forbidden" 403
+            }
+          '';
     in
     {
       imports = with inputs.self.modules.nixos; [
@@ -88,6 +116,15 @@
             root * ${config.serve.cinny.package}
             try_files {path} /index.html
             file_server
+          }
+        '';
+      }
+      // lib.optionalAttrs headscaleEnabled {
+        "headscale.${domain}".extraConfig = ''
+          ${adminRoute}
+
+          handle {
+            reverse_proxy ${headscale.address}:${toString headscale.port}
           }
         '';
       };
