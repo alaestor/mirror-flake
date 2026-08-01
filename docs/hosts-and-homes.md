@@ -267,7 +267,9 @@ Feature modules compose those program modules:
 | `standard-terminal` | Ghostty, Nushell, and the standard interactive terminal tools. |
 | `ssh-client` | SSH client defaults, identity selection, and related shell helpers. |
 | `pgp` | GPG, agent configuration, and optional Git signing. |
-| `ai-coding` | Zed with LM Studio, Codex, and AI-oriented editor settings. |
+| `headroom` | On-demand Headroom user proxy service. |
+| `codex` | Codex configuration, shared agent files, and Headroom-backed `cx`/`cxs` launchers. |
+| `ai-coding` | Zed with LM Studio, the Codex feature, and AI-oriented editor settings. |
 | `coding` | PGP, Git, and AI coding. |
 
 The `workstation` profile currently imports `standard-terminal`, `ssh-client`,

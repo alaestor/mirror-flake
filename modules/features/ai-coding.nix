@@ -99,11 +99,13 @@
       favoriteModels = flattenLists favorites;
     in
     {
-      imports = [ inputs.self.modules.homeManager.zed ];
+      imports = with inputs.self.modules.homeManager; [
+        codex
+        zed
+      ];
 
       home.packages = [
         pkgs.lmstudio
-        pkgs.codex
       ];
 
       programs.zed-editor.userSettings = {

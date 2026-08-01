@@ -1,0 +1,121 @@
+model = "gpt-5.6-sol"
+model_reasoning_effort = "low"
+approvals_reviewer = "auto_review"
+
+model_instructions_file = "/home/user/.agents/codex/codex-instructions-gpt-5-medium.md"
+
+include_apps_instructions = false
+include_collaboration_mode_instructions = false
+include_environment_context = false
+
+[features]
+shell_tool = true
+unified_exec = true
+shell_snapshot = true
+code_mode_host = true
+hooks = false
+enable_request_compression = false
+multi_agent = false
+multi_agent_v2 = false
+apps = false
+tool_suggest = true
+plugins = false
+in_app_browser = false
+browser_use = false
+browser_use_full_cdp_access = false
+browser_use_external = false
+computer_use = false
+remote_plugin = false
+plugin_sharing = false
+image_generation = false
+skill_mcp_dependency_install = false
+skill_search = false
+mentions_v2 = true
+guardian_approval = true
+goals = true
+tool_call_mcp_elicitation = true
+auth_elicitation = true
+personality = false
+fast_mode = false
+remote_compaction_v2 = false
+workspace_dependencies = false
+
+[projects."/home/user/Projects"]
+trust_level = "trusted"
+
+[projects."/home/user"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/alaestor-codeberg"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/alaestor-codeberg/flake-sha1"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/alaestor-codeberg/alce"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/alaestor-codeberg/fnlua"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/alaestor-github/protonhax"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/alaestor-codeberg/pkgs"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/alaestor-codeberg/protonhax-nix"]
+trust_level = "trusted"
+
+[projects."/home/user/.agents"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/alaestor-codeberg/flake"]
+trust_level = "trusted"
+
+[projects."/mnt/Cauldron/.bottles/Gaming/drive_c/ce/7_7"]
+trust_level = "trusted"
+
+[projects."/home/user/Projects/vocalinux"]
+trust_level = "trusted"
+
+[projects."/mnt/Vault/.dotfiles/flake"]
+trust_level = "trusted"
+
+[projects."/home/user/.codex"]
+trust_level = "trusted"
+
+[tui]
+status_line = ["model-with-reasoning", "context-used", "weekly-limit", "thread-title"]
+status_line_use_colors = true
+
+[tui.model_availability_nux]
+"gpt-5.6-sol" = 4
+
+[[skills.config]]
+path = "/home/user/.agents/skills/speaking/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/home/user/.agents/skills/subagents/local-sequential/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/home/user/.agents/skills/subagents/manual/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/home/user/.codex/skills/.system/imagegen/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/home/user/.codex/skills/.system/openai-docs/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/home/user/.codex/skills/.system/plugin-creator/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/home/user/.codex/skills/.system/skill-installer/SKILL.md"
+enabled = false
