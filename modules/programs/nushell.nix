@@ -31,7 +31,9 @@
             (self.data.read "programs/nushell/flake-helpers.nu");
     in
     {
-      home.packages = [ pkgs.aspell ];
+      home.packages = with pkgs; [
+        (aspellWithDicts (d: [d.en d.en-computers d.en-science]))
+      ];
 
       programs.nushell = {
         enable = lib.mkDefault true;
