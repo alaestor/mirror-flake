@@ -10,6 +10,8 @@
     in
     {
       options.serve.filebrowser = {
+        enable = lib.mkEnableOption "the local Filebrowser media service";
+
         root = lib.mkOption {
           type = lib.types.str;
           default =
@@ -38,10 +40,12 @@
         };
       };
 
-      config.services.filebrowser = {
-        enable = true;
-        settings = {
-          inherit (cfg) address port root;
+      config = lib.mkIf cfg.enable {
+        services.filebrowser = {
+          enable = true;
+          settings = {
+            inherit (cfg) address port root;
+          };
         };
       };
     };

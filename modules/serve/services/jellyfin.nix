@@ -58,6 +58,8 @@ in
     in
     {
       options.serve.jellyfin = {
+        enable = lib.mkEnableOption "the local Jellyfin media service";
+
         user = lib.mkOption {
           type = lib.types.nonEmptyStr;
           default = if config ? hostIdentity then config.hostIdentity.primaryUser else "jellyfin";
@@ -99,7 +101,7 @@ in
         };
       };
 
-      config = {
+      config = lib.mkIf cfg.enable {
         environment.systemPackages =
           (with pkgs; [
             jellyfin

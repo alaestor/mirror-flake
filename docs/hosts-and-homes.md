@@ -627,27 +627,18 @@ same effective environment.
 
 ## Server and domain modules
 
-Server applications live under `modules/serve/services/`, separately from
-interactive host features. These modules configure local daemons or artifacts
-and expose reusable options under `serve.<service>`. They do not own public
-hostnames, TLS policy, reverse-proxy routes, or public firewall exposure.
+Hosted-service modules and public domain compositions are described in
+`docs/serve.md`. In brief, `serve-*` modules configure local services or served
+artifacts, while `domain-*` modules import curated service sets and own their
+Caddy and firewall exposure. Both layers are disabled by default: a host must
+explicitly set the relevant `serve.<service>.enable` options. Shared
+`serve-caddy` infrastructure is imported once by the host and must also be
+enabled before Caddy publishes those routes.
 
-Public ingress compositions live under `modules/serve/domains/`. A domain module
-imports the services it exposes and owns their Caddy virtual hosts,
-authentication, TLS behavior, and public ports. Lanser imports `domain-0x04cc`
-for its static site, Matrix, and Cinny, and `domain-remotehost` for Filebrowser
-and Jellyfin.
-
-Private services that do not belong to a public domain are imported directly by
-the host. Lanser therefore imports `serve-torrenting` separately; its
-qBittorrent ports remain confined to its VPN namespace and private network
-policy.
-
-Static service configuration belongs under `data/serve/` and is accessed
-through `self.data`, as with Cinny's homeserver policy. Concrete addresses,
-mount points, hardware, and host-specific refinements remain in
-`modules/host/lanser.nix`. General machine policy such as `server-hardening`
-remains a regular host feature.
+Lanser is currently the only server host. It imports `domain-0x04cc` and
+`domain-remotehost`, then enables their selected services. It imports the
+private `serve-torrenting` service directly because the host, rather than a
+public domain, owns that service's network exposure.
 
 The Jellyfin service also installs `jellybuilder`, which projects the NAS media
 tree into a Jellyfin-friendly alias library. Its source defaults to

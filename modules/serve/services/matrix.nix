@@ -9,6 +9,8 @@
     in
     {
       options.serve.matrix = {
+        enable = lib.mkEnableOption "the local Tuwunel Matrix service";
+
         serverName = lib.mkOption {
           type = lib.types.nonEmptyStr;
           description = "Matrix server name.";
@@ -33,18 +35,20 @@
         };
       };
 
-      config.services.matrix-tuwunel = {
-        enable = true;
-        settings.global = {
-          server_name = cfg.serverName;
-          address = [ cfg.address ];
-          port = [ cfg.port ];
-          allow_registration = false;
-          allow_federation = true;
-          allow_encryption = true;
-          federate_admin_room = false;
-          delete_rooms_after_leave = true;
-          max_request_size = cfg.maxRequestSize;
+      config = lib.mkIf cfg.enable {
+        services.matrix-tuwunel = {
+          enable = true;
+          settings.global = {
+            server_name = cfg.serverName;
+            address = [ cfg.address ];
+            port = [ cfg.port ];
+            allow_registration = false;
+            allow_federation = true;
+            allow_encryption = true;
+            federate_admin_room = false;
+            delete_rooms_after_leave = true;
+            max_request_size = cfg.maxRequestSize;
+          };
         };
       };
     };

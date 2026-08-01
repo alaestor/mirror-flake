@@ -4,17 +4,6 @@ This is a personal NixOS flake built from dendritic modules. Keep changes small,
 preserve unrelated worktree state, and validate only the outputs a change can
 affect.
 
-Before broad edits, inspect the worktree without exposing secrets:
-
-```sh
-git status --short -- . ':(exclude)secrets/**'
-```
-
-Never inspect, print, modify, stage, or commit `secrets/` unless the task is
-explicitly about secrets. Do not commit or create branches unless requested, and
-never reset, restore, or rewrite the user's changes. Never copy credentials into
-flake source, data files, logs, or documentation.
-
 ## Repository model
 
 [flake-parts](https://flake.parts/) composes the outputs,
@@ -31,6 +20,8 @@ put non-module Nix data outside the module tree, normally under `data/`.
 | `modules/host-plumbing/` | Host registry, identities, and Home Manager attachment machinery. |
 | `modules/host/` | Concrete host declarations and host-only refinements. |
 | `modules/features/` | Reusable capabilities and compositions. |
+| `modules/serve/services/` | Disabled-by-default hosted-service features exported as `serve-*`. |
+| `modules/serve/domains/` | Disabled-by-default public ingress compositions exported as `domain-*`. |
 | `modules/de/` | Desktop features; `kde.nix` is the dual NixOS/Home Manager reference. |
 | `modules/programs/` | Opinionated, reusable Home Manager program modules. |
 | `modules/profiles/` | Reusable user-environment roles, such as `workstation`. |
@@ -39,6 +30,7 @@ put non-module Nix data outside the module tree, normally under `data/`.
 | `modules/utils/` | Shared flake library and maintenance apps. |
 | `data/` | Non-module state consumed by Nix: JSON, scripts, text, and value-only Nix files. |
 | `docs/hosts-and-homes.md` | Detailed host and Home Manager architecture. |
+| `docs/serve.md` | Hosted-service and public-domain composition architecture. |
 
 Read `docs/hosts-and-homes.md` before changing host registration, identities,
 Home Manager modes, profiles/preferences, or feature contribution plumbing, and
@@ -73,6 +65,22 @@ Use `lib.mkDefault` for policy intended to be refined. Preferences and
 host-specific refinements usually use ordinary definitions. Module order is not
 “last definition wins”; use priorities, `lib.mkBefore`, and `lib.mkAfter`.
 Reserve `lib.mkForce` for deliberate conflict resolution.
+
+### Hosted services and domains
+
+Read `docs/serve.md` before changing `modules/serve/` or a host's serve/domain
+composition. Service modules behave like opinionated NixOS features, but export
+as `flake.modules.nixos.serve-<name>` and must expose
+`serve.<name>.enable = lib.mkEnableOption ...`; importing one must not activate
+it. Domain modules export as `flake.modules.nixos.domain-<name>`, import their
+curated service set, and add reverse-proxy routes and public firewall openings
+only for explicitly enabled services. Shared proxy infrastructure such as
+`serve-caddy` is imported once by the host. A host may instead import a service
+directly, in which case the host owns any ingress policy.
+
+Lanser is currently the only server host and the only consumer of serve/domain
+modules. Keep concrete addresses, storage paths, and host-specific refinements
+there rather than embedding them in reusable service modules.
 
 ### External data
 

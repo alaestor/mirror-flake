@@ -17,6 +17,8 @@
       imports = [ inputs.vpn-confinement.nixosModules.default ];
 
       options.serve.torrenting = {
+        enable = lib.mkEnableOption "qBittorrent in a confined WireGuard namespace";
+
         namespace = lib.mkOption {
           type = lib.types.nonEmptyStr;
           default = "wgp2p";
@@ -58,7 +60,7 @@
         };
       };
 
-      config = {
+      config = lib.mkIf cfg.enable {
         vpnNamespaces.${cfg.namespace} = {
           enable = true;
           inherit (cfg) wireguardConfigFile accessibleFrom;

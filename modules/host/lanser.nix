@@ -9,7 +9,6 @@
       nas
       ssh-host
       server-hardening
-      headscale
       serve-caddy
       domain-0x04cc
       domain-remotehost
@@ -159,12 +158,24 @@
             pocket.enable = true;
           };
 
-          serve.headscale = {
-            enable = true;
-            adminAllowedCIDRs = [
-              "192.168.2.0/23"
-              "100.64.0.0/10"
-            ];
+          serve = {
+            caddy = {
+              enable = true;
+              bindAddress = "172.16.0.4";
+            };
+            cinny.enable = true;
+            filebrowser.enable = true;
+            headscale = {
+              enable = true;
+              adminAllowedCIDRs = [
+                "192.168.2.0/23"
+                "100.64.0.0/10"
+              ];
+            };
+            jellyfin.enable = true;
+            matrix.enable = true;
+            static-site.enable = true;
+            torrenting.enable = true;
           };
 
           services = {
@@ -187,8 +198,6 @@
               headscale.public_url = "https://headscale.0x04.cc";
             };
           };
-
-          serve.caddy.bindAddress = "172.16.0.4";
         }
       )
     ];

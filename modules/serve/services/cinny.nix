@@ -10,6 +10,8 @@
     in
     {
       options.serve.cinny = {
+        enable = lib.mkEnableOption "the configured Cinny web client artifact";
+
         homeserver = lib.mkOption {
           type = lib.types.nonEmptyStr;
           description = "Homeserver exposed by the customized Cinny build.";
@@ -22,14 +24,16 @@
         };
       };
 
-      config.serve.cinny.package = pkgs.cinny.overrideAttrs (_: {
-        installPhase = ''
-          runHook preInstall
-          cp -r dist $out
-          substitute ${self.data.path "serve/cinny/config.json"} $out/config.json \
-            --replace-fail '@HOMESERVER@' '${cfg.homeserver}'
-          runHook postInstall
-        '';
-      });
+      config = lib.mkIf cfg.enable {
+        serve.cinny.package = pkgs.cinny.overrideAttrs (_: {
+          installPhase = ''
+            runHook preInstall
+            cp -r dist $out
+            substitute ${self.data.path "serve/cinny/config.json"} $out/config.json \
+              --replace-fail '@HOMESERVER@' '${cfg.homeserver}'
+            runHook postInstall
+          '';
+        });
+      };
     };
 }
