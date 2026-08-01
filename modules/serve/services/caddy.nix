@@ -29,7 +29,7 @@
           enable = true;
           package = pkgs.caddy.withPlugins {
             plugins = [ "github.com/sjtug/cerberus@v0.4.6" ];
-            hash = "sha256-oJx73RYexiAyDwP4Xub4vsTMI2cf+sYR6dCKdFa1L7I=";
+            hash = "sha256-l5qBSMBn7SQKv0N+KrT2vnTejSgOwY2HsrX6v4jKcm4=";
           };
           dataDir = "/var/lib/caddy";
           globalConfig = ''
