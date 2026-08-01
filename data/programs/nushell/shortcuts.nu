@@ -1,4 +1,6 @@
 $env.CURRENT_FLAKE = "@CURRENT_FLAKE@"
+$env.STABLE_NIXPKGS = "@STABLE_NIXPKGS@"
+$env.UNSTABLE_NIXPKGS = "@UNSTABLE_NIXPKGS@"
 
 # List removable block devices.
 def lsblkrm [] {
@@ -58,9 +60,20 @@ def spell-check [...words: string --limit: int = 5] {
 #  ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" ...$args
 #}
 
-# Run a package exposed by this flake.
+# Resolve s.<package> and u.<package> against this flake's pinned Nixpkgs inputs.
+def nix-installable [package: string] {
+  if ($package | str starts-with "s.") {
+    $"($env.STABLE_NIXPKGS)#($package | str substring 2..)"
+  } else if ($package | str starts-with "u.") {
+    $"($env.UNSTABLE_NIXPKGS)#($package | str substring 2..)"
+  } else {
+    $"($env.CURRENT_FLAKE)#($package)"
+  }
+}
+
+# Run a package from stable Nixpkgs, unstable Nixpkgs, or this flake.
 def nr [package: string, ...args: string] {
-  let installable = $"($env.CURRENT_FLAKE)#($package)"
+  let installable = nix-installable $package
   if ($args | is-empty) {
     nix run $installable
   } else {
@@ -68,8 +81,8 @@ def nr [package: string, ...args: string] {
   }
 }
 
-# Open a shell containing packages exposed by this flake.
+# Open a shell containing packages from stable/unstable Nixpkgs or this flake.
 def ns [...packages: string] {
-  let installables = $packages | each { |package| $"($env.CURRENT_FLAKE)#($package)" }
+  let installables = $packages | each { |package| nix-installable $package }
   nix shell ...$installables
 }
