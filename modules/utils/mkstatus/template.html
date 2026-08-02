@@ -25,6 +25,7 @@
     .marker { font-weight: 800; letter-spacing: .04em; }
     .TODO { color: #f5b942; }
     .WARN { color: #ff6b7a; }
+    .NOTE { color: #75bfff; }
     a { color: #75bfff; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .links { overflow-wrap: anywhere; }
@@ -46,7 +47,7 @@
     <div><h1>Repository status</h1><p id="subtitle"></p></div>
     <div class="controls">
       <label>Group by<select id="group"><option value="scope">Scope</option><option value="directory">Directory</option></select></label>
-      <label>Marker<select id="marker"><option value="">All</option><option>TODO</option><option>WARN</option></select></label>
+      <label>Marker<select id="marker"><option value="">All</option><option>TODO</option><option>WARN</option><option>NOTE</option></select></label>
       <label>Scope<select id="scope"><option value="">All</option></select></label>
       <label>Links<select id="links"><option value="remote">Remote</option><option value="local">Local</option></select></label>
       <label>Revision<span class="revision-control"><button id="reset-revision" type="button" title="Reset revision" aria-label="Reset revision">↺</button><a id="revision-link" target="_blank" rel="noopener noreferrer"></a><input id="revision" type="text" spellcheck="false" hidden><button id="edit-revision" type="button" title="Edit revision" aria-label="Edit revision">✎</button></span></label>
@@ -119,6 +120,7 @@
       document.getElementById('summary').innerHTML = card('Total', items.length)
         + card('TODO', items.filter(item => item.marker === 'TODO').length)
         + card('Warnings', items.filter(item => item.marker === 'WARN').length)
+        + card('Notes', items.filter(item => item.marker === 'NOTE').length)
         + card('Scopes', new Set(items.map(item => item.scope)).size);
 
       const groups = new Map();
