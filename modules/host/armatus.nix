@@ -58,7 +58,7 @@
             pocket.enable = true;
             };*/
 
-          # TODO consider systemd-boot.enable = true;efi.canTouchEfiVariables = true;
+          # TODO(armatus): consider systemd-boot.enable = true;efi.canTouchEfiVariables = true;
           boot = {
             supportedFilesystems.btrfs = true;
             kernelModules = [ "kvm-intel" ];

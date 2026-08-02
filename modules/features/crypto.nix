@@ -1,5 +1,6 @@
 { inputs, ... } :
 {
+  # TODO: yubikey tooling should be its own module
 
   # Yubikey tooling
   flake.modules.nixos.crypto-yubikey-cli = { pkgs, ... } : {

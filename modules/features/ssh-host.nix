@@ -2,11 +2,13 @@
   module-name = "ssh-host";
 
   # maybe these should be from some "paths" options...
+  # TODO(secrets): ssh-host legacy pathing
   secrets-path = "/etc/secrets";
   secrets-path-initrd = "${secrets-path}/initrd";
 
 in
 {
+  # TODO(droid): ssh-host for droid?
 
   /**
     Automates some opinionated configuration for providing remote ssh access. If more granular control is desired, you should avoid using this.

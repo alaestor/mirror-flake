@@ -188,16 +188,16 @@
             serve = {
               caddy = {
                 enable = true;
-                bindAddress = "172.16.0.4";
+                bindAddress = "172.16.0.4"; # TODO: should host identity contain static/reserved ip?
               };
               cinny.enable = true;
               filebrowser.enable = true;
               headscale = {
                 enable = true;
-                adminAllowedCIDRs = [
+                adminAllowedCIDRs = [ # TODO(global): somewhere to define LAN?
                   "172.16.0.0/24"
                 ];
-                cookieSecretFile =
+                cookieSecretFile = # TODO(secrets): deprecate fallback cookie-secret
                   if secretAvailable "headplane_cookie-secret.age" then
                     config.age.secrets.lanser-headplane-cookie-secret.path
                   else
@@ -208,7 +208,7 @@
               static-site.enable = true;
               torrenting = {
                 enable = true;
-                wireguardConfigFile =
+                wireguardConfigFile = # TODO(secrets): deprecate fallback vpn_P2PUSCA560.conf
                   if secretAvailable "vpn_P2PUSCA560.conf.age" then
                     config.age.secrets.lanser-torrenting-wireguard-config.path
                   else
@@ -217,7 +217,7 @@
             };
 
             services = {
-              headscale.settings = {
+              headscale.settings = { # TODO(domains): delegate headscale subdomain config to domain
                 server_url = "https://headscale.0x04.cc";
                 dns = {
                   magic_dns = true;

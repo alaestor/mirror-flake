@@ -1,5 +1,6 @@
 { inputs, ... }:
 {
+  # TODO(apc): debloat / simplify config.
   host.apc = rec {
     description = "APC desktop workstation.";
     primaryUser = "user";
@@ -363,9 +364,10 @@
               gpgSmartcards.enable = true;
             };
 
+            # TODO(apc): yeet nix.settings (is @wheel even needed?)
             nix.settings = {
               auto-optimise-store = true;
-              download-buffer-size = 524288000 * 2;
+              download-buffer-size = 524288000 * 2; # TODO(global): download-buffer-size
               experimental-features = [
                 "nix-command"
                 "flakes"
@@ -382,13 +384,13 @@
                 enp42s0 = { };
               };
               defaultGateway = {
-                address = "172.16.0.1";
+                address = "172.16.0.1"; # TODO(lan): state: gateway
                 interface = "enp34s0";
               };
               wg-quick.interfaces.wg0 = {
                 table = "100";
                 address = [ "10.2.0.2/32" ];
-                privateKeyFile =
+                privateKeyFile = # TODO(secrets): deprecate fallback vpn_APC-GT-18_key
                   if secretAvailable "vpn_APC-GT-18_key.age" then
                     config.age.secrets.apc-wireguard-private-key.path
                   else
@@ -413,10 +415,11 @@
                   }
                 ];
               };
-              hosts = {
+              hosts = { # TODO(apc):  del dumb fake dns
                 "172.16.0.1" = [ "router.lan" ];
                 "192.168.1.200" = [ "NAS" ];
               };
+              # TODO(apc): make a gaming featureset and move this into a steam module
               extraHosts = "0.0.0.0 crash.steampowered.com";
               firewall = {
                 enable = lib.mkForce true;
@@ -430,7 +433,7 @@
             };
 
             nas = {
-              server = "172.16.0.2";
+              server = "172.16.0.2"; # TODO(lan): nas ip
               cauldron.enable = true;
               vault.enable = true;
               pocket.enable = true;
@@ -478,10 +481,12 @@
             };
 
             systemd = {
-              oomd.enable = false;
+              oomd.enable = false; # TODO: oomd + earlyoomkiller module (or just global?)
+              # TODO(apc): legacy rocm hip rule; still needed?
               tmpfiles.rules = [
                 "L+    /opt/rocm/hip   -    -    -     -    ${pkgs.rocmPackages.clr}"
               ];
+               # TODO(apc): make a gaming featureset and move this into a steam module
               user.services.preventSteamDumps = {
                 description = "Symlink Steam crash reports to /dev/null";
                 script = "ln -s /dev/null /tmp/dumps";

@@ -50,7 +50,7 @@
       options.nas = {
         server = lib.mkOption {
           type = lib.types.nonEmptyStr;
-          default = "172.16.0.2";
+          default = "172.16.0.2"; # TODO(lan): nas ip
           description = "Hostname or address of the NAS server.";
         };
 

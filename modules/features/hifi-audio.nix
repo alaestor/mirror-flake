@@ -13,6 +13,7 @@
         support32Bit = true;
       };
       pulse.enable = true;
+      # TODO: there used to be a significantly more elaborate configuration for low latency audio; maybe its own module?
     };
   };
 }

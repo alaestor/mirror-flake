@@ -2,6 +2,7 @@
   Baseline kernel and service hardening for network-facing server hosts.
 */
 {
+  # TODO(security): deep audit of server-hardening module configuration settings
   flake.modules.nixos.server-hardening =
     { lib, pkgs, ... }:
     {
