@@ -12,7 +12,8 @@ encrypted payloads and additional host recipients are added incrementally.
   automatically inferred recipients are not necessary.
 - Allow each host to decrypt its own runtime secrets without an administrator's
   YubiKey.
-- Ensure that administrative YubiKeys can always recover and rotate secrets.
+- Ensure that configured administrative Age identities can recover and rotate
+  secrets.
 - Preserve host identities across reinstalls and rotate them only deliberately.
 - Keep first installation a single deployment operation.
 - Hide the physical location of encrypted files behind a stable flake
@@ -26,8 +27,14 @@ becomes difficult to maintain.
 
 The design separates four kinds of identity:
 
-1. **Administrative Age recipients** are backed by the primary and recovery
-   YubiKeys. They allow secrets to be edited, recovered, and re-encrypted.
+1. **Administrative identities** follow the CryptID primary/recovery model.
+   Primary SSH and Age keys are resident on the YubiKey; their public keys live
+   under `data/identities/administrative/`, and encrypted copies of their
+   resident-key stubs live under `secrets/administrative/`. The OpenPGP public
+   certificate and encrypted signing/encryption card stubs follow the same
+   split. Recovery SSH—and eventually Age—public keys live under `data/`, while
+   their breakglass private keys remain offline and have no corresponding
+   `.age` payload in this repository.
 2. **System SSH host keys** identify installed hosts and decrypt their Agenix
    runtime secrets. They are persistent host state, not deployment credentials.
 3. **Initrd SSH host keys** identify the pre-boot SSH service used for remote
@@ -36,20 +43,32 @@ The design separates four kinds of identity:
    `nixos-anywhere` invocation. They are not secret recipients and are deleted
    when deployment finishes.
 
-System and initrd host keys are stable across reinstalls. Rotation is a manual,
-intentional operation that updates encrypted secrets and client host-key
-records as one coordinated change.
+Initrd host keys are preserved across reinstalls by the deployer. System host
+keys are persistent on an installed system; preserving them across a reinstall
+requires restoring their backup until system-key provisioning is implemented.
+Rotation must update encrypted secrets and client host-key records as one
+coordinated change.
+
+The encrypted primary stubs are convenience and declarative deployment
+artifacts, not backups of exportable private key material. Using them still
+requires the corresponding YubiKey.
+
+Configuration consumes administrative identities as sets. Use
+`identities.administrative.age-keys`, `identities.administrative.ssh-keys`, or
+their normalized `self.data.vars` representations so primary and recovery keys
+remain authorized together. Select an individual key only for an explicitly
+role-specific operation.
 
 ## Recipient policy
 
 Every ordinary secret must be encrypted to all hosts that consume it, plus the
-administrative age recipients exposed by
-`self.data.vars.identities.administrative.age`.
+complete administrative Age recipient set exposed by
+`self.data.vars.administrativeAgeRecipients`.
 
 Host private-key backups are a bootstrap exception. Encrypting a private host
 key to its own public key does not provide recovery when that private key is
-lost. Such backups are therefore encrypted to the administrative and recovery
-recipients. Once provisioned, the system host key is used to decrypt ordinary
+lost. Such backups are therefore encrypted to every configured administrative
+recipient. Once provisioned, the system host key is used to decrypt ordinary
 host secrets.
 
 Removing a recipient from future ciphertext does not revoke access to
@@ -66,16 +85,14 @@ it would avoid Agenix's first-boot identity problem: the target's public key
 would be known before the system closure is built, and its private key would be
 present when activation decrypts runtime secrets.
 
-The intended system-key provisioning flow is:
+The intended system-key provisioning flow mirrors the implemented initrd flow:
 
 1. Create a private temporary directory on the deployer.
-2. Generate the system and initrd Ed25519 host-key pairs there.
-3. Immediately encrypt backup copies of the private keys to all administrative
+2. Restore the existing system key, or generate it only when no backup exists.
+3. Encrypt a new private-key backup to all administrative
    recipients.
-4. Retain the encrypted private-key backups and public keys in the secrets
-   tree.
-5. Stage the private system key at `ssh-host.hostKeyPath` and the private initrd
-   key at `ssh-host.initrd.hostKeyPath`.
+4. Retain the encrypted backup and public identity in the repository.
+5. Stage the private key at `ssh-host.hostKeyPath`.
 6. Run `nixos-anywhere` with the staged files in its extra-files tree.
 7. Remove all plaintext staging and key-generation directories through a trap,
    on both success and failure.
@@ -124,7 +141,7 @@ analogous to `self.data`. Its responsibilities are:
 Consumers use the interface as follows:
 
 ```nix
-self.secrets.path "hosts/armatus/example.age"
+self.secrets.path "vpn_APC-GT-18_key.age"
 self.secrets.recipients.administrators
 self.secrets.recipients.hosts.armatus
 ```
@@ -154,8 +171,8 @@ present in the working directory.
 
 ## Current consumers
 
-The placeholder inventory in `secrets/README.md` records the exact encrypted
-filenames. Confirmed runtime consumers are:
+`secrets/secrets.nix` is the catalogue and recipient policy. Current runtime
+consumers are:
 
 | Host | Secret | Consumer |
 |---|---|---|
@@ -173,7 +190,7 @@ same base:
 
 ```sh
 cd secrets
-nix run ..#agenix -- -e hosts/apc/example.age -i /path/to/admin-identity
+nix run ..#agenix -- -e vpn_APC-GT-18_key.age -i /path/to/admin-identity
 nix run ..#agenix -- -r -i /path/to/admin-identity
 ```
 
@@ -182,111 +199,30 @@ APC's system SSH host key was manually migrated from the legacy
 Its public key is recorded as the APC recipient before any APC-encrypted runtime
 secret is deployed.
 
-## Implementation status
+## Open work
 
-1. Agenix is a flake input with reusable NixOS and Home Manager integrations.
-2. `self.secrets` exposes encrypted paths and public recipients.
-3. `secrets/secrets.nix` holds explicit recipient rules outside the auto-imported
-   module tree.
-4. Remaining: extend the deployment helper to provision the stable system host key in
-   addition to the existing stable initrd key.
-5. Ordinary runtime secrets are migrated to Agenix incrementally.
-6. Remaining: document and test the manual host-key and secret-rotation procedure before
-   relying on it.
+- Provision and restore the stable system host key in the deployment helper.
+- Add the planned recovery Age recipient.
+- Document and test deliberate host-key and secret rotation.
+- Add runtime secrets and host recipients only when a concrete consumer needs
+  them.
 
-## Alternatives not selected
+## Design decisions
 
-The following approaches were considered and are not part of the planned
-design.
-
-### Agenix-rekey
-
-`agenix-rekey` would keep a master-encrypted source secret and derive
-host-encrypted copies while inferring recipients from the evaluated
-configurations. This is useful for a large or frequently changing recipient
-graph, but the current fleet is small and its host keys are long-lived.
-
-Explicit Agenix rules are preferred because they:
-
-- make access policy directly reviewable;
-- avoid rekey cache, derivation, and remote-copy concerns; and
-- add less machinery to the deployment path.
-
-This decision can be revisited if manually maintaining recipient sets becomes
-error-prone.
-
-### Two-phase host bootstrap
-
-Installing a host without runtime secrets, allowing OpenSSH to generate its
-identity, and then adding the resulting public key in a second deployment would
-avoid pre-generating the system host key.
-
-This was rejected because it makes a fresh installation depend on a second
-configuration update and deployment. Pre-provisioning a stable system host key
-keeps installation single-step and makes the target recipient known before the
-initial system is built.
-
-### Regenerating host keys on every installation
-
-Treating host keys as disposable would reduce the amount of persistent identity
-state to back up. It would also change the SSH identity after every reinstall,
-require all affected secrets to be re-encrypted, and require client host-key
-records to be updated.
-
-Stable host keys with deliberate manual rotation provide a clearer identity and
-recovery model.
-
-### Target-side host-key generation
-
-Generating host keys in the installer environment, returning only public keys
-and encrypted backups, and copying the private keys directly into the mounted
-target would keep plaintext private keys off the deployer's filesystem.
-
-This was not selected for the initial implementation because
-`nixos-anywhere`'s normal extra-files flow starts with local files. Keeping the
-private keys target-side would require custom orchestration between the kexec,
-disk, and installation phases. Local generation in a restrictive temporary
-directory is simpler and acceptable for the current threat model. Target-side
-generation remains a possible hardening step.
-
-### A dedicated Age identity for each host
-
-A separate per-host Age identity would decouple secret decryption from SSH
-host-key rotation. It would also introduce another persistent private identity
-that must be provisioned, backed up, and rotated.
-
-The stable system SSH host key already provides the identity Agenix needs, so a
-second host identity is unnecessary for the current fleet.
-
-### Host-only recipients
-
-Encrypting runtime secrets only to their consuming hosts would minimize the
-recipient set, but loss or corruption of a host identity could make those
-secrets unrecoverable.
-
-Administrative and recovery YubiKey recipients are therefore mandatory for
-ordinary secrets. They provide an independent recovery and rotation path.
-
-### Treating the initrd key as an ordinary runtime secret
-
-Agenix normally decrypts secrets during activation using an identity available
-to the installed system. The initrd SSH key must be provisioned for use before
-the encrypted root is unlocked and must be available on the first boot.
-
-It therefore remains deployment bootstrap material rather than relying solely
-on the ordinary runtime-secret path.
-
-### Placing value-only secret rules under `modules/`
-
-A conventional `secrets.nix` recipient table under `modules/` would be
-discovered by `import-tree` and evaluated as a flake-parts module. Value-only
-rules and recipient data must instead live under `data/` or in the secrets
-repository, with a proper flake-parts module exposing the `self.secrets`
-boundary.
-
-### Repository topology
-
-Keeping encrypted files in the main repository, a submodule, a manually cloned
-directory, or a future non-flake input has not been decided. None of these
-options is rejected by this decision record; the abstraction boundary is
-intended to defer that choice.
+- Explicit Agenix rules are preferred over `agenix-rekey` while the recipient
+  graph remains small.
+- Administrative recipients are mandatory recovery recipients for ordinary
+  secrets; host-only encryption risks permanent loss.
+- System host keys double as Agenix identities. A separate per-host Age identity
+  would add another persistent secret without a current need.
+- Initrd keys remain deployment bootstrap material because they are needed
+  before encrypted root is unlocked.
+- Host identities are stable. Reinstallation must restore them rather than
+  silently generating replacements.
+- Target-side key generation could reduce deployer exposure, but would require
+  custom orchestration around `nixos-anywhere`; restrictive local staging is the
+  current tradeoff.
+- Value-only recipient rules cannot live under `modules/`, where `import-tree`
+  would evaluate them as flake-parts modules.
+- `self.secrets` intentionally allows encrypted storage to move to a private
+  repository or flake input later without changing consumers.

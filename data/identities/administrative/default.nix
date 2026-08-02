@@ -22,10 +22,14 @@ let
     - age={primary}
     - ssh={primary,recovery}
 
-    as well as the convenience lists:
+    as well as the primary consumer interfaces:
 
-    - age-keys
-    - ssh-keys
+    - `age-keys`: all configured primary and recovery Age recipients
+    - `ssh-keys`: all configured primary and recovery SSH public keys
+
+    Consumers should normally use these complete lists. Select an individual
+    identity only when an operation is explicitly specific to its primary or
+    recovery role.
   */
   age = {
     primary = readFile ./age_primary;

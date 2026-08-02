@@ -252,7 +252,8 @@ host.example.userEnvironment.alice = {
 ### Program modules and feature compositions
 
 Opinionated Home Manager program modules are exported under
-`flake.modules.homeManager` for Ghostty, Nushell, SSH, GPG, Git, MPV, and Zed.
+`flake.modules.homeManager` for Ghostty, Nushell, SSH, GPG, Git, MPV, Zed,
+Librewolf, and Discord.
 MPV is a thin adapter: it instantiates the reusable configured wrapper against
 the Home Manager evaluation's own `pkgs`, installs it, and owns only its MIME
 associations. The immutable MPV configuration itself belongs to the app-config
@@ -269,12 +270,12 @@ Feature modules compose those program modules:
 | `pgp` | GPG, agent configuration, and optional Git signing. |
 | `headroom` | On-demand Headroom user proxy service. |
 | `codex` | Codex configuration, shared agent files, and Headroom-backed `cx`/`cxs` launchers. |
-| `ai-coding` | Zed with LM Studio, the Codex feature, and AI-oriented editor settings. |
+| `ai-coding` | Zed, Codex, LM Studio, and AI-oriented editor settings. |
 | `coding` | PGP, Git, and AI coding. |
 
-The `workstation` profile currently imports `standard-terminal`, `ssh-client`,
-`coding`, and the configured MPV adapter. Each constituent remains directly importable, so another profile
-or a host/user attachment can select a smaller set:
+The `workstation` profile imports `standard-terminal`, `ssh-client`, `coding`,
+Librewolf, Discord, and MPV. Each constituent remains directly importable, so
+another profile or host/user attachment can select a smaller set:
 
 ```nix
 host.example.userEnvironment.alice.modules = [
@@ -390,11 +391,11 @@ typed option under `hostContext.${module-name}` and assigns it from the NixOS
 feature's configuration. Home Manager consumers can test for that option's
 presence, allowing the same module to work with integrated and standalone
 environments without depending on the integrated-only `osConfig` argument.
-Expose only the state required by consumers rather than mirroring the full NixOS 
+Expose only the state required by consumers rather than mirroring the full NixOS
 configuration.
 
-For example, take te NAS feature module: when its Vault share is enabled, module
-exposes its mount point as the internal `hostContext.nas.vaultMountpoint` option.
+For example, the NAS feature exposes its Vault mount point as the internal
+`hostContext.nas.vaultMountpoint` option when that share is enabled.
 The Nushell feature module uses it to load local-flake helpers from
 `<mountpoint>/.dotfiles/flake`; hosts without that context omit those helpers.
 
@@ -543,77 +544,23 @@ nix run .#deploy-example -- root@192.168.0.5
 ```
 
 When initrd SSH is enabled, the deployer maintains an encrypted, stable initrd
-host key under `secrets/hosts/<host>/initrd-hostkey.age`. On first deployment it
-encrypts the generated key to the public recipients in
-`data/identities/cryptidprotocol_age`.
-Later deployments decrypt that file with `secrets/age_sk.txt`; a hardware-backed
-identity stub requires its corresponding YubiKey and `age-plugin-yubikey` is
-included in the deployer's runtime dependencies. Administrative age recipients
-come from `self.data.vars.identities.administrative.age`; public recipients can
-encrypt new material, but cannot decrypt existing material.
+host key under `secrets/hostkeys/id_ed25519_<host>_initrd.age`, with its public
+identity at `data/identities/host/id_ed25519_<host>_initrd.pub`. On first
+deployment it encrypts the generated key to
+`self.data.vars.administrativeAgeRecipients` and stages that same key for the
+installation. Later deployments reuse the encrypted backup.
+
+The tracked hardware-token identity stub is
+`secrets/administrative/age_primary.age`; it is encrypted for declarative
+deployment and still requires the primary YubiKey when used. The deployer
+currently expects a decrypted compatibility copy at `secrets/age_sk.txt`
+instead of consuming that tracked representation. This path is stale and must
+be corrected before relying on backup decryption. `age-plugin-yubikey` is
+included in the deployer's runtime dependencies.
 
 A capability controls an auxiliary flake output. An environment `mode`, by
 contrast, controls how user configuration is activated; it is deliberately not
 modeled as a capability flag.
-
-## Complete minimal example
-
-The following module declares one profile, one preference collection, and one
-integrated host environment:
-
-```nix
-{ inputs, ... }:
-{
-  homeProfile.workstation.modules = [
-    {
-      programs.home-manager.enable = true;
-      programs.git.enable = true;
-    }
-  ];
-
-  userPreferences.alice.modules = [
-    {
-      programs.git = {
-        userName = "Alice Example";
-        userEmail = "alice@example.invalid";
-      };
-    }
-  ];
-
-  host.example = {
-    description = "Example workstation";
-    primaryUser = "alice";
-    stateVersion = "26.05";
-
-    userEnvironment.alice = {
-      mode = "integrated";
-      profile = "workstation";
-      preferences = "alice";
-    };
-
-    modules = (with inputs.self.modules.nixos; [
-      kde
-      ssh-host
-    ]) ++ [
-      {
-        users.users.alice = {
-          isNormalUser = true;
-          extraGroups = [ "wheel" ];
-        };
-      }
-    ];
-  };
-}
-```
-
-Changing only:
-
-```nix
-mode = "standalone";
-```
-
-moves activation to `homeConfigurations."alice@example"` while preserving the
-same effective environment.
 
 ## Relevant files
 
@@ -628,27 +575,8 @@ same effective environment.
 
 ## Server and domain modules
 
-Hosted-service modules and public domain compositions are described in
-`docs/serve.md`. In brief, `serve-*` modules configure local services or served
-artifacts, while `domain-*` modules import curated service sets and own their
-Caddy and firewall exposure. Both layers are disabled by default: a host must
-explicitly set the relevant `serve.<service>.enable` options. Shared
-`serve-caddy` infrastructure is imported once by the host and must also be
-enabled before Caddy publishes those routes.
-
-Lanser is currently the only server host. It imports `domain-0x04cc` and
-`domain-remotehost`, then enables their selected services. It imports the
-private `serve-torrenting` service directly because the host, rather than a
-public domain, owns that service's network exposure.
-
-The Jellyfin service also installs `jellybuilder`, which projects the NAS media
-tree into a Jellyfin-friendly alias library. Its source defaults to
-`${config.nas.vault.mountpoint}/Media` when the NAS module is present, and its
-destination defaults to `/var/lib/jellyfin/jellymedia`; both are configurable
-under `serve.jellyfin.libraryBuilder`. Run `jellybuilder --help` for category,
-overwrite, and path overrides. The implementation lives under
-`data/serve/jellyfin/`, while flake check `jellybuilder` exercises the filesystem
-contract and compatibility with existing `Shows/**/jellylink.py` rules.
+See [`serve.md`](serve.md) for `serve-*` and `domain-*` composition, ingress
+ownership, and Lanser's service layout.
 
 ## Design guidelines
 

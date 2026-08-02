@@ -1,20 +1,20 @@
 # Cryptographic Identity Protocol
 
-`cryptid` takes inspiration from [github:Gosin/yubikey-master-protocol.md](https://gist.github.com/Gosin/f1a2ea42bec672c842f60b0fa57ab1d1) which is a *"paranoid-grade protocol for establishing a sovereign digital identity using YubiKey 5, OpenPGP, and FIDO2. Features offline "Cold Storage" backups and verified disaster recovery paths."*
+`cryptid` is inspired by [Gosin's YubiKey master
+protocol](https://gist.github.com/Gosin/f1a2ea42bec672c842f60b0fa57ab1d1).
 
 CRYPTID builds upon it by adding [age](https://github.com/FiloSottile/age), providing automated workflows and a reproducible environment, and encouraging physical redundancy by use of a cloneable, bootable dual-partition USB.
 
 ## Target Audience
 
-Mostly just me, though others may find it as a useful reference.
-
-The target audience is one which is somewhat familiar with the tools involved, has simple needs, and either can't be bothered to do it themselves by hand or who values a reproducible and structured approach. This scheme works best for a technical, paranoid, "what-if" minded individual who seeks secure yubikey-fasciliated long-term OpenPGP/ssh/age identities but either doesn't have one yet or isn't confident in their existing protocols' abilities to respond to disasters.
-
-It's not suitable for multiple people (no teams or enterprise) and likely can't be integrated into existing protocols.
+This is a personal workflow and reference for a technically experienced
+individual managing long-lived OpenPGP, SSH, and Age identities. It is not a
+team or enterprise key-management system.
 
 ### Overview
 
-The protocol revolved around the usage of bootable `cryptid` USB drives, so you always have both the data and the tools to use it.
+The protocol uses bootable `cryptid` USB drives so recovery media contains both
+the data and the tools needed to use it.
 
 - **Dual Partitions:** 
   - **NixOS ISO bootable system**: an image preconfigured with all the relevant tools to create and manage identities and yubikeys from an airgapped machine; complete with "turn-key" style minimal-interaction scripts and workflows that implicitly test recovery paths.
@@ -39,9 +39,30 @@ The protocol revolved around the usage of bootable `cryptid` USB drives, so you 
 
 **Recommended requirements:** 
 - One USB drive (minimum ~2GB)
-- One or more reundancy USB drives (minimum ~2GB)
+- One or more redundant USB drives (minimum ~2GB)
 - One or more YubiKey 5 (req: OpenPGP, FIDO, PIV)
 - One transfer drive (optional, to move public materials)
+
+### Repository representation
+
+The flake represents CryptID administrative material in two trees:
+
+- `data/identities/administrative/` contains public material. Primary SSH and
+  Age entries identify resident YubiKey keys. Recovery entries identify offline
+  breakglass keys.
+- `secrets/administrative/` contains Age-encrypted convenience copies of the
+  primary SSH and Age resident-key stubs and the OpenPGP signing/encryption card
+  stubs. These stubs still require the YubiKey; they are not exportable private
+  keys.
+
+Recovery private keys remain only in offline CryptID storage, so recovery
+identities have no corresponding encrypted stub in `secrets/`. A recovery Age
+identity will follow this convention when added.
+
+Nix consumers normally use `identities.administrative.ssh-keys` and
+`identities.administrative.age-keys`, which combine primary and recovery public
+identities. Keeping them as a set ensures routine authorization and encryption
+retain the breakglass path.
 
 ### Features and Layout
 
@@ -60,7 +81,8 @@ See the script definitions under `data/cryptid/scripts/` for specifics, or the i
 
 #### Maintenance
 
-Included scripts make it easy to extend or rotate pgp subkeys, or replace age and ssh keys. Details of distrobution depend on usecase. It's recommended that the physical mediums be refreshed from time to time (e.g. cloning to new drives every-other year).
+Included scripts extend or rotate OpenPGP subkeys and replace Age or SSH keys.
+Distribution is application-specific. Refresh the physical media periodically.
 
 ### Rationale
 
@@ -90,23 +112,27 @@ Included scripts make it easy to extend or rotate pgp subkeys, or replace age an
 
 - It's only suitable for individuals, not enterprises; there's no administrative control or scalability.
 
-- It relies heavily of physical security. While secrets are encrypted, there's no deniability and a [$5 wrench](https://xkcd.com/538/) hurts.
+- It relies heavily on physical security. While secrets are encrypted, there is
+  no deniability and a [$5 wrench](https://xkcd.com/538/) hurts.
 
 - There's no obscurity built-in: you're reading this.
 
 - No compliance; no specifications are referenced in this document.
 
-- The revocation certificate is available to anyone with a copy of the drive; this is a tradeoff. If this is of importance: modify the scripts to prevent generation of the revocation certificate and you can rely on authorizing other key(s) to revoke your root identity on your behalf. Merely deleting the revocation certificate from the drive is insufficient if physical security can't be guarenteed and malicious revocation is of significant concern; also, under such circumstances, a veracrypt volume may be insufficient and CRYPTID should be modified to LUKS-encrypt the entire data partition (vault included).
+- The revocation certificate is available to anyone with the drive. If
+  malicious revocation is in scope, change the design before generating keys;
+  deleting existing copies later is insufficient.
 
 - Secrets require the vault password. This is intentional, but can be a drawback depending on your needs. Though, it could be offset by encrypting vault password with the public key of someone you trust, and leaving that in the unencrypted partition.
 
 - The structure of CRYPTID and this protocol is likely to have a low "bus factor." It's highly technical and potential users must be familiar with bootable drives, the CLI tools involved, and be aware of the scheme and how to make use of it.
 
-- Low adoptability. Compounding the technical skill required, the scheme is mostly setup for "from scratch" creation and management of a single identity, and neglects other uses of the yubikey. It's very narrowly targetted and likely doesn't integrate easily with existing schemes, protocols, or procedures.
+- Adoption is difficult: the workflow assumes creation of one new identity and
+  does not attempt to integrate with broader YubiKey policies.
 
 ## Practical Instructions
 
-Go from a spare USB drive or two, to a resiliaint cryptographic identity scheme in just a few easy steps.
+Create the environment from one or more spare USB drives.
 
 ### Create the Environment
 
@@ -137,7 +163,7 @@ For the intended use, simply:
 1. Initialize
 2. Prepare
 3. Disseminate
-4. Maintain (anually)
+4. Maintain (annually)
 5. Respond (to emergencies)
 
 #### Initialize
@@ -146,13 +172,18 @@ Using a trusted machine, boot into CRYPTID with your yubikey attached and perfor
 
 Private details will be saved in the encrypted vault file, while the public and revocation certificates will be stored alongside it in the unencrypted partition.
 
-Ideally, copy desired public materials to a transfer drive. If you don't have a transfer drive: the risk of exposing the encrypted vault and unencrypted revocation certificate to a trusted machine is minimal, especially if only once; so plug it in, copy what you need, then store the CRYPTID drive(s) somewhere. To fascilitate this usecase, the persistance partition requires root to access on Linux machines.
+Ideally, copy public material with a transfer drive. Otherwise, use only a
+trusted machine and return the CRYPTID media to secure storage afterward. The
+persistence partition requires root access on Linux machines.
 
 > [!CAUTION]
->  **Only use CRYPTID with a trusted machine.** Booting on untrusted platforms, such as public computers, shouldn't be used as they can be compromised and surveiled in a plethora of ways. It's worth noting the existence of supply-chain firmware attacks and the dangers of being under active surveilance, but they're probably not relevant to you if you're reading this.
+> **Only use CRYPTID with a trusted machine.** An untrusted host can capture
+> secrets despite the protections provided by the bootable environment.
 
 > [!CAUTION]
->  **The scripts will reset your YubiKey** by design. You will be prompted to confirm, and the process starts by requiring that you remove and reinserting the yubikey (you aren't likely to do this on accident). If this is undesired, then the yubikey scripts should be avoided and you should use the underlying tools to manage it manually.
+> **The scripts reset your YubiKey by design.** You must confirm and physically
+> reinsert it first. If that is not intended, avoid the YubiKey workflows and
+> use the underlying tools directly.
 
 #### Prepare (optional steps and things to consider)
 - Optionally, Print the yubikey passphrases and QR code and store them a safe place such as a bank deposit box.

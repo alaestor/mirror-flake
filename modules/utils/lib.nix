@@ -233,6 +233,27 @@
           -o BatchMode=yes \
           "$TARGET" true
 
+        # TODO(deploy): Provision the stable system SSH host key as part of
+        # nixos-anywhere deployment.
+        #
+        # High-level implementation guide:
+        # - Resolve the host backup as
+        #   secrets/hostkeys/id_ed25519_<host>.age and its public identity as
+        #   data/identities/host/id_ed25519_<host>.pub.
+        # - If the encrypted backup exists, decrypt it with the administrative
+        #   age identity and stage it at ssh-host.hostKeyPath. Never generate a
+        #   replacement merely because this is a fresh installation.
+        # - Verify that the staged private key derives the committed public
+        #   identity; fail before partitioning if they differ.
+        # - If no backup exists, generate the key once, encrypt it atomically to
+        #   the administrative recipients, record its public identity, and
+        #   stage that same private key for the initial installation.
+        # - Print the created paths and remind the operator to declare the
+        #   encrypted system-key backup in secrets/secrets.nix; do not rewrite
+        #   that policy file automatically.
+        # - Reuse the restrictive temporary-directory, permissions, and cleanup
+        #   approach below so plaintext keys do not survive the deployment.
+
         ${lib.optionalString system-config.ssh-host.initrd.enable ''
             # --- Locate the flake root ---
             FLAKE_ROOT="$PWD"
@@ -245,31 +266,54 @@
             fi
 
             HOST="${name}"
-            SECRETS_DIR="$FLAKE_ROOT/secrets/hosts/$HOST"
-            AGE_FILE="$SECRETS_DIR/initrd-hostkey.age"
+            HOSTKEYS_DIR="$FLAKE_ROOT/secrets/hostkeys"
+            PUBLIC_KEYS_DIR="$FLAKE_ROOT/data/identities/host"
+            AGE_FILE="$HOSTKEYS_DIR/id_ed25519_''${HOST}_initrd.age"
+            PUBLIC_KEY_FILE="$PUBLIC_KEYS_DIR/id_ed25519_''${HOST}_initrd.pub"
+            LEGACY_AGE_FILE="$FLAKE_ROOT/secrets/hosts/$HOST/initrd-hostkey.age"
+            LEGACY_PUBLIC_KEY_FILE="$FLAKE_ROOT/secrets/hosts/$HOST/initrd-hostkey.pub"
             AGE_IDENTITY_FILE="$FLAKE_ROOT/secrets/age_sk.txt"
             STAGING_KEYPATH="''${STAGING_DIR}${system-config.ssh-host.initrd.hostKeyPath}"
             install -d -m755 "$(dirname "''${STAGING_KEYPATH}")"
 
+            if [ ! -e "$AGE_FILE" ] && [ -e "$LEGACY_AGE_FILE" ]; then
+              echo "ERROR: legacy initrd host-key backup found: $LEGACY_AGE_FILE" >&2
+              echo "Move it to $AGE_FILE before deploying; do not generate a replacement." >&2
+              if [ -e "$LEGACY_PUBLIC_KEY_FILE" ]; then
+                echo "Also move $LEGACY_PUBLIC_KEY_FILE to $PUBLIC_KEY_FILE." >&2
+              fi
+              exit 1
+            fi
+
             # Create and retain a stable initrd host key. The first installation
             # stages the generated key directly, avoiding a second deploy.
             if [ ! -f "$AGE_FILE" ]; then
-              echo "No initrd-hostkey.age for $HOST, generating and encrypting..."
-              install -d -m700 "$SECRETS_DIR"
+              if [ -e "$PUBLIC_KEY_FILE" ]; then
+                echo "ERROR: public initrd host key exists without its encrypted backup: $PUBLIC_KEY_FILE" >&2
+                echo "Refusing to generate a replacement identity." >&2
+                exit 1
+              fi
+
+              echo "No initrd host-key backup for $HOST, generating and encrypting..."
+              install -d -m700 "$HOSTKEYS_DIR"
+              install -d -m755 "$PUBLIC_KEYS_DIR"
               KEY_GENERATION_DIR=$(mktemp -d)
-              GENERATED_KEY="$KEY_GENERATION_DIR/initrd-hostkey"
+              GENERATED_KEY="$KEY_GENERATION_DIR/id_ed25519_''${HOST}_initrd"
               ssh-keygen -q -t ed25519 -N "" -C "''${HOST}_initrd" -f "$GENERATED_KEY"
               age ${lib.concatMapStringsSep " " (recipient: "-r ${lib.escapeShellArg recipient}") self.data.vars.administrativeAgeRecipients} \
                 -o "$AGE_FILE.tmp" "$GENERATED_KEY"
               mv "$AGE_FILE.tmp" "$AGE_FILE"
-              mv "$GENERATED_KEY.pub" "$SECRETS_DIR/initrd-hostkey.pub"
+              mv "$GENERATED_KEY.pub" "$PUBLIC_KEY_FILE"
               install -m600 "$GENERATED_KEY" "$STAGING_KEYPATH"
               rm -rf "$KEY_GENERATION_DIR"
               KEY_GENERATION_DIR=""
 
               echo "Created $AGE_FILE"
+              echo "Created $PUBLIC_KEY_FILE"
               echo "Initrd SSH host public key (record it for host verification):"
-              cat "$SECRETS_DIR/initrd-hostkey.pub"
+              cat "$PUBLIC_KEY_FILE"
+              echo "Review and commit both files after deployment. No secrets.nix rule is needed;"
+              echo "the initrd backup is encrypted directly to administrative recipients."
             else
               if [ ! -r "$AGE_IDENTITY_FILE" ]; then
                 echo "ERROR: age identity file not found or unreadable: $AGE_IDENTITY_FILE" >&2

@@ -70,7 +70,7 @@ because qBittorrent is private and confined to its VPN namespace.
 | Domain module | Imported services | Published names |
 |---|---|---|
 | `domain-0x04cc` | Static site, Matrix, Cinny, Headscale/Headplane | `0x04.cc`, `matrix.0x04.cc`, `headscale.0x04.cc` |
-| `domain-remotehost` | Filebrowser, Jellyfin | `media.remotehost.cc`, `download.shota.zip`, Jellyfin aliases |
+| `domain-remotehost` | Filebrowser, Jellyfin | `media.remotehost.cc`, `download.shota.zip`, `jellyfin.remotehost.cc`, `shota.zip` |
 
 Each route is independent. For example, importing `domain-0x04cc` and enabling
 only Headscale and Caddy publishes only the Headscale virtual host; it does not

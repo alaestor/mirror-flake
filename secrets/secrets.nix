@@ -13,7 +13,7 @@ let
 
     Only age-encrypted payloads and the public recipient rules belong here. Never add plaintext credentials or private keys. Add the corresponding rules to `secrets.nix` before creating or rekeying a payload.
 
-    Secrets must be keyed for the administrative primary and recovery identities, but are otherwise narrowly scoped: they must only be keyed for hosts that require them.
+    Secrets must use the complete `identities.administrative.age-keys` set, but are otherwise narrowly scoped to hosts that require them. Primary identities are resident YubiKey keys with encrypted convenience stubs under `administrative/`. Recovery identities are offline breakglass keys and deliberately have no corresponding encrypted stub here. A recovery Age identity is planned but not yet configured.
 
     Host-key backups exist only as an emergency recovery path, and therefore use only administrative recipients.
 
@@ -96,7 +96,19 @@ in
 
     Host-key backups are recoverable bootstrap material and therefore use only administrative recipients.
 
-    One per `ssh-host` capable configuration.
+    One system host-key backup is kept per `ssh-host` capable configuration.
+    Naming and placement conventions are:
+
+    | Material | Repository path | Installed path |
+    |---|---|---|
+    | System private key backup | `secrets/hostkeys/id_ed25519_<host>.age` | `ssh-host.hostKeyPath` (normally `/etc/ssh/ssh_host_ed25519_key`) |
+    | System public identity | `data/identities/host/id_ed25519_<host>.pub` | `<ssh-host.hostKeyPath>.pub` |
+    | Initrd private key backup | `secrets/hostkeys/id_ed25519_<host>_initrd.age` | `ssh-host.initrd.hostKeyPath` |
+    | Initrd public identity | `data/identities/host/id_ed25519_<host>_initrd.pub` | Used for client host verification; not installed as an SSH host key |
+
+    `<host>` is the lowercase host registry name. System backups are declared
+    below because Agenix manages their recipient rules. The deployment helper
+    encrypts initrd backups directly to the administrative recipients.
   */
   "hostkeys/id_ed25519_apc.age".publicKeys = administrators;
   "hostkeys/id_ed25519_lanser.age".publicKeys = administrators;

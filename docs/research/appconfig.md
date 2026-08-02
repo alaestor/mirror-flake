@@ -3,6 +3,11 @@
 ```
 # Research: package-coupled application configuration
 
+> [!NOTE]
+> This is a design record for the implemented MPV prototype, not operational
+> documentation. Current behavior is defined by `modules/app-config/mpv.nix`
+> and its Home Manager adapter in `modules/programs/mpv.nix`.
+
 Research date: 2026-07-22
 
 ## Implemented MPV prototype
