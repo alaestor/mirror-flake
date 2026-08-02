@@ -17,6 +17,9 @@ but do not receive NixOS feature contributions. A nix-on-droid device receives
 the same `hostIdentity` metadata shape as a NixOS host, although its name is not
 wired to Android's kernel hostname.
 
+The shared Nix-on-Droid base sets `NIX_PATH` to its pinned Android nixpkgs so
+legacy commands such as `nix-shell -p` can resolve `<nixpkgs>`.
+
 ## Architecture at a glance
 
 Files under `modules/` are loaded by `import-tree` as flake-parts modules. They

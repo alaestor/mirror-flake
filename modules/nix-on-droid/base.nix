@@ -22,5 +22,7 @@
       nix.extraOptions = ''
         experimental-features = nix-command flakes
       '';
+
+      nix.nixPath = [ "nixpkgs=${pkgs.path}" ]; # TODO(workaround): nix-on-droid flakes dont expose nixpkgs in NIX_PATH; see [nix-on-droid#499](https://github.com/nix-community/nix-on-droid/issues/499)
     };
 }
