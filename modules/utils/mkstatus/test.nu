@@ -5,7 +5,7 @@ def main [script: path, template: path] {
   mkdir ($fixture | path join "modules" "nested")
   let todo = ("TO" + "DO")
   let warn = ("WA" + "RN")
-  ($"# ($todo)" + "(secrets): see [credential guidance](docs/credentials.md)\nvalue = true; # " + $warn + "(security): accepted risk\n# NOTE(architecture): intentional design\n# ordinary comment\n") | save ($fixture | path join "modules" "sample.nix")
+  ($"# ($todo)" + "(secrets): see [credential guidance](docs/credentials.md)\nvalue = true; # " + $warn + "(security): accepted risk\n# NOTE(architecture): intentional design\n# NOTE(empty)\n# ordinary comment\n") | save ($fixture | path join "modules" "sample.nix")
   $"// ($todo): nested task\nlet text = \"($todo): not a comment\";\n" | save ($fixture | path join "modules" "nested" "sample.js")
   ^git -C $fixture init --quiet
   ^git -C $fixture config user.email "test@example.com"
@@ -17,10 +17,11 @@ def main [script: path, template: path] {
   ^nu $script --template $template --root $fixture --format json --output $output
   let report = (open $output)
   let revision = (^git -C $fixture rev-parse HEAD | str trim)
-  assert equal ($report.annotations | length) 4
+  assert equal ($report.annotations | length) 5
   assert equal $report.revision $revision
-  assert equal ($report.annotations | get marker | sort) ["NOTE" "TODO" "TODO" "WARN"]
-  assert equal ($report.annotations | get scope | sort) ["architecture" "secrets" "security" "unscoped"]
+  assert equal ($report.annotations | get marker | sort) ["NOTE" "NOTE" "TODO" "TODO" "WARN"]
+  assert equal ($report.annotations | get scope | sort) ["architecture" "empty" "secrets" "security" "unscoped"]
+  assert equal ($report.annotations | where scope == "empty" | first | get message) ""
   assert equal ($report.annotations | where scope == "unscoped" | first | get directory) "modules/nested"
   assert equal ($report.annotations | where scope == "secrets" | first | get message) "see [credential guidance](docs/credentials.md)"
   let templateContents = ($template | open --raw)

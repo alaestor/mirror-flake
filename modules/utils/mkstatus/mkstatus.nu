@@ -25,7 +25,7 @@ def repository-revision [root: path] {
 }
 
 def scan [root: path] {
-  let pattern = '(?i)(?:#|//|--|;|/\*+|\*|<!--)\s*(TODO|WARN|NOTE)(?:\(([A-Za-z0-9][A-Za-z0-9._-]*)\))?\s*:?\s*(.+?)\s*(?:-->)?$'
+  let pattern = '(?i)(?:#|//|--|;|/\*+|\*|<!--)\s*(TODO|WARN|NOTE)(?:\(([A-Za-z0-9][A-Za-z0-9._-]*)\))?\s*:?\s*(.*?)\s*(?:-->)?$'
   let result = (^rg --json --line-number --no-heading --color never $pattern $root | complete)
   if $result.exit_code not-in [0 1] {
     error make {msg: ($result.stderr | str trim)}
@@ -45,7 +45,7 @@ def scan [root: path] {
       {
         marker: ($matched.capture0 | str uppercase)
         scope: (if ($scope | is-empty) { "unscoped" } else { $scope })
-        message: ($matched.capture2 | str trim)
+        message: ($matched.capture2 | default "" | str trim)
         file: $relative
         line: $event.data.line_number
         directory: (if $directory == "." { "root" } else { $directory })
