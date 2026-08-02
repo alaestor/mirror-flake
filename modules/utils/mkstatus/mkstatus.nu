@@ -15,6 +15,15 @@ def repository-root [requested: path] {
   }
 }
 
+def repository-revision [root: path] {
+  let result = (^git -C $root rev-parse HEAD | complete)
+  if $result.exit_code == 0 {
+    $result.stdout | str trim
+  } else {
+    null
+  }
+}
+
 def scan [root: path] {
   let pattern = '(?i)(?:#|//|--|;|/\*+|\*|<!--)\s*(TODO|WARN)(?:\(([A-Za-z0-9][A-Za-z0-9._-]*)\))?\s*:?\s*(.+?)\s*(?:-->)?$'
   let result = (^rg --json --line-number --no-heading --color never $pattern $root | complete)
@@ -61,7 +70,12 @@ def main [
 
   let root = (repository-root $root)
   let annotations = (scan $root)
-  let report = {title: "Repository status", defaultGroup: $group, annotations: $annotations}
+  let report = {
+    title: "Repository status"
+    defaultGroup: $group
+    revision: (repository-revision $root)
+    annotations: $annotations
+  }
 
   if $format == "json" {
     $report | to json --indent 2 | save --force $output
