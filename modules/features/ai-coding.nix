@@ -106,6 +106,7 @@
 
       home.packages = [
         pkgs.lmstudio
+        pkgs.herdr
       ];
 
       programs.zed-editor.userSettings = {

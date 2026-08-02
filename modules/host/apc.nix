@@ -60,6 +60,7 @@
                 element-desktop
                 jellyfin-desktop
                 ffmpeg-hdr
+                ripgrep
               ];
             };
 
