@@ -55,6 +55,25 @@
     controls.group.value = data.defaultGroup;
     [...new Set(data.annotations.map(item => item.scope))].sort().forEach(scope => controls.scope.add(new Option(scope, scope)));
     const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const isSafeLink = href => {
+      if (href.startsWith('//')) return false;
+      const scheme = href.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase();
+      return !scheme || ['http', 'https', 'mailto'].includes(scheme);
+    };
+    const renderMarkdownLinks = message => {
+      const pattern = /\[([^\]]+)\]\(([^()\s]+)\)/g;
+      let result = '';
+      let index = 0;
+      for (const match of String(message).matchAll(pattern)) {
+        const [markdown, label, href] = match;
+        result += escapeHtml(message.slice(index, match.index));
+        result += isSafeLink(href)
+          ? `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`
+          : escapeHtml(markdown);
+        index = match.index + markdown.length;
+      }
+      return result + escapeHtml(message.slice(index));
+    };
     const card = (label, count) => `<div class="card"><strong>${count}</strong>${label}</div>`;
 
     function render() {
@@ -78,7 +97,7 @@
       document.getElementById('report').innerHTML = items.length ? [...groups.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([name, entries]) => `<section><h2>${escapeHtml(name)} <small>(${entries.length})</small></h2><ul>${entries.map(item =>
-          `<li><span class="marker ${item.marker}">${item.marker}</span><a class="source" href="${encodeURI(item.file)}#L${item.line}">${escapeHtml(item.file)}:${item.line}</a><span class="message">${escapeHtml(item.message)}</span></li>`
+          `<li><span class="marker ${item.marker}">${item.marker}</span><a class="source" href="${encodeURI(item.file)}#L${item.line}">${escapeHtml(item.file)}:${item.line}</a><span class="message">${renderMarkdownLinks(item.message)}</span></li>`
         ).join('')}</ul></section>`).join('') : '<p class="empty">No matching annotations.</p>';
     }
     Object.values(controls).forEach(control => control.addEventListener('input', render));
