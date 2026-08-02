@@ -112,4 +112,5 @@ in
   */
   "hostkeys/id_ed25519_apc.age".publicKeys = administrators;
   "hostkeys/id_ed25519_lanser.age".publicKeys = administrators;
+  "hostkeys/id_ed25519_noblesse.age".publicKeys = administrators;
 }
