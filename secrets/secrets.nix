@@ -25,7 +25,7 @@ let
 
     e.g. for the `apc` host:
     ```sh
-    sudo ssh-keygen -lf /etc/secrets/ssh/ssh_host_ed25519_key
+    sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key
     ssh-keygen -lf data/identities/host/id_ed25519_apc.pub
     ```
 

@@ -1,11 +1,5 @@
 { self, ... }: let
   module-name = "ssh-host";
-
-  # maybe these should be from some "paths" options...
-  # TODO(secrets): ssh-host legacy pathing
-  secrets-path = "/etc/secrets";
-  secrets-path-initrd = "${secrets-path}/initrd";
-
 in
 {
   # TODO(droid): ssh-host for droid?
@@ -19,7 +13,7 @@ in
     - may need to set `boot.initrd.availableKernelModules` for network hardware availability (use `lspci -v | grep -iA8 'network\|ethernet'` for that).
 
     > [!CAUTION]
-    > The initrd ssh host key is stored unencrypted in `/boot/secrets/`. If an attacker was to gain access to it (particularly through physical access) they could impersonate the server and intercept your LUKS passphrase.
+    > The initrd copy of this SSH host key is stored unencrypted in bootloader-accessible material. If an attacker gains physical access to it, they could impersonate the server and intercept your LUKS passphrase.
   */
 
   flake.modules.nixos."${module-name}" = {config, lib, ...}: let cfg = config."${module-name}"; in with lib;
@@ -41,10 +35,11 @@ in
 
         hostKeyPath = mkOption {
           type = types.path;
-          default = "${secrets-path-initrd}/ssh_host_ed25519_key";
+          default = "/etc/secrets/initrd/ssh_host_ed25519_key";
           description = ''
             The absolute filepath of the automatically generated ed25519 initrd host key.
-            It must be in an unencrypted partition that's mounted during boot.
+            It is staged by the deployer on the encrypted root filesystem, then
+            copied into bootloader-accessible initrd secret material.
           '';
         };
 
@@ -81,7 +76,7 @@ in
 
       hostKeyPath = mkOption {
         type = types.path;
-        default = "${secrets-path}/ssh/ssh_host_ed25519_key";
+        default = "/etc/ssh/ssh_host_ed25519_key";
         description = "The absolute filepath of where to store the automatically generated ed25519 host key.";
       };
 

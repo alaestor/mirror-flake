@@ -169,7 +169,6 @@
           }:
           let
             username = config.hostIdentity.primaryUser;
-            secretAvailable = inputs.self.secrets.exists;
             secretPath = inputs.self.secrets.path;
           in
           {
@@ -177,54 +176,44 @@
 
             age = {
               identityPaths = [ config.ssh-host.hostKeyPath ];
-              secrets =
-                lib.optionalAttrs (secretAvailable "vpn_APC-GT-18_key.age") {
-                  apc-wireguard-private-key = {
-                    file = secretPath "vpn_APC-GT-18_key.age";
-                    mode = "0400";
-                  };
-                }
-                // lib.optionalAttrs (secretAvailable "administrative/age_primary.age") {
-                  apc-age-yubikey-identity = {
-                    file = secretPath "administrative/age_primary.age";
-                    path = "/home/${username}/.config/age/yubikey-identity";
-                    owner = username;
-                    group = "users";
-                    mode = "0400";
-                  };
-                }
-                // lib.optionalAttrs (secretAvailable "administrative/ssh_primary.age") {
-                  apc-ssh-yubikey-identity = {
-                    file = secretPath "administrative/ssh_primary.age";
-                    path = "/home/${username}/.ssh/ssh_sk";
-                    owner = username;
-                    group = "users";
-                    mode = "0400";
-                  };
-                }
-                // lib.optionalAttrs (secretAvailable "administrative/pgp-encrypt-801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key.age") {
-                  apc-pgp-encryption-card-stub = {
-                    file = secretPath "administrative/pgp-encrypt-801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key.age";
-                    path = "/home/${username}/.gnupg/private-keys-v1.d/801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key";
-                    owner = username;
-                    group = "users";
-                    mode = "0400";
-                  };
-                }
-                // lib.optionalAttrs (secretAvailable "administrative/pgp-sign-8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key.age") {
-                  apc-pgp-signing-card-stub = {
-                    file = secretPath "administrative/pgp-sign-8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key.age";
-                    path = "/home/${username}/.gnupg/private-keys-v1.d/8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key";
-                    owner = username;
-                    group = "users";
-                    mode = "0400";
-                  };
+              secrets = {
+                apc-wireguard-private-key = {
+                  file = secretPath "vpn_APC-GT-18_key.age";
+                  mode = "0400";
                 };
+                apc-age-yubikey-identity = {
+                  file = secretPath "administrative/age_primary.age";
+                  path = "/home/${username}/.config/age/yubikey-identity";
+                  owner = username;
+                  group = "users";
+                  mode = "0400";
+                };
+                apc-ssh-yubikey-identity = {
+                  file = secretPath "administrative/ssh_primary.age";
+                  path = "/home/${username}/.ssh/ssh_sk";
+                  owner = username;
+                  group = "users";
+                  mode = "0400";
+                };
+                apc-pgp-encryption-card-stub = {
+                  file = secretPath "administrative/pgp-encrypt-801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key.age";
+                  path = "/home/${username}/.gnupg/private-keys-v1.d/801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key";
+                  owner = username;
+                  group = "users";
+                  mode = "0400";
+                };
+                apc-pgp-signing-card-stub = {
+                  file = secretPath "administrative/pgp-sign-8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key.age";
+                  path = "/home/${username}/.gnupg/private-keys-v1.d/8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key";
+                  owner = username;
+                  group = "users";
+                  mode = "0400";
+                };
+              };
             };
 
             ssh-host = {
               allowUsers = [ username ];
-              hostKeyPath = "/etc/secrets/ssh/ssh_host_ed25519_key";
             };
 
             tailscale.enable = true;
@@ -391,11 +380,7 @@
               wg-quick.interfaces.wg0 = {
                 table = "100";
                 address = [ "10.2.0.2/32" ];
-                privateKeyFile = # TODO(secrets): deprecate fallback vpn_APC-GT-18_key
-                  if secretAvailable "vpn_APC-GT-18_key.age" then
-                    config.age.secrets.apc-wireguard-private-key.path
-                  else
-                    "/etc/custom-secrets/APC-GT-18_key";
+                privateKeyFile = config.age.secrets.apc-wireguard-private-key.path;
                 postUp = ''
                   ip rule add from 10.2.0.2/32 table 100
                   ip rule add to 89.238.174.2 lookup main priority 100

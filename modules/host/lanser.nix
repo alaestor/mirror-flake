@@ -26,7 +26,6 @@
           }:
           let
             username = config.hostIdentity.primaryUser;
-            secretAvailable = inputs.self.secrets.exists;
             secretPath = inputs.self.secrets.path;
           in
           {
@@ -34,21 +33,18 @@
 
             age = {
               identityPaths = [ config.ssh-host.hostKeyPath ];
-              secrets =
-                lib.optionalAttrs (secretAvailable "vpn_P2PUSCA560.conf.age") {
-                  lanser-torrenting-wireguard-config = {
-                    file = secretPath "vpn_P2PUSCA560.conf.age";
-                    mode = "0400";
-                  };
-                }
-                // lib.optionalAttrs (secretAvailable "headplane_cookie-secret.age") {
-                  lanser-headplane-cookie-secret = {
-                    file = secretPath "headplane_cookie-secret.age";
-                    owner = "headscale";
-                    group = "headscale";
-                    mode = "0400";
-                  };
+              secrets = {
+                lanser-torrenting-wireguard-config = {
+                  file = secretPath "vpn_P2PUSCA560.conf.age";
+                  mode = "0400";
                 };
+                lanser-headplane-cookie-secret = {
+                  file = secretPath "headplane_cookie-secret.age";
+                  owner = "headscale";
+                  group = "headscale";
+                  mode = "0400";
+                };
+              };
             };
 
             boot = {
@@ -197,22 +193,14 @@
                 adminAllowedCIDRs = [ # TODO(global): somewhere to define LAN?
                   "172.16.0.0/24"
                 ];
-                cookieSecretFile = # TODO(secrets): deprecate fallback cookie-secret
-                  if secretAvailable "headplane_cookie-secret.age" then
-                    config.age.secrets.lanser-headplane-cookie-secret.path
-                  else
-                    "/var/lib/headplane/cookie-secret";
+                cookieSecretFile = config.age.secrets.lanser-headplane-cookie-secret.path;
               };
               jellyfin.enable = true;
               matrix.enable = true;
               static-site.enable = true;
               torrenting = {
                 enable = true;
-                wireguardConfigFile = # TODO(secrets): deprecate fallback vpn_P2PUSCA560.conf
-                  if secretAvailable "vpn_P2PUSCA560.conf.age" then
-                    config.age.secrets.lanser-torrenting-wireguard-config.path
-                  else
-                    "/etc/custom-secrets/P2PUSCA560.conf";
+                wireguardConfigFile = config.age.secrets.lanser-torrenting-wireguard-config.path;
               };
             };
 
