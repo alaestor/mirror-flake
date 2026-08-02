@@ -1,8 +1,8 @@
 # Secrets management strategy
 
-This document records the planned secrets-management architecture. It describes
-the intended end state; unless noted otherwise, the integration is not yet
-implemented.
+This document records the secrets-management architecture and its operational
+constraints. Agenix integration and the `self.secrets` boundary are implemented;
+encrypted payloads and additional host recipients are added incrementally.
 
 ## Goals
 
@@ -44,8 +44,7 @@ records as one coordinated change.
 
 Every ordinary secret must be encrypted to all hosts that consume it, plus the
 administrative age recipients exposed by
-`self.data.vars.identities.administrative.age`. Host private-key backups are a
-bootstrap exception.
+`self.data.vars.identities.administrative.age`.
 
 Host private-key backups are a bootstrap exception. Encrypting a private host
 key to its own public key does not provide recovery when that private key is
@@ -112,15 +111,15 @@ The system SSH host key must never be reused as the initrd SSH host key.
 
 ## Flake abstraction
 
-A flake-parts module will expose a narrow `self.secrets` interface analogous to
-`self.data`. Its intended responsibilities are:
+The flake-parts secrets module exposes a narrow `self.secrets` interface
+analogous to `self.data`. Its responsibilities are:
 
 - resolve encrypted-file paths;
 - expose public administrative and host recipients; and
 - hide whether the encrypted tree comes from the main repository, a nested
   repository, or a non-flake input.
 
-Conceptually, consumers should use an interface such as:
+Consumers use the interface as follows:
 
 ```nix
 self.secrets.path "hosts/armatus/example.age"
@@ -139,39 +138,59 @@ secrets repository.
 
 ## Repository layout
 
-The encrypted secrets tree may initially be either:
-
-- a manually cloned, gitignored `secrets/` directory; or
-- a Git submodule at `secrets/`.
-
-This choice is intentionally not settled yet. The `self.secrets` boundary should
-allow a later migration to a pinned non-flake input without changing every
-consumer.
-
-There is an important evaluation boundary: a manually cloned, gitignored
-directory is directly available to deployment shell code, but is not
-automatically included in a Git-backed flake source. Agenix declarations can
-refer to encrypted files only when those files are visible through the flake
-source, a correctly included submodule, or an explicit input. The abstraction
-does not bypass this Nix purity constraint.
+Encrypted payloads and their rules currently live in the tracked top-level
+`secrets/` tree. The `self.secrets` boundary allows a later migration to a
+submodule or pinned non-flake input without changing consumers.
 
 Encrypted files may enter the world-readable Nix store as part of an Agenix
 deployment; plaintext must never do so. A private sister repository can provide
 an organizational and access-control boundary, but does not replace encryption.
 
-## Planned implementation sequence
+The encrypted files must be tracked before evaluating a Git-backed flake. New
+untracked ciphertext is otherwise absent from the flake source even when it is
+present in the working directory.
 
-1. Add Agenix as a flake input and export reusable NixOS integration.
-2. Add the `self.secrets` path and public-recipient boundary.
-3. Define explicit Agenix recipient rules outside the auto-imported module tree.
-4. Extend the deployment helper to provision the stable system host key in
+## Current consumers
+
+The placeholder inventory in `secrets/README.md` records the exact encrypted
+filenames. Confirmed runtime consumers are:
+
+| Host | Secret | Consumer |
+|---|---|---|
+| APC | `APC-GT-18` private key | `networking.wg-quick.interfaces.wg0` |
+| APC | Age and SSH YubiKey stubs | User administration tooling |
+| APC | OpenPGP card stubs | GnuPG private-key stub directory |
+| Lanser | `P2PUSCA560` configuration | Torrent VPN confinement namespace |
+| Lanser | Headplane cookie secret | Headplane sessions |
+
+No active configuration references a `LANSER-EE-20` credential. Do not migrate
+one unless a concrete consumer is identified.
+
+Run Agenix from the secrets directory so rule keys and payload paths have the
+same base:
+
+```sh
+cd secrets
+nix run ..#agenix -- -e hosts/apc/example.age -i /path/to/admin-identity
+nix run ..#agenix -- -r -i /path/to/admin-identity
+```
+
+APC initially has no system SSH host key. Its first rebuild enables OpenSSH and
+creates the configured Ed25519 key under `/etc/secrets/ssh/` while no Agenix
+payload depends on it. Record that public key as the APC host recipient before
+adding APC-encrypted runtime secrets.
+
+## Implementation status
+
+1. Agenix is a flake input with reusable NixOS and Home Manager integrations.
+2. `self.secrets` exposes encrypted paths and public recipients.
+3. `secrets/secrets.nix` holds explicit recipient rules outside the auto-imported
+   module tree.
+4. Remaining: extend the deployment helper to provision the stable system host key in
    addition to the existing stable initrd key.
-5. Migrate ordinary runtime secrets to Agenix incrementally.
-6. Document and test the manual host-key and secret-rotation procedure before
+5. Ordinary runtime secrets are migrated to Agenix incrementally.
+6. Remaining: document and test the manual host-key and secret-rotation procedure before
    relying on it.
-
-Until those steps are complete, the existing initrd-key deployment behavior
-remains authoritative.
 
 ## Alternatives not selected
 

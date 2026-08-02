@@ -7,7 +7,12 @@
 { ... }:
 {
   flake.modules.nixos.serve-headscale =
-    { config, lib, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       cfg = config.serve.headscale;
       headscale = config.services.headscale;
@@ -17,6 +22,12 @@
     {
       options.serve.headscale = {
         enable = lib.mkEnableOption "the Headscale coordination server and Headplane administration interface";
+
+        cookieSecretFile = lib.mkOption {
+          type = lib.types.str;
+          default = cookieSecretPath;
+          description = "Runtime file containing Headplane's 32-character cookie secret.";
+        };
 
         adminAllowedCIDRs = lib.mkOption {
           type = lib.types.listOf lib.types.nonEmptyStr;
@@ -49,7 +60,7 @@
               server = {
                 host = lib.mkDefault "127.0.0.1";
                 port = lib.mkDefault 3000;
-                cookie_secret_path = lib.mkDefault cookieSecretPath;
+                cookie_secret_path = lib.mkDefault cfg.cookieSecretFile;
               };
 
               headscale = {
@@ -60,14 +71,13 @@
           };
         };
 
-        # TODO(secrets): agenix probably
         # Headplane requires a 32-character session-secret. Keep it outside the
         # Nix store and preserve it across service restarts and deployments.
         systemd.services.headplane = lib.mkIf headplane.enable {
           serviceConfig.UMask = "0077";
           preStart = lib.mkBefore ''
-            if ! test -s ${lib.escapeShellArg cookieSecretPath}; then
-              ${lib.getExe pkgs.openssl} rand -hex 16 | ${lib.getExe' pkgs.coreutils "head"} -c 32 > ${lib.escapeShellArg cookieSecretPath}
+            if ! test -s ${lib.escapeShellArg cfg.cookieSecretFile}; then
+              ${lib.getExe pkgs.openssl} rand -hex 16 | ${lib.getExe' pkgs.coreutils "head"} -c 32 > ${lib.escapeShellArg cfg.cookieSecretFile}
             fi
           '';
         };

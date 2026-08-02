@@ -6,6 +6,13 @@
   outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
 
   inputs = {
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs = {
+        home-manager.follows = "unstable-home-manager";
+        nixpkgs.follows = "unstable-nixpkgs";
+      };
+    };
     alpkgs = {
       url = "git+https://codeberg.org/alaestor/pkgs.git";
       inputs = {

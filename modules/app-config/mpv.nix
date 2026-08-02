@@ -85,11 +85,11 @@ let
           screenshot-format=jpg
           screenshot-high-bit-depth=yes
           screenshot-jpeg-quality=95
-          screenshot-jxl-distance=0.100000
+          screenshot-jxl-distance=0.1
           screenshot-jxl-effort=8
           screenshot-png-compression=8
           screenshot-tag-colorspace=yes
-          screenshot-template=T%wM%wS-%#01n-%F [%P]
+          screenshot-template="T%wM%wS-%#01n-%F [%P]"
           sid=auto
           sigmoid-upscaling=yes
           sub-ass-scale-with-window=no

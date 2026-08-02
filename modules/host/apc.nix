@@ -32,7 +32,9 @@
                 withSvtav1 = true;
                 svt-av1 = pkgs.svt-av1-hdr;
               }).overrideAttrs
-                (_: { pname = "ffmpeg-hdr"; });
+                (_: {
+                  pname = "ffmpeg-hdr";
+                });
           in
           {
             home = {
@@ -142,299 +144,379 @@
       ];
     };
 
-    modules = (with inputs.self.modules.nixos; [
-      auto-login
-      crypto-yubikey
-      hifi-audio
-      kde
-      nas
-      printers
-    ]) ++ [
-      (
-        { config, lib, modulesPath, pkgs, ... }:
-        let
-          username = config.hostIdentity.primaryUser;
-        in
-        {
-          imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
+    modules =
+      (with inputs.self.modules.nixos; [
+        agenix
+        auto-login
+        crypto-yubikey
+        hifi-audio
+        kde
+        nas
+        printers
+        ssh-host
+        tailscale
+      ])
+      ++ [
+        (
+          {
+            config,
+            lib,
+            modulesPath,
+            pkgs,
+            ...
+          }:
+          let
+            username = config.hostIdentity.primaryUser;
+            secretAvailable = inputs.self.secrets.exists;
+            secretPath = inputs.self.secrets.path;
+          in
+          {
+            imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
 
-          boot = {
-            kernelPackages = pkgs.linuxPackages_latest;
-            initrd = {
-              availableKernelModules = [
-                "nvme"
-                "xhci_pci"
-                "ahci"
-                "usb_storage"
-                "usbhid"
-                "sd_mod"
+            age = {
+              identityPaths = [ config.ssh-host.hostKeyPath ];
+              secrets =
+                lib.optionalAttrs (secretAvailable "vpn_APC-GT-18_key.age") {
+                  apc-wireguard-private-key = {
+                    file = secretPath "vpn_APC-GT-18_key.age";
+                    mode = "0400";
+                  };
+                }
+                // lib.optionalAttrs (secretAvailable "administrative/age_primary.age") {
+                  apc-age-yubikey-identity = {
+                    file = secretPath "administrative/age_primary.age";
+                    path = "/home/${username}/.config/age/yubikey-identity";
+                    owner = username;
+                    group = "users";
+                    mode = "0400";
+                  };
+                }
+                // lib.optionalAttrs (secretAvailable "administrative/ssh_primary.age") {
+                  apc-ssh-yubikey-identity = {
+                    file = secretPath "administrative/ssh_primary.age";
+                    path = "/home/${username}/.ssh/ssh_sk";
+                    owner = username;
+                    group = "users";
+                    mode = "0400";
+                  };
+                }
+                // lib.optionalAttrs (secretAvailable "administrative/pgp-encrypt-801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key.age") {
+                  apc-pgp-encryption-card-stub = {
+                    file = secretPath "administrative/pgp-encrypt-801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key.age";
+                    path = "/home/${username}/.gnupg/private-keys-v1.d/801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key";
+                    owner = username;
+                    group = "users";
+                    mode = "0400";
+                  };
+                }
+                // lib.optionalAttrs (secretAvailable "administrative/pgp-sign-8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key.age") {
+                  apc-pgp-signing-card-stub = {
+                    file = secretPath "administrative/pgp-sign-8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key.age";
+                    path = "/home/${username}/.gnupg/private-keys-v1.d/8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key";
+                    owner = username;
+                    group = "users";
+                    mode = "0400";
+                  };
+                };
+            };
+
+            ssh-host = {
+              allowUsers = [ username ];
+              hostKeyPath = "/etc/secrets/ssh/ssh_host_ed25519_key";
+            };
+
+            tailscale.enable = true;
+
+            boot = {
+              kernelPackages = pkgs.linuxPackages_latest;
+              initrd = {
+                availableKernelModules = [
+                  "nvme"
+                  "xhci_pci"
+                  "ahci"
+                  "usb_storage"
+                  "usbhid"
+                  "sd_mod"
+                ];
+                luks.devices = {
+                  "luks-98abcfc9-20d2-4af9-ac5f-09c72359086e".device =
+                    "/dev/disk/by-uuid/98abcfc9-20d2-4af9-ac5f-09c72359086e";
+                  "luks-9fd45c42-514d-47e6-975c-88e6e8bafec3".device =
+                    "/dev/disk/by-uuid/9fd45c42-514d-47e6-975c-88e6e8bafec3";
+                };
+              };
+              kernelModules = [
+                "amdgpu"
+                "dns_resolver"
+                "kvm-amd"
+                "nfsv4"
+                "exfat"
+                "ntfs3"
+                "rpcsec_gss_krb5"
+                "qrtr"
+                "snd_hrtimer"
+                "snd_seq"
+                "snd_seq_dummy"
+                "xt_policy"
               ];
-              luks.devices = {
-                "luks-98abcfc9-20d2-4af9-ac5f-09c72359086e".device =
-                  "/dev/disk/by-uuid/98abcfc9-20d2-4af9-ac5f-09c72359086e";
-                "luks-9fd45c42-514d-47e6-975c-88e6e8bafec3".device =
-                  "/dev/disk/by-uuid/9fd45c42-514d-47e6-975c-88e6e8bafec3";
+              kernelParams = [
+                "slab_nomerge"
+                "page_position=1"
+                "page_alloc.shuffle=1"
+                "debugfs=off"
+              ];
+              blacklistedKernelModules = [
+                "ax25"
+                "netrom"
+                "rose"
+                "adfs"
+                "affs"
+                "bfs"
+                "befs"
+                "cramfs"
+                "efs"
+                "erofs"
+                "exofs"
+                "freevxfs"
+                "f2fs"
+                "hfs"
+                "hpfs"
+                "jfs"
+                "minix"
+                "nilfs2"
+                "omfs"
+                "qnx4"
+                "qnx6"
+                "sysv"
+                "ufs"
+              ];
+              kernel.sysctl = {
+                "kernel.kptr_restrict" = lib.mkOverride 500 2;
+                "net.core.bpf_jit_enable" = false;
+                "kernel.ftrace_enabled" = false;
+                "net.ipv4.conf.all.log_martians" = true;
+                "net.ipv4.conf.all.rp_filter" = "1";
+                "net.ipv4.conf.default.log_martians" = true;
+                "net.ipv4.conf.default.rp_filter" = "1";
+                "net.ipv4.icmp_echo_ignore_broadcasts" = true;
+                "net.ipv4.conf.all.accept_redirects" = lib.mkDefault false;
+                "net.ipv4.conf.all.secure_redirects" = lib.mkDefault false;
+                "net.ipv4.conf.default.accept_redirects" = lib.mkDefault false;
+                "net.ipv4.conf.default.secure_redirects" = lib.mkDefault false;
+                "net.ipv6.conf.all.accept_redirects" = lib.mkDefault false;
+                "net.ipv6.conf.default.accept_redirects" = lib.mkDefault false;
+                "net.ipv4.conf.all.send_redirects" = false;
+                "net.ipv4.conf.default.send_redirects" = false;
+                "net.ipv6.conf.all.accept_ra" = 0;
+                "net.ipv6.conf.default.accept_ra" = 0;
+              };
+              loader = {
+                systemd-boot.enable = true;
+                efi.canTouchEfiVariables = true;
               };
             };
-            kernelModules = [
-              "amdgpu"
-              "dns_resolver"
-              "kvm-amd"
-              "nfsv4"
-              "exfat"
-              "ntfs3"
-              "rpcsec_gss_krb5"
-              "qrtr"
-              "snd_hrtimer"
-              "snd_seq"
-              "snd_seq_dummy"
-              "xt_policy"
-            ];
-            kernelParams = [
-              "slab_nomerge"
-              "page_position=1"
-              "page_alloc.shuffle=1"
-              "debugfs=off"
-            ];
-            blacklistedKernelModules = [
-              "ax25"
-              "netrom"
-              "rose"
-              "adfs"
-              "affs"
-              "bfs"
-              "befs"
-              "cramfs"
-              "efs"
-              "erofs"
-              "exofs"
-              "freevxfs"
-              "f2fs"
-              "hfs"
-              "hpfs"
-              "jfs"
-              "minix"
-              "nilfs2"
-              "omfs"
-              "qnx4"
-              "qnx6"
-              "sysv"
-              "ufs"
-            ];
-            kernel.sysctl = {
-              "kernel.kptr_restrict" = lib.mkOverride 500 2;
-              "net.core.bpf_jit_enable" = false;
-              "kernel.ftrace_enabled" = false;
-              "net.ipv4.conf.all.log_martians" = true;
-              "net.ipv4.conf.all.rp_filter" = "1";
-              "net.ipv4.conf.default.log_martians" = true;
-              "net.ipv4.conf.default.rp_filter" = "1";
-              "net.ipv4.icmp_echo_ignore_broadcasts" = true;
-              "net.ipv4.conf.all.accept_redirects" = lib.mkDefault false;
-              "net.ipv4.conf.all.secure_redirects" = lib.mkDefault false;
-              "net.ipv4.conf.default.accept_redirects" = lib.mkDefault false;
-              "net.ipv4.conf.default.secure_redirects" = lib.mkDefault false;
-              "net.ipv6.conf.all.accept_redirects" = lib.mkDefault false;
-              "net.ipv6.conf.default.accept_redirects" = lib.mkDefault false;
-              "net.ipv4.conf.all.send_redirects" = false;
-              "net.ipv4.conf.default.send_redirects" = false;
-              "net.ipv6.conf.all.accept_ra" = 0;
-              "net.ipv6.conf.default.accept_ra" = 0;
-            };
-            loader = {
-              systemd-boot.enable = true;
-              efi.canTouchEfiVariables = true;
-            };
-          };
 
-          fileSystems = {
-            "/" = {
-              device = "/dev/disk/by-uuid/b8d36e54-a050-4606-b99b-b169a732c561";
-              fsType = "ext4";
+            fileSystems = {
+              "/" = {
+                device = "/dev/disk/by-uuid/b8d36e54-a050-4606-b99b-b169a732c561";
+                fsType = "ext4";
+              };
+              "/boot" = {
+                device = "/dev/disk/by-uuid/D817-CBDF";
+                fsType = "vfat";
+                options = [
+                  "fmask=0022"
+                  "dmask=0022"
+                ];
+              };
             };
-            "/boot" = {
-              device = "/dev/disk/by-uuid/D817-CBDF";
-              fsType = "vfat";
-              options = [ "fmask=0022" "dmask=0022" ];
-            };
-          };
 
-          environment = {
-            sessionVariables.NIXOS_OZONE_WL = "1";
-            systemPackages = with pkgs; [
-              home-manager
-              pinentry-tty
-              wl-clipboard-rs
-              xkill
-              nfs-utils
-              p7zip
-              unrar
-              unar
-              lzip
-              mozlz4a
-              kdePackages.kgpg
-              kdePackages.ksystemlog
-              kdePackages.partitionmanager
-              kdePackages.xdg-desktop-portal-kde
-            ];
-          };
-
-          fonts.packages = builtins.filter lib.attrsets.isDerivation (
-            builtins.attrValues pkgs.nerd-fonts
-          );
-
-          hardware = {
-            cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
-            graphics = {
-              enable = true;
-              enable32Bit = true;
-              extraPackages = [ pkgs.rocmPackages.clr.icd ];
-            };
-            gpgSmartcards.enable = true;
-          };
-
-          nix.settings = {
-            auto-optimise-store = true;
-            download-buffer-size = 524288000 * 2;
-            experimental-features = [ "nix-command" "flakes" ];
-            allowed-users = [ "@wheel" ];
-          };
-
-          networking = {
-            enableIPv6 = true;
-            networkmanager.enable = true;
-            useDHCP = false;
-            interfaces = {
-              enp34s0.useDHCP = true;
-              enp42s0 = { };
-            };
-            defaultGateway = {
-              address = "172.16.0.1";
-              interface = "enp34s0";
-            };
-            wg-quick.interfaces.wg0 = {
-              table = "100";
-              address = [ "10.2.0.2/32" ];
-              privateKeyFile = "/etc/custom-secrets/APC-GT-18_key";
-              postUp = ''
-                ip rule add from 10.2.0.2/32 table 100
-                ip rule add to 89.238.174.2 lookup main priority 100
-              '';
-              preDown = ''
-                ip rule del from 10.2.0.2/32 table 100
-                ip rule del to 89.238.174.2 lookup main priority 100
-              '';
-              peers = [
-                {
-                  publicKey = "UBnjj4fW9ZR7bGnxN7JOD9G9AOwkYWl2gADZRHljEHI=";
-                  allowedIPs = [ "0.0.0.0/0" "::/0" ];
-                  endpoint = "89.238.174.2:51820";
-                  persistentKeepalive = 25;
-                }
+            environment = {
+              sessionVariables.NIXOS_OZONE_WL = "1";
+              systemPackages = with pkgs; [
+                home-manager
+                pinentry-tty
+                wl-clipboard-rs
+                xkill
+                nfs-utils
+                p7zip
+                unrar
+                unar
+                lzip
+                mozlz4a
+                kdePackages.kgpg
+                kdePackages.ksystemlog
+                kdePackages.partitionmanager
+                kdePackages.xdg-desktop-portal-kde
               ];
             };
-            hosts = {
-              "172.16.0.1" = [ "router.lan" ];
-              "192.168.1.200" = [ "NAS" ];
-            };
-            extraHosts = "0.0.0.0 crash.steampowered.com";
-            firewall = {
-              enable = lib.mkForce true;
-              allowPing = false;
-              trustedInterfaces = [ "vmtap2" ];
-              allowedTCPPorts = [ 1234 2234 ];
-            };
-          };
 
-          nas = {
-            server = "172.16.0.2";
-            cauldron.enable = true;
-            vault.enable = true;
-            pocket.enable = true;
-          };
+            fonts.packages = builtins.filter lib.attrsets.isDerivation (builtins.attrValues pkgs.nerd-fonts);
 
-          programs = {
-            steam = {
+            hardware = {
+              cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+              graphics = {
+                enable = true;
+                enable32Bit = true;
+                extraPackages = [ pkgs.rocmPackages.clr.icd ];
+              };
+              gpgSmartcards.enable = true;
+            };
+
+            nix.settings = {
+              auto-optimise-store = true;
+              download-buffer-size = 524288000 * 2;
+              experimental-features = [
+                "nix-command"
+                "flakes"
+              ];
+              allowed-users = [ "@wheel" ];
+            };
+
+            networking = {
+              enableIPv6 = true;
+              networkmanager.enable = true;
+              useDHCP = false;
+              interfaces = {
+                enp34s0.useDHCP = true;
+                enp42s0 = { };
+              };
+              defaultGateway = {
+                address = "172.16.0.1";
+                interface = "enp34s0";
+              };
+              wg-quick.interfaces.wg0 = {
+                table = "100";
+                address = [ "10.2.0.2/32" ];
+                privateKeyFile =
+                  if secretAvailable "vpn_APC-GT-18_key.age" then
+                    config.age.secrets.apc-wireguard-private-key.path
+                  else
+                    "/etc/custom-secrets/APC-GT-18_key";
+                postUp = ''
+                  ip rule add from 10.2.0.2/32 table 100
+                  ip rule add to 89.238.174.2 lookup main priority 100
+                '';
+                preDown = ''
+                  ip rule del from 10.2.0.2/32 table 100
+                  ip rule del to 89.238.174.2 lookup main priority 100
+                '';
+                peers = [
+                  {
+                    publicKey = "UBnjj4fW9ZR7bGnxN7JOD9G9AOwkYWl2gADZRHljEHI=";
+                    allowedIPs = [
+                      "0.0.0.0/0"
+                      "::/0"
+                    ];
+                    endpoint = "89.238.174.2:51820";
+                    persistentKeepalive = 25;
+                  }
+                ];
+              };
+              hosts = {
+                "172.16.0.1" = [ "router.lan" ];
+                "192.168.1.200" = [ "NAS" ];
+              };
+              extraHosts = "0.0.0.0 crash.steampowered.com";
+              firewall = {
+                enable = lib.mkForce true;
+                allowPing = false;
+                trustedInterfaces = [ "vmtap2" ];
+                allowedTCPPorts = [
+                  1234
+                  2234
+                ];
+              };
+            };
+
+            nas = {
+              server = "172.16.0.2";
+              cauldron.enable = true;
+              vault.enable = true;
+              pocket.enable = true;
+            };
+
+            programs = {
+              steam = {
+                enable = true;
+                remotePlay.openFirewall = true;
+              };
+              virt-manager.enable = true;
+            };
+
+            security = {
+              lockKernelModules = false;
+              protectKernelImage = true;
+              forcePageTableIsolation = true;
+              virtualisation.flushL1DataCache = "always";
+              sudo.enable = false;
+              sudo-rs = {
+                enable = true;
+                package = pkgs.sudo-rs;
+                execWheelOnly = true;
+              };
+              apparmor = {
+                enable = true;
+                killUnconfinedConfinables = true;
+              };
+            };
+
+            services = {
+              earlyoom = {
+                enable = true;
+                enableNotifications = true;
+              };
+              ratbagd = {
+                enable = true;
+                package = pkgs.libratbag;
+              };
+              avahi.enable = lib.mkForce false;
+              printing = {
+                browsed.enable = lib.mkForce false;
+                browsing = lib.mkForce false;
+              };
+            };
+
+            systemd = {
+              oomd.enable = false;
+              tmpfiles.rules = [
+                "L+    /opt/rocm/hip   -    -    -     -    ${pkgs.rocmPackages.clr}"
+              ];
+              user.services.preventSteamDumps = {
+                description = "Symlink Steam crash reports to /dev/null";
+                script = "ln -s /dev/null /tmp/dumps";
+                wantedBy = [ "multi-user.target" ];
+              };
+            };
+
+            users.users.${username} = {
+              isNormalUser = true;
+              description = username;
+              extraGroups = [
+                "networkmanager"
+                "wheel"
+                "kvm"
+                "ydotool"
+                "input"
+                "uinput"
+              ];
+            };
+
+            virtualisation = {
+              libvirtd.enable = true;
+              podman = {
+                enable = true;
+                dockerCompat = true;
+              };
+            };
+
+            xdg.portal.enable = true;
+            zramSwap = {
               enable = true;
-              remotePlay.openFirewall = true;
+              memoryPercent = 30;
             };
-            virt-manager.enable = true;
-          };
-
-          security = {
-            lockKernelModules = false;
-            protectKernelImage = true;
-            forcePageTableIsolation = true;
-            virtualisation.flushL1DataCache = "always";
-            sudo.enable = false;
-            sudo-rs = {
-              enable = true;
-              package = pkgs.sudo-rs;
-              execWheelOnly = true;
-            };
-            apparmor = {
-              enable = true;
-              killUnconfinedConfinables = true;
-            };
-          };
-
-          services = {
-            earlyoom = {
-              enable = true;
-              enableNotifications = true;
-            };
-            ratbagd = {
-              enable = true;
-              package = pkgs.libratbag;
-            };
-            avahi.enable = lib.mkForce false;
-            openssh.enable = lib.mkForce false;
-            printing = {
-              browsed.enable = lib.mkForce false;
-              browsing = lib.mkForce false;
-            };
-          };
-
-          systemd = {
-            oomd.enable = false;
-            tmpfiles.rules = [
-              "L+    /opt/rocm/hip   -    -    -     -    ${pkgs.rocmPackages.clr}"
-            ];
-            user.services.preventSteamDumps = {
-              description = "Symlink Steam crash reports to /dev/null";
-              script = "ln -s /dev/null /tmp/dumps";
-              wantedBy = [ "multi-user.target" ];
-            };
-          };
-
-          users.users.${username} = {
-            isNormalUser = true;
-            description = username;
-            extraGroups = [
-              "networkmanager"
-              "wheel"
-              "kvm"
-              "ydotool"
-              "input"
-              "uinput"
-            ];
-          };
-
-          virtualisation = {
-            libvirtd.enable = true;
-            podman = {
-              enable = true;
-              dockerCompat = true;
-            };
-          };
-
-          xdg.portal.enable = true;
-          zramSwap = {
-            enable = true;
-            memoryPercent = 30;
-          };
-        }
-      )
-    ];
+          }
+        )
+      ];
   };
 }
