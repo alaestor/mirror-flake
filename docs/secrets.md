@@ -28,6 +28,7 @@ make roles interchangeable.
 | System SSH host | Identify an installed host and decrypt that host's Agenix secrets | Stable machine state that must survive reinstall or be deliberately rotated. |
 | Initrd SSH host | Identify pre-boot SSH used for remote unlock | Stable bootstrap state, always distinct from the system host key. |
 | Deployment SSH | Authorize one installation session | Ephemeral; never a secret recipient or persistent identity. |
+| Nix store signing | Authorize store paths produced by a trusted builder | Host-bound signing authority, encrypted for runtime deployment and administrative recovery. |
 
 SSH host public keys are not login keys. They must never be added to
 administrative or client `authorized_keys` sets.
@@ -88,6 +89,7 @@ owns encrypted paths and public recipient metadata, not decryption:
 self.secrets.path "service/example.age"
 self.secrets.sshClient "example"
 self.secrets.sshHost "example"
+self.secrets.nixStoreSigning "cache.example.org-1"
 self.secrets.administrative.sshPrimary
 self.secrets.recipients.administrators
 self.secrets.recipients.hosts.example
@@ -119,7 +121,39 @@ data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub
 
 secrets/ssh-client/id_ed25519_<host>.age
 secrets/ssh-host/ssh_host_ed25519_key_<host>.age
+data/identities/nix-store-signing/<key-name>.nsk.pub
+secrets/nix-store-signing/<key-name>.nsk.age
 ```
+
+Nix store signing key names follow Nix's binary-cache convention: a DNS-like
+authority name and a rotation counter. `apc.tailnet.0x04.cc-1` identifies APC's
+private builder authority; a future public cache should use its own authority
+such as `cache.0x04.cc-1`.
+
+Generate a new pair explicitly from a trusted workstation:
+
+```sh
+nix run .#provision-nix-store-signing-key -- \
+  --key-name apc.tailnet.0x04.cc-1 \
+  --recipient "$(grep -v '^#' data/identities/ssh-host/ssh_host_ed25519_key_apc.pub | head -n1)"
+```
+
+The app refuses to overwrite either output and writes only `<key-name>.nsk.pub`
+and the Age-encrypted `<key-name>.nsk.age` in the current directory. The `nsk`
+suffix is this repository's convention for Nix signing keys; Nix itself does
+not prescribe an extension. Administrative Age recipients are included by
+default; the explicit recipient above gives APC unattended decryption. Move the
+files into the public and encrypted paths above, respectively. Plaintext
+signing keys must never enter the repository or Nix store.
+
+`flake.modules.nixos.local-cache` and
+`flake.nixOnDroidModules.local-cache` are enabled on import. They default to
+`http://apc.tailnet.0x04.cc:5000` and trust the corresponding first-rotation
+public key. If that public file is absent, they warn and leave the existing
+substituters unchanged. `flake.modules.nixos.serve-nix-cache` is the separate,
+disabled-by-default service that exposes a host's store through `nix-serve`;
+the serving host must enable it explicitly and owns its private-interface
+firewall policy.
 
 The public client-key representation and encrypted OpenSSH basename need not be
 identical, but consumers must follow the repository's normalized interfaces

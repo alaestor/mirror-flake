@@ -54,6 +54,13 @@
         nixpkgs.follows = "android-nixpkgs";
       };
     };
+    nix-on-droid-ts = {
+      url = "github:alaestor/fork-nix-on-droid/better-cross-compile-1";
+      inputs = {
+        home-manager.follows = "android-home-manager";
+        nixpkgs.follows = "android-nixpkgs";
+      };
+    };
     nix-wrapper-modules = {
       url = "github:BirdeeHub/nix-wrapper-modules";
       inputs.nixpkgs.follows = "nixpkgs";

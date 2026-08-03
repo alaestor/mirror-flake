@@ -20,6 +20,7 @@ in
       modules = [
         inputs.self.nixOnDroidModules.base
         inputs.self.nixOnDroidModules.host-identity
+        inputs.self.nixOnDroidModules.local-cache
         inputs.self.nixOnDroidModules.ssh-host
         (
           { config, pkgs, ... }:

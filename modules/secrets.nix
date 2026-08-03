@@ -24,14 +24,17 @@
         inherit fileName host;
       };
 
-    sshHost = hostName:
+      sshHost = hostName:
       let
         host = lib.toLower hostName;
         fileName = "ssh_host_ed25519_key_${host}";
       in
       describe "ssh-host/${fileName}.age" // {
         inherit fileName host;
-      };
+        };
+
+      nixStoreSigning = keyName:
+        describe "nix-store-signing/${keyName}.nsk.age" // { inherit keyName; };
 
     administrative = {
       agePrimary = describe "administrative/age_primary.age";

@@ -12,6 +12,7 @@
   - `identities.administrative` contains public administrator identities.
   - `identities.ssh-client` contains public per-host SSH client identities.
   - `identities.ssh-host` contains public SSH server identities.
+  - Nix store signing public keys are resolved by signing authority name.
   - `sshAdminKeys` contains only administrative SSH login identities.
   - `sshClientPublicKeys` contains only per-host SSH client identities.
   - `sshHostPublicKeys` contains only SSH host identities.
@@ -68,6 +69,9 @@ in
 
       sshHostPublicKeys =
         lib.mapAttrs (_: value: builtins.head (identityLines value)) identities.ssh-host;
+
+      nixStoreSigningPublicKey = keyName:
+        read "identities/nix-store-signing/${keyName}.nsk.pub";
 
       textart.boykisser = path "textart/boykisser.txt";
     };

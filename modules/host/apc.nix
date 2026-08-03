@@ -160,6 +160,7 @@
         kde
         nas
         printers
+        serve-nix-cache
         ssh-client
         ssh-host
         tailscale
@@ -192,11 +193,14 @@
 
             crypto-yubikey.administrativeStubs.enable = true;
 
+            serve.nix-cache.enable = true;
+
             ssh-host.authorizedKeys = [ inputs.self.data.vars.sshClientPublicKeys.noblesse ];
 
             tailscale.enable = true;
 
             boot = {
+              binfmt.emulatedSystems = [ "aarch64-linux" ]; # to cross-compile for noblesse
               kernelPackages = pkgs.linuxPackages_latest;
               initrd = {
                 availableKernelModules = [
@@ -344,6 +348,7 @@
             };
 
             networking = {
+              domain = "tailnet.0x04.cc";
               enableIPv6 = true;
               networkmanager.enable = true;
               useDHCP = false;
