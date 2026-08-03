@@ -192,6 +192,8 @@
 
             crypto-yubikey.administrativeStubs.enable = true;
 
+            ssh-host.authorizedKeys = [ inputs.self.data.vars.sshClientPublicKeys.noblesse ];
+
             tailscale.enable = true;
 
             boot = {
