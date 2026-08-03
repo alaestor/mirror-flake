@@ -12,13 +12,16 @@ def main [script: path, template: path] {
   ^git -C $fixture config user.name "mkstatus test"
   ^git -C $fixture add .
   ^git -C $fixture -c commit.gpgsign=false commit --quiet -m "fixture"
+  ^git -C $fixture remote add origin "git@codeberg.org:example/fixture.git"
   let output = ($fixture | path join "status.json")
 
   ^nu $script --template $template --root $fixture --format json --output $output
   let report = (open $output)
   let revision = (^git -C $fixture rev-parse HEAD | str trim)
   assert equal ($report.annotations | length) 5
+  assert equal $report.repository "https://codeberg.org/example/fixture"
   assert equal $report.revision $revision
+  assert ($report.generatedAt | str starts-with "20")
   assert equal ($report.annotations | get marker | sort) ["NOTE" "NOTE" "TODO" "TODO" "WARN"]
   assert equal ($report.annotations | get scope | sort) ["architecture" "empty" "secrets" "security" "unscoped"]
   assert equal ($report.annotations | where scope == "empty" | first | get message) ""
@@ -27,12 +30,21 @@ def main [script: path, template: path] {
   let templateContents = ($template | open --raw)
   assert ($templateContents | str contains 'renderMarkdownLinks(item.message)')
   assert ($templateContents | str contains 'id="links"')
+  assert ($templateContents | str contains 'id="generated"')
+  assert ($templateContents | str contains 'generated ${data.generatedAt}')
+  assert ($templateContents | str contains 'id="repository-link"')
+  assert ($templateContents | str contains 'id="edit-repository"')
   assert ($templateContents | str contains 'id="revision-link"')
   assert ($templateContents | str contains 'id="edit-revision"')
-  assert ($templateContents | str contains 'id="reset-revision"')
-  assert ($templateContents | str contains "editRevision.disabled = localLinks")
-  assert ($templateContents | str contains "revisionLink.classList.toggle('disabled', localLinks)")
-  assert ($templateContents | str contains 'https://codeberg.org/alaestor/flake/src/commit/${encodeURIComponent(value)}')
+  assert ($templateContents | str contains "editRepository.disabled = localLinks")
+  assert ($templateContents | str contains 'src/commit/${encodeURIComponent(value)}')
+
+  let overridden = (^nu $script --template $template --root $fixture --format json --output $output --url "https://example.com/override" --rev "override" | complete)
+  assert equal $overridden.exit_code 0
+  assert ($overridden.stderr | str contains "links use revision override")
+  let overriddenReport = (open $output)
+  assert equal $overriddenReport.repository "https://example.com/override"
+  assert equal $overriddenReport.revision "override"
 
   let invalid = (^nu $script --template $template --root $fixture --format yaml --output $output | complete)
   assert ($invalid.exit_code != 0)

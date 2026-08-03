@@ -8,11 +8,12 @@
     :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #0b0f17; color: #d9e2f1; }
     * { box-sizing: border-box; }
     body { max-width: 88rem; margin: 0 auto; padding: 2rem; }
-    header, .controls, .summary { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    header, .controls, .summary-row, .summary { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
     header { justify-content: space-between; }
     h1 { margin-bottom: .25rem; letter-spacing: -.03em; }
     p { color: #8997ad; }
-    .summary { margin: 1.5rem 0; }
+    .summary-row { justify-content: space-between; margin: 1.5rem 0; }
+    .summary { flex: 1; }
     .card, section { border: 1px solid #283247; border-radius: .6rem; background: #111827; box-shadow: 0 .4rem 1.5rem #0005; }
     .card { min-width: 9rem; padding: .8rem 1rem; color: #8997ad; }
     .card strong { display: block; color: #f4f7fb; font-size: 1.6rem; }
@@ -35,30 +36,33 @@
     input { width: 15rem; }
     button { cursor: pointer; }
     button:disabled { cursor: not-allowed; opacity: .5; }
-    .revision-control { display: flex; gap: .35rem; align-items: center; }
-    .revision-control a { width: 15rem; min-height: 2.3rem; padding: .45rem .1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .revision-control a.disabled { color: inherit; cursor: default; text-decoration: none; }
+    .links-area { display: grid; gap: .25rem; color: #8997ad; font-size: .8rem; }
+    .links-settings, .link-control { display: flex; gap: .35rem; align-items: center; }
+    .link-control a { width: 15rem; min-height: 2.3rem; padding: .45rem .1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .revision-control a, .revision-control input { width: 22rem; }
+    .link-control a.disabled { color: inherit; cursor: default; text-decoration: none; }
     .empty { padding: 2rem; text-align: center; }
+    footer { margin-top: 1rem; padding: .4rem 0; border-top: 1px solid #283247; color: #8997ad; font-size: .75rem; text-align: right; }
     @media (max-width: 52rem) { body { padding: 1rem; } li { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <header>
     <div><h1>Repository status</h1><p id="subtitle"></p></div>
-    <div class="controls">
-      <label>Group by<select id="group"><option value="scope">Scope</option><option value="directory">Directory</option></select></label>
-      <label>Marker<select id="marker"><option value="">All</option><option>TODO</option><option>WARN</option><option>NOTE</option></select></label>
-      <label>Scope<select id="scope"><option value="">All</option></select></label>
-      <label>Links<select id="links"><option value="remote">Remote</option><option value="local">Local</option></select></label>
-      <label>Revision<span class="revision-control"><button id="reset-revision" type="button" title="Reset revision" aria-label="Reset revision">↺</button><a id="revision-link" target="_blank" rel="noopener noreferrer"></a><input id="revision" type="text" spellcheck="false" hidden><button id="edit-revision" type="button" title="Edit revision" aria-label="Edit revision">✎</button></span></label>
-      <label>Search<input id="search" type="search" placeholder="message or path"></label>
-    </div>
+    <div class="links-area"><span>Links</span><div class="links-settings"><select id="links" aria-label="Link destination"><option value="remote">Remote</option><option value="local">Local</option></select><span class="link-control"><button id="edit-repository" type="button" title="Edit repository" aria-label="Edit repository">✎</button><a id="repository-link" target="_blank" rel="noopener noreferrer"></a><input id="repository" type="text" spellcheck="false" hidden></span><span>Revision</span><span class="link-control revision-control"><button id="edit-revision" type="button" title="Edit revision" aria-label="Edit revision">✎</button><a id="revision-link" target="_blank" rel="noopener noreferrer"></a><input id="revision" type="text" spellcheck="false" hidden></span></div></div>
   </header>
-  <div class="summary" id="summary"></div>
+  <div class="controls">
+    <label>Group by<select id="group"><option value="scope">Scope</option><option value="directory">Directory</option></select></label>
+    <label>Marker<select id="marker"><option value="">All</option><option>TODO</option><option>WARN</option><option>NOTE</option></select></label>
+    <label>Scope<select id="scope"><option value="">All</option></select></label>
+  </div>
+  <div class="summary-row"><div class="summary" id="summary"></div><label>Search<input id="search" type="search" placeholder="message or path"></label></div>
   <main id="report"></main>
+  <footer id="generated"></footer>
   <script id="status-data" type="application/json">__STATUS_DATA__</script>
   <script>
     const data = JSON.parse(document.getElementById('status-data').textContent);
+    document.getElementById('generated').textContent = `generated ${data.generatedAt}`;
     const controls = Object.fromEntries(['group', 'marker', 'scope', 'links', 'search'].map(id => [id, document.getElementById(id)]));
     controls.group.value = data.defaultGroup;
     [...new Set(data.annotations.map(item => item.scope))].sort().forEach(scope => controls.scope.add(new Option(scope, scope)));
@@ -83,31 +87,52 @@
       return result + escapeHtml(message.slice(index));
     };
     const card = (label, count) => `<div class="card"><strong>${count}</strong>${label}</div>`;
+    const defaultRepository = data.repository || '';
     const defaultRevision = data.revision || '';
+    const repositoryInput = document.getElementById('repository');
+    const repositoryLink = document.getElementById('repository-link');
+    const editRepository = document.getElementById('edit-repository');
     const revisionInput = document.getElementById('revision');
     const revisionLink = document.getElementById('revision-link');
     const editRevision = document.getElementById('edit-revision');
-    const resetRevision = document.getElementById('reset-revision');
+    repositoryInput.value = defaultRepository;
     revisionInput.value = defaultRevision;
+    const repository = () => repositoryInput.value.trim();
     const revision = () => revisionInput.value.trim();
-    const repositoryUrl = value => value
-      ? `https://codeberg.org/alaestor/flake/src/commit/${encodeURIComponent(value)}`
-      : null;
-    const updateRevisionControl = () => {
-      const value = revision();
-      const localLinks = controls.links.value === 'local';
-      const url = localLinks ? null : repositoryUrl(value);
-      revisionLink.textContent = value || 'unavailable';
-      revisionLink.title = localLinks ? 'Switch Links to Remote to open this revision' : url ? 'Open repository at this revision' : 'No revision is available';
-      revisionLink.classList.toggle('disabled', localLinks);
-      if (url) revisionLink.href = url;
-      else revisionLink.removeAttribute('href');
-      editRevision.disabled = localLinks;
-      resetRevision.disabled = localLinks || value === defaultRevision;
+    const repositoryUrl = value => {
+      const normalized = value.trim()
+        .replace(/^git@([^:]+):/, 'https://$1/')
+        .replace(/^ssh:\/\/git@([^/]+)\//, 'https://$1/')
+        .replace(/\.git\/?$/, '');
+      try {
+        const url = new URL(normalized);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href.replace(/\/$/, '') : null;
+      } catch {
+        return null;
+      }
     };
-    const sourceUrl = item => controls.links.value === 'remote' && revision()
-      ? `${repositoryUrl(revision())}/${encodeURI(item.file)}#L${item.line}`
-      : `${encodeURI(item.file)}#L${item.line}`;
+    const revisionUrl = value => {
+      const url = repositoryUrl(repository());
+      return url && value ? `${url}/src/commit/${encodeURIComponent(value)}` : null;
+    };
+    const updateLink = (link, value, url, localLinks, kind) => {
+      link.textContent = value || 'unavailable';
+      link.title = localLinks ? 'Switch Links to Remote to open this value' : url ? `Open ${kind}` : `No ${kind} is available`;
+      link.classList.toggle('disabled', localLinks);
+      if (url) link.href = url;
+      else link.removeAttribute('href');
+    };
+    const updateLinkControls = () => {
+      const localLinks = controls.links.value === 'local';
+      updateLink(repositoryLink, repository(), localLinks ? null : repositoryUrl(repository()), localLinks, 'repository');
+      updateLink(revisionLink, revision(), localLinks ? null : revisionUrl(revision()), localLinks, 'repository at this revision');
+      editRepository.disabled = localLinks;
+      editRevision.disabled = localLinks;
+    };
+    const sourceUrl = item => {
+      const url = controls.links.value === 'remote' ? revisionUrl(revision()) : null;
+      return url ? `${url}/${encodeURI(item.file)}#L${item.line}` : `${encodeURI(item.file)}#L${item.line}`;
+    };
 
     function render() {
       const query = controls.search.value.toLowerCase();
@@ -135,35 +160,38 @@
         ).join('')}</ul></section>`).join('') : '<p class="empty">No matching annotations.</p>';
     }
     Object.values(controls).forEach(control => control.addEventListener('input', render));
-    controls.links.addEventListener('input', updateRevisionControl);
-    revisionInput.addEventListener('input', () => {
-      updateRevisionControl();
-      render();
+    controls.links.addEventListener('input', updateLinkControls);
+    const fields = [
+      {input: repositoryInput, link: repositoryLink, edit: editRepository, defaultValue: defaultRepository},
+      {input: revisionInput, link: revisionLink, edit: editRevision, defaultValue: defaultRevision},
+    ];
+    fields.forEach(field => {
+      field.input.addEventListener('input', () => {
+        updateLinkControls();
+        render();
+      });
+      field.edit.addEventListener('click', () => {
+        field.link.hidden = true;
+        field.input.hidden = false;
+        field.input.focus();
+        field.input.select();
+      });
+      const finishEdit = () => {
+        if (!field.input.value.trim()) field.input.value = field.defaultValue;
+        field.input.hidden = true;
+        field.link.hidden = false;
+        updateLinkControls();
+        render();
+      };
+      field.input.addEventListener('blur', finishEdit);
+      field.input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finishEdit();
+        }
+      });
     });
-    editRevision.addEventListener('click', () => {
-      revisionLink.hidden = true;
-      revisionInput.hidden = false;
-      revisionInput.focus();
-      revisionInput.select();
-    });
-    const finishRevisionEdit = () => {
-      revisionInput.hidden = true;
-      revisionLink.hidden = false;
-    };
-    revisionInput.addEventListener('blur', finishRevisionEdit);
-    revisionInput.addEventListener('keydown', event => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        finishRevisionEdit();
-      }
-    });
-    resetRevision.addEventListener('click', () => {
-      revisionInput.value = defaultRevision;
-      updateRevisionControl();
-      render();
-      finishRevisionEdit();
-    });
-    updateRevisionControl();
+    updateLinkControls();
     render();
   </script>
 </body>
