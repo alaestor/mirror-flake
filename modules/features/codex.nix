@@ -70,6 +70,41 @@
       '';
 
       serena = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
+      bashLanguageServerWithShellcheck = pkgs.writeShellApplication {
+        name = "bash-language-server-with-shellcheck";
+        runtimeInputs = [ pkgs.nodejs ];
+        text = ''
+          export SHELLCHECK_PATH=${lib.getExe pkgs.shellcheck}
+          exec ${lib.getExe pkgs.bash-language-server} "$@"
+        '';
+      };
+      mkNodeLanguageServerWrapper =
+        name: executable:
+        pkgs.writeShellApplication {
+          inherit name;
+          runtimeInputs = [ pkgs.nodejs ];
+          text = ''
+            exec ${executable} "$@"
+          '';
+        };
+      jsonLanguageServer = mkNodeLanguageServerWrapper "json-language-server" (
+        lib.getExe' pkgs.vscode-langservers-extracted "vscode-json-language-server"
+      );
+      yamlLanguageServer = mkNodeLanguageServerWrapper "yaml-language-server" (
+        lib.getExe' pkgs.yaml-language-server "yaml-language-server"
+      );
+      serenaHome = "${config.home.homeDirectory}/.serena-cxs";
+      serenaConfig = pkgs.writeText "serena-cxs-config.yml" ''
+        ls_specific_settings:
+          bash:
+            ls_path: ${lib.getExe bashLanguageServerWithShellcheck}
+          json:
+            ls_path: ${lib.getExe jsonLanguageServer}
+          markdown:
+            ls_path: ${lib.getExe pkgs.marksman}
+          yaml:
+            ls_path: ${lib.getExe yamlLanguageServer}
+      '';
 
       proxyUrl = "http://${proxy.address}:${toString proxy.port}/v1";
       baseOverrides = [
@@ -81,6 +116,7 @@
       serenaOverrides = [
         "mcp_servers.serena.startup_timeout_sec=15"
         "mcp_servers.serena.command=${builtins.toJSON (lib.getExe serena)}"
+        "mcp_servers.serena.env=${builtins.toJSON { SERENA_HOME = serenaHome; }}"
         "mcp_servers.serena.args=${builtins.toJSON [
           "start-mcp-server"
           "--project-from-cwd"
@@ -220,6 +256,7 @@
           (mkCodexWrapper "cx" false)
           (mkCodexWrapper "cxs" true)
         ];
+        home.file.".serena-cxs/serena_config.yml".source = serenaConfig;
 
         programs.codex = {
           enable = lib.mkDefault true;

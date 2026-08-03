@@ -29,6 +29,7 @@
       hifi-audio
       printers
       nas
+      ssh-client
       ssh-host
       standard-disk
     ])

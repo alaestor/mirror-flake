@@ -8,6 +8,15 @@
 
   flake.modules = {
     nixos.agenix.imports = [ inputs.agenix.nixosModules.default ];
+    nixos.agenix-host-identity =
+      { config, lib, ... }:
+      {
+        imports = [ inputs.self.modules.nixos.agenix ];
+
+        age.identityPaths = lib.mkDefault [
+          "/etc/ssh/ssh_host_ed25519_key_${lib.toLower config.hostIdentity.name}"
+        ];
+      };
     homeManager.agenix.imports = [ inputs.agenix.homeManagerModules.default ];
   };
 

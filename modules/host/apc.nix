@@ -154,13 +154,13 @@
 
     modules =
       (with inputs.self.modules.nixos; [
-        agenix
         auto-login
         crypto-yubikey
         hifi-audio
         kde
         nas
         printers
+        ssh-client
         ssh-host
         tailscale
       ])
@@ -187,43 +187,10 @@
                   file = secretPath "vpn_APC-GT-18_key.age";
                   mode = "0400";
                 };
-                apc-age-yubikey-identity = {
-                  file = secretPath "administrative/age_primary.age";
-                  path = "/home/${username}/.config/age/yubikey-identity";
-                  owner = username;
-                  group = "users";
-                  mode = "0400";
-                };
-                apc-ssh-yubikey-identity = {
-                  file = secretPath "administrative/ssh_primary.age";
-                  path = "/home/${username}/.ssh/ssh_sk";
-                  owner = username;
-                  group = "users";
-                  mode = "0400";
-                };
-                apc-ssh-client-identity = {
-                  file = secretPath "ssh-client/id_ed25519_apc.age";
-                  path = "/home/${username}/.ssh/id_ed25519_apc";
-                  owner = username;
-                  group = "users";
-                  mode = "0400";
-                };
-                apc-pgp-encryption-card-stub = {
-                  file = secretPath "administrative/pgp-encrypt-801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key.age";
-                  path = "/home/${username}/.gnupg/private-keys-v1.d/801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key";
-                  owner = username;
-                  group = "users";
-                  mode = "0400";
-                };
-                apc-pgp-signing-card-stub = {
-                  file = secretPath "administrative/pgp-sign-8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key.age";
-                  path = "/home/${username}/.gnupg/private-keys-v1.d/8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key";
-                  owner = username;
-                  group = "users";
-                  mode = "0400";
-                };
               };
             };
+
+            crypto-yubikey.administrativeStubs.enable = true;
 
             tailscale.enable = true;
 
