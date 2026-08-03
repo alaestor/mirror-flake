@@ -95,6 +95,7 @@
       );
       serenaHome = "${config.home.homeDirectory}/.serena-cxs";
       serenaConfig = pkgs.writeText "serena-cxs-config.yml" ''
+        projects: []
         ls_specific_settings:
           bash:
             ls_path: ${lib.getExe bashLanguageServerWithShellcheck}
