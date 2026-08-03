@@ -1,65 +1,69 @@
 # Hosts and user environments
 
-This flake uses a declarative host registry to build NixOS systems and to attach
-Home Manager user environments to those systems. Host features, reusable
-profiles, personal preferences, and host-specific overrides remain separate, but
-are composed into one Home Manager configuration for each managed user.
+This flake treats a machine and the user environments attached to it as related,
+but separately owned, configuration. A host declaration selects NixOS modules;
+each user attachment selects a reusable Home Manager profile, optional personal
+preferences, and final host-specific refinements. The host registry assembles
+those declarations into flake outputs.
 
-The host registry described here manages NixOS hosts. A standalone Home Manager
-environment is still associated with a registered NixOS host; “standalone” only
-means that it is activated separately from `nixos-rebuild`.
-
-Nix-on-Droid devices are separate from the NixOS host registry. Reusable
-Nix-on-Droid modules are exported under `nixOnDroidModules`, and complete device
-configurations are exported under `nixOnDroidConfigurations`. Their embedded
-Home Manager configurations may consume the same `homeProfile` collections,
-but do not receive NixOS feature contributions. A nix-on-droid device receives
-the same `hostIdentity` metadata shape as a NixOS host, although its name is not
-wired to Android's kernel hostname.
-
-The shared Nix-on-Droid base sets `NIX_PATH` to its pinned Android nixpkgs so
-legacy commands such as `nix-shell -p` can resolve `<nixpkgs>`.
-
-## Architecture at a glance
-
-Files under `modules/` are loaded by `import-tree` as flake-parts modules. They
-usually do one or more of the following:
-
-- Export reusable modules under `flake.modules.nixos` or
-  `flake.modules.homeManager`.
-- Register a host under `host.<name>`.
-- Declare a reusable `homeProfile` or `userPreferences` collection.
-- Define configured application artifacts under `modules/app-config/` as
-  reusable wrappers and packages.
-- Extend the host registry or provide shared flake infrastructure.
-
-The registry in `modules/host-plumbing/registry.nix` converts those declarations
-into flake outputs.
+The goal is to make ownership visible. Reusable policy should not be buried in a
+host, personal choices should not leak into a shared profile, and a NixOS feature
+should not reach into `home-manager.users` directly.
 
 ```mermaid
-flowchart TD
-    H[host.name declaration] --> R[Host registry]
-    N[NixOS feature modules] --> R
-    R --> NC[nixosConfigurations.name]
-    R --> A[Optional deployment and ISO apps]
-
-    N --> C[userEnvironment.sharedModules]
-    P[homeProfile] --> E[Effective user environment]
-    U[userPreferences] --> E
-    O[Host-user modules] --> E
+flowchart LR
+    H[host declaration] --> R[host registry]
+    F[NixOS features] --> R
+    F --> C[shared Home Manager contributions]
+    P[profile] --> E[user environment]
+    U[preferences] --> E
+    A[attachment refinements] --> E
     C --> E
-    W[Configured app wrapper] --> K[Canonical package output]
-    W --> T[Thin Home Manager adapter]
-    T --> E
-
-    E --> I[Integrated Home Manager]
-    E --> S[Standalone homeConfigurations user at host]
-    I --> NC
+    R --> N[nixosConfigurations]
+    E --> I[integrated activation]
+    E --> S[standalone homeConfigurations]
+    I --> N
 ```
 
-## Registering a host
+## Layers and module classes
 
-Hosts are declared under `host.<name>`, normally in `modules/host/`:
+All `.nix` files under `modules/` are discovered by `import-tree` and evaluated
+as **flake-parts modules**. Those outer modules may declare registry data or
+export modules for another module system:
+
+| Layer | Owns | Typical location |
+|---|---|---|
+| Flake-parts | Flake inputs, registries, packages, apps, and exported modules | `modules/` |
+| NixOS | Machine services, hardware, users, boot, and system policy | `modules/features/`, `modules/de/`, `modules/host/` |
+| Home Manager | User programs and session configuration | `modules/programs/`, `modules/profiles/`, `modules/preferences/` |
+| Nix-on-Droid | Android-hosted Nix environment and device activation | `modules/nix-on-droid/` |
+
+Keep these module classes separate:
+
+- export NixOS modules as `flake.modules.nixos.<name>`;
+- export Home Manager modules as `flake.modules.homeManager.<name>`;
+- export Nix-on-Droid modules as `flake.nixOnDroidModules.<name>`; and
+- evaluate flake-parts modules only at the outer flake layer.
+
+An exported NixOS module cannot be imported as a Home Manager module merely
+because both use the Nix module syntax. Deferred module types can postpone that
+mistake until a distant evaluation point, so the export namespace is part of the
+contract.
+
+## Host registry
+
+`modules/host-plumbing/registry.nix` declares the `host.<name>` registry. Each
+entry describes one NixOS evaluation target and produces:
+
+```text
+host.<name>  ->  nixosConfigurations.<name>
+```
+
+Capabilities may additionally produce system-indexed helper applications, such
+as an ISO writer or a `nixos-anywhere` deployer. Capabilities describe auxiliary
+outputs; they do not change how a user's Home Manager configuration is activated.
+
+A representative declaration is:
 
 ```nix
 { inputs, ... }:
@@ -67,72 +71,62 @@ Hosts are declared under `host.<name>`, normally in `modules/host/`:
   host.example = {
     description = "Example workstation";
     primaryUser = "alice";
-    stateVersion = "26.05";
+    stateVersion = "24.11";
 
     modules = with inputs.self.modules.nixos; [
       kde
       ssh-host
     ];
+
+    userEnvironment.alice = {
+      mode = "integrated";
+      profile = "workstation";
+      preferences = "alice";
+    };
   };
 }
 ```
 
-This produces:
+The registry supplies common NixOS plumbing before the host's selected modules:
 
-```text
-nixosConfigurations.example
-```
+- global system policy;
+- the NixOS host-identity implementation; and
+- the interface through which NixOS features contribute Home Manager modules.
 
-The registry automatically prepends the following modules to every host:
+It also selects the target platform and Nixpkgs input, and uses the declared
+state version as the default for NixOS and attached Home Manager environments.
 
-- `global-config`
-- `host-identity`
-- the `userEnvironment.sharedModules` contribution interface
+### Host declaration contract
 
-It also sets `nixpkgs.hostPlatform` and `system.stateVersion` from the host
-registry values before adding the host's own modules.
+A host declaration owns:
 
-### Host options
+- a human-readable description and primary interactive user;
+- compatibility state version;
+- target system and Nixpkgs source when the repository defaults are unsuitable;
+- the NixOS module graph;
+- the Home Manager channel used by its attachments;
+- zero or more user-environment attachments; and
+- optional helper-output capabilities.
 
-| Option | Default | Purpose |
-|---|---|---|
-| `system` | `"x86_64-linux"` | Nix system used to evaluate the host. |
-| `nixpkgs` | `inputs.unstable-nixpkgs` | Nixpkgs flake used for the NixOS configuration. |
-| `description` | Required | Human-readable host description. |
-| `primaryUser` | Required | Primary interactive user. |
-| `stateVersion` | `"26.05"` | Default for NixOS and Home Manager state versions. |
-| `modules` | `[ ]` | NixOS modules composing the host. |
-| `homeManager.channel` | `"unstable"` | Selects the stable or unstable Home Manager input. |
-| `userEnvironment` | `{ }` | User environments attached to the host. |
-| `capabilities` | All disabled | Enables generated helper applications. |
-
-Although `stateVersion` has a default, it should normally be written explicitly
-for persistent machines. It describes the compatibility behavior expected by an
-existing installation; it is not a package release preference and should not be
-advanced automatically when updating Nixpkgs.
+`stateVersion` is compatibility metadata. Set it to the version used when an
+installation or user environment was created, and do not advance it as part of
+routine Nixpkgs or Home Manager updates.
 
 ## Host identity
 
-The class-neutral host identity contract defines a read-only `hostIdentity` set:
+`modules/host-identity.nix` defines a class-neutral, read-only identity shape:
 
 ```nix
 hostIdentity = {
   name = "example";
   description = "Example workstation";
   primaryUser = "alice";
-  stateVersion = "26.05";
+  stateVersion = "24.11";
 };
 ```
 
-Platform implementations add their own behavior around this shared metadata.
-The NixOS implementation wires `hostIdentity.name` to `networking.hostName`.
-The nix-on-droid implementation derives `system.stateVersion` from
-`hostIdentity.stateVersion`, but does not attempt to change Android's kernel
-hostname.
-
-The NixOS registry derives the identity from each host declaration.
-
-Host modules can use this metadata rather than repeating literal values:
+The registry derives this value from the host declaration. Consumers should use
+it instead of repeating host metadata:
 
 ```nix
 { config, ... }:
@@ -141,54 +135,22 @@ Host modules can use this metadata rather than repeating literal values:
 }
 ```
 
-The registry sets the NixOS compatibility version as though the host contained:
+Platform implementations add only platform-specific behavior. NixOS derives
+`networking.hostName` from the identity. Nix-on-Droid shares the metadata shape
+and compatibility version but does not pretend to control Android's kernel
+hostname.
 
-```nix
-system.stateVersion = lib.mkDefault host.stateVersion;
-```
+## User-environment attachments
 
-A host module can deliberately override that default, but changing a state
-version requires the same care as changing `system.stateVersion` in an ordinary
-NixOS configuration.
+An attachment lives at `host.<host>.userEnvironment.<username>`. It records:
 
-## User environments
+- `mode`: integrated with NixOS or activated standalone;
+- `profile`: the reusable environment role;
+- `preferences`: an optional personal preference collection;
+- `homeDirectory`: normally inferred from the username; and
+- `modules`: final configuration unique to this user on this host.
 
-A user environment is attached beneath its host and keyed by the Unix username:
-
-```nix
-host.example.userEnvironment.alice = {
-  mode = "integrated";
-  profile = "workstation";
-};
-```
-
-The username determines the default home directory:
-
-- `root` defaults to `/root`.
-- Other users default to `/home/<username>`.
-
-It can be overridden when necessary:
-
-```nix
-host.example.userEnvironment.alice.homeDirectory = "/srv/home/alice";
-```
-
-### User environment options
-
-| Option | Default | Purpose |
-|---|---|---|
-| `mode` | Required | `"integrated"` or `"standalone"`. |
-| `profile` | Required | Name of a registered `homeProfile`. |
-| `preferences` | `null` | Optional name from `userPreferences`. |
-| `homeDirectory` | Inferred | Home directory for this host and user. |
-| `modules` | `[ ]` | Modules specific to this user on this host. |
-
-Home Manager's `home.stateVersion` is set with `lib.mkDefault` from the host's
-`stateVersion`. A profile, preference module, or attachment module may override
-it, although sharing the host value is the intended normal case.
-
-Each evaluated Home Manager configuration also receives read-only identity
-metadata:
+Each evaluated Home Manager environment receives read-only context:
 
 ```nix
 userEnvironment = {
@@ -199,401 +161,120 @@ userEnvironment = {
 };
 ```
 
-This provides host context in both activation modes without requiring a shared
-module to depend on integrated-only arguments such as `osConfig`.
+Shared Home Manager modules should use this contract when they need attachment
+identity. They must not depend on `osConfig`, because `osConfig` exists only for
+integrated activation.
 
-## Profiles and preferences
+### Composition order and ownership
 
-Profiles describe reusable environment roles. Preferences describe a person's
-choices. Both are collections of Home Manager modules, but the distinction helps
-keep configuration ownership clear.
+The effective Home Manager module graph combines:
 
-### Profile example
-
-```nix
-{
-  homeProfile.workstation.modules = [
-    {
-      programs.home-manager.enable = true;
-      programs.git.enable = true;
-      programs.neovim.enable = true;
-    }
-  ];
-}
+```text
+host feature contributions
++ selected profile
++ selected preferences
++ attachment modules
 ```
 
-A profile might represent a workstation, development environment, server shell,
-or other reusable baseline.
+The layers have distinct responsibilities:
 
-### Preferences example
-
-```nix
-{
-  userPreferences.alice.modules = [
-    {
-      programs.git = {
-        userName = "Alice Example";
-        userEmail = "alice@example.invalid";
-      };
-
-      programs.neovim.defaultEditor = true;
-    }
-  ];
-}
-```
-
-Attach both to a user:
-
-```nix
-host.example.userEnvironment.alice = {
-  mode = "integrated";
-  profile = "workstation";
-  preferences = "alice";
-};
-```
-
-### Program modules and feature compositions
-
-Opinionated Home Manager program modules are exported under
-`flake.modules.homeManager` for Ghostty, Nushell, SSH, GPG, Git, MPV, Zed,
-Librewolf, and Discord.
-MPV is a thin adapter: it instantiates the reusable configured wrapper against
-the Home Manager evaluation's own `pkgs`, installs it, and owns only its MIME
-associations. The immutable MPV configuration itself belongs to the app-config
-artifact layer.
-Importing one enables that program with defaults that can be refined by a
-profile, preferences, or a host/user attachment.
-
-Feature modules compose those program modules:
-
-| Feature | Composition |
+| Layer | Responsibility |
 |---|---|
-| `standard-terminal` | Ghostty, Nushell, and the standard interactive terminal tools. |
-| `ssh-client` | SSH client defaults, identity selection, and related shell helpers. |
-| `pgp` | GPG, agent configuration, and optional Git signing. |
-| `headroom` | On-demand Headroom user proxy service. |
-| `codex` | Codex configuration, shared agent files, and Headroom-backed `cx`/`cxs` launchers. |
-| `ai-coding` | Zed, Codex, LM Studio, and AI-oriented editor settings. |
-| `coding` | PGP, Git, and AI coding. |
+| Program | Configure one Home Manager program with reusable, refinable defaults. Importing it enables that program. |
+| Feature | Implement a coherent capability, possibly with separate NixOS and Home Manager exports. |
+| Profile | Bundle features into a reusable user-environment role. |
+| Preferences | Hold identity and choices that should follow a person between hosts. |
+| Attachment | Apply the final exception that is specific to one user on one host. |
 
-The `workstation` profile imports `standard-terminal`, `ssh-client`, `coding`,
-Librewolf, Discord, and MPV. Each constituent remains directly importable, so
-another profile or host/user attachment can select a smaller set:
+Import order is not precedence. The Nix module system merges definitions by
+priority:
 
-```nix
-host.example.userEnvironment.alice.modules = [
-  inputs.self.modules.homeManager.ghostty
-  inputs.self.modules.homeManager.git
-];
-```
+- use `lib.mkDefault` for policy intended to be refined;
+- use ordinary definitions for deliberate preferences and host refinements;
+- use `lib.mkBefore` and `lib.mkAfter` for meaningful list ordering; and
+- reserve `lib.mkForce` for explicit conflict resolution.
 
-The `alaestor` preference collection supplies personal Git identity, PGP
-fingerprint, and SSH identity values without placing them in reusable program
-policy.
+Unknown profile or preference names are errors. This is intentional: a typo
+must not silently produce a partial environment.
 
-### Host-user refinements
+## Feature contributions and host context
 
-The attachment's `modules` field is for configuration that only applies to one
-user on one host:
-
-```nix
-host.example.userEnvironment.alice.modules = [
-  {
-    programs.plasma.workspace.wallpaper = ./example-wallpaper.png;
-  }
-];
-```
-
-Do not use attachment modules for preferences that should follow the user to
-other hosts; put those in `userPreferences` instead.
-
-## How modules are composed
-
-For each attachment, the registry builds the effective Home Manager module graph
-from four sources:
-
-```mermaid
-flowchart TD
-    F[Host feature contributions] --> M[Home Manager module graph]
-    P[Selected homeProfile] --> M
-    U[Selected userPreferences] --> M
-    A[Attachment modules] --> M
-    M --> HM[Evaluated user environment]
-```
-
-Conceptually, the module list is:
-
-```nix
-hostFeatureModules
-++ profile.modules
-++ preferences.modules
-++ attachment.modules
-```
-
-This ordering does **not** mean that later modules automatically win. Nix modules
-merge definitions by priority rather than import order:
-
-- Feature modules should generally use `lib.mkDefault` for configurable policy.
-- Profiles can use defaults for settings intended to be personalized.
-- Preferences and attachment modules normally use ordinary definitions.
-- `lib.mkForce` should be reserved for intentional conflict resolution.
-- List ordering should use `lib.mkBefore` and `lib.mkAfter` where appropriate.
-
-Unknown profile or preference names produce an evaluation error identifying the
-missing collection.
-
-## Feature-contributed Home Manager modules
-
-A NixOS feature can provide related user-session configuration without directly
-configuring `home-manager.users`. It appends a deferred module to:
-
-```nix
-userEnvironment.sharedModules
-```
-
-A minimal feature with NixOS and Home Manager halves looks like this:
+A reusable NixOS feature that also affects user sessions exports separate module
+classes. Its NixOS half contributes the Home Manager half through
+`userEnvironment.sharedModules`:
 
 ```nix
 { inputs, ... }:
 let
-  homeModule =
-    { lib, ... }:
-    {
-      imports = [ inputs.some-project.homeModules.default ];
-      programs.some-program.enable = lib.mkDefault true;
-    };
+  homeModule = { lib, ... }: {
+    programs.example.enable = lib.mkDefault true;
+  };
 in
 {
-  flake.modules.homeManager.some-feature = homeModule;
+  flake.modules.homeManager.example = homeModule;
 
-  flake.modules.nixos.some-feature =
-    { lib, ... }:
-    {
-      services.some-service.enable = true;
-
-      userEnvironment.sharedModules = [ homeModule ];
-    };
-}
-```
-
-This has three useful properties:
-
-1. Hosts that do not import `some-feature` do not receive its Home Manager module.
-2. Hosts without a user environment collect no active Home Manager configuration.
-3. Integrated and standalone environments receive the same feature module.
-
-The deferred module must be a Home Manager module or a module that is neutral
-between module classes. A NixOS module cannot be placed in
-`userEnvironment.sharedModules`.
-
-### Sharing simple host configuration state
-
-Host features can also use `hostContext` to expose selected NixOS state to the
-Home Manager modules they consume. The contributed module declares a narrow,
-typed option under `hostContext.${module-name}` and assigns it from the NixOS
-feature's configuration. Home Manager consumers can test for that option's
-presence, allowing the same module to work with integrated and standalone
-environments without depending on the integrated-only `osConfig` argument.
-Expose only the state required by consumers rather than mirroring the full NixOS
-configuration.
-
-For example, the NAS feature exposes its Vault mount point as the internal
-`hostContext.nas.vaultMountpoint` option when that share is enabled.
-The Nushell feature module uses it to load local-flake helpers from
-`<mountpoint>/.dotfiles/flake`; hosts without that context omit those helpers.
-
-### KDE and Plasma Manager
-
-`modules/de/kde.nix` uses this pattern. It exports both:
-
-```text
-flake.modules.nixos.kde
-flake.modules.homeManager.kde
-```
-
-Importing the NixOS KDE module contributes the Home Manager KDE module, which in
-turn imports Plasma Manager. Plasma Manager is enabled with `lib.mkDefault`, so a
-profile or preference can refine its settings.
-
-The contribution can be disabled for a particular host:
-
-```nix
-{
-  kde.plasmaManager.enable = false;
-}
-```
-
-That disables the Home Manager contribution without disabling the NixOS Plasma
-desktop.
-
-## Integrated activation
-
-Integrated mode imports the selected Home Manager NixOS module and places the
-effective configuration under `home-manager.users.<username>`:
-
-```nix
-host.example.userEnvironment.alice = {
-  mode = "integrated";
-  profile = "workstation";
-  preferences = "alice";
-};
-```
-
-The environment is activated with the host:
-
-```sh
-sudo nixos-rebuild switch --flake .#example
-```
-
-The integration uses:
-
-```nix
-home-manager = {
-  useGlobalPkgs = true;
-  useUserPackages = true;
-};
-```
-
-Consequently, the user environment uses the same package set as its NixOS host,
-including host overlays and Nixpkgs configuration.
-
-The corresponding NixOS user should be defined by the host's NixOS modules:
-
-```nix
-{ config, ... }:
-let
-  username = config.hostIdentity.primaryUser;
-in
-{
-  users.users.${username} = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" ];
+  flake.modules.nixos.example = { ... }: {
+    services.example.enable = true;
+    userEnvironment.sharedModules = [ homeModule ];
   };
 }
 ```
 
-## Standalone activation
+This keeps the registry responsible for attachment and gives integrated and
+standalone environments the same feature contribution. A feature must not set
+`home-manager.users` itself.
 
-Standalone mode uses the same host, feature contributions, profile, preferences,
-and attachment modules, but generates a separate flake output:
+When the Home Manager half needs a small piece of evaluated host state, define a
+narrow typed option under `hostContext.<feature>` and populate it from the NixOS
+half. Do not mirror the entire NixOS configuration. The consumer should tolerate
+the context being absent so it remains usable outside that feature composition.
 
-```nix
-host.example.userEnvironment.alice = {
-  mode = "standalone";
-  profile = "workstation";
-  preferences = "alice";
-};
-```
+## Activation modes
 
-The output name is:
+Both modes consume the same profile, preferences, attachment modules, feature
+contributions, package set, and selected Home Manager input.
 
-```text
-homeConfigurations."alice@example"
-```
+### Integrated
 
-It can be activated separately:
+Integrated environments are installed beneath
+`home-manager.users.<username>` and activate with the NixOS system. Home Manager
+uses the host's package set, including its overlays and Nixpkgs configuration.
+The host's NixOS modules remain responsible for defining the corresponding Unix
+account and its system-level permissions.
 
-```sh
-home-manager switch --flake '.#alice@example'
-```
+### Standalone
 
-The NixOS configuration remains available as `nixosConfigurations.example`; only
-Home Manager activation is separated from `nixos-rebuild`.
-
-Standalone evaluation derives its package set and feature contributions from the
-associated NixOS configuration. This keeps it consistent with the host and avoids
-a second, independent target registry.
-
-## Selecting a Home Manager channel
-
-The default channel is unstable:
-
-```nix
-host.example.homeManager.channel = "unstable";
-```
-
-A host using the stable Home Manager input can select:
-
-```nix
-host.example.homeManager.channel = "stable";
-```
-
-The selected input is used for both activation modes. It should remain compatible
-with the host's selected `nixpkgs` input.
-
-## Host capabilities and generated applications
-
-Capabilities are independent of user environments. They generate helper apps for
-a host:
-
-```nix
-host.example.capabilities = {
-  isoWriter = true;
-  nixosAnywhere = true;
-};
-```
-
-Depending on the enabled capability, the registry produces names such as:
+Standalone environments produce:
 
 ```text
-apps.<system>.mkbootable-example
-apps.<system>.deploy-example
+homeConfigurations."<username>@<host>"
 ```
 
-For example:
+They activate independently, but are still attached to a registered NixOS host.
+The registry evaluates the associated NixOS configuration to obtain the same
+package set and feature contributions. “Standalone” therefore describes the
+activation boundary, not an independent machine registry.
 
-```sh
-nix run .#deploy-example -- root@192.168.0.5
-```
+Nix-on-Droid configurations are outside this registry. They may reuse Home
+Manager profiles, but NixOS feature contributions do not flow into them unless
+an explicit Nix-on-Droid composition provides an equivalent contract.
 
-When initrd SSH is enabled, the deployer maintains an encrypted, stable initrd
-host key under
-`secrets/ssh-host/ssh_host_ed25519_key_<host>_initrd.age`, with its public
-identity at
-`data/identities/ssh-host/ssh_host_ed25519_key_<host>_initrd.pub`. On first
-deployment it encrypts the generated key to
-`self.data.vars.administrativeAgeRecipients` and stages that same key for the
-installation. Later deployments reuse the encrypted backup.
+## Extension checklist
 
-The tracked hardware-token identity stub is
-`secrets/administrative/age_primary.age`; it is encrypted for declarative
-deployment and still requires the primary YubiKey when used. The deployer
-currently expects a decrypted compatibility copy at `secrets/age_sk.txt`
-instead of consuming that tracked representation. This path is stale and must
-be corrected before relying on backup decryption. `age-plugin-yubikey` is
-included in the deployer's runtime dependencies.
+When adding or changing a host-facing capability:
 
-A capability controls an auxiliary flake output. An environment `mode`, by
-contrast, controls how user configuration is activated; it is deliberately not
-modeled as a capability flag.
+1. Decide which module system owns each effect.
+2. Export each reusable module in the namespace for its class.
+3. Put reusable machine policy in a feature and concrete machine facts in the
+   host declaration.
+4. Put reusable user policy in programs, features, or profiles; put personal
+   choices in preferences.
+5. Use attachment modules only for one-user-on-one-host refinements.
+6. Contribute Home Manager behavior through `userEnvironment.sharedModules`.
+7. Keep shared Home Manager modules portable across activation modes.
+8. Evaluate the affected NixOS configuration and, where applicable, both its
+   integrated or standalone Home Manager output.
 
-## Relevant files
-
-| File | Responsibility |
-|---|---|
-| `modules/host-plumbing/registry.nix` | Host schema, environment assembly, and output generation. |
-| `modules/host-identity.nix` | Shared identity contract with platform-specific implementations. |
-| `modules/host-plumbing/global-config.nix` | NixOS configuration automatically imported by every host. |
-| `modules/inputs/home-manager.nix` | Home Manager inputs, flake integration, and initial profiles. |
-| `modules/de/kde.nix` | Example of a feature contributing a Home Manager module. |
-| `modules/host/*.nix` | Concrete host declarations. |
-
-## Server and domain modules
-
-See [`serve.md`](serve.md) for `serve-*` and `domain-*` composition, ingress
-ownership, and Lanser's service layout.
-
-## Design guidelines
-
-When extending this system:
-
-- Put machine configuration in NixOS feature or host modules.
-- Put reusable user-environment roles in `homeProfile`.
-- Put choices that should follow a person in `userPreferences`.
-- Put one-host exceptions in an attachment's `modules`.
-- Let NixOS features contribute Home Manager modules through
-  `userEnvironment.sharedModules` rather than configuring users directly.
-- Keep contributed modules portable between integrated and standalone Home
-  Manager; avoid requiring `osConfig` unless the module is explicitly
-  integration-only.
-- Treat `stateVersion` as compatibility metadata, not an update channel.
+Hosted-service composition has additional ingress contracts documented in
+[`serve.md`](serve.md). Secret identities and runtime deployment are documented
+in [`secrets.md`](secrets.md).

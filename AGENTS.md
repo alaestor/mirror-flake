@@ -26,10 +26,29 @@ affect.
 | `modules/inputs/` | Flake inputs and their integration modules. |
 | `modules/utils/` | Shared flake library and maintenance apps. |
 | `data/` | Non-module state consumed by Nix: JSON, scripts, text, and value-only Nix files. |
-| `docs/hosts-and-homes.md` | Detailed host and Home Manager architecture. |
-| `docs/serve.md` | Hosted-service and public-domain composition architecture. |
+| `docs/` | Durable onboarding material for architecture, contracts, and contributor expectations. |
+| `docs/research/` | Exploratory notes that may discuss alternatives or volatile implementation state. |
 
 `README.md` files in subdirectories are generated automatically from the `nix run .#mkflakedocs` script, which sources `/** ... */` docstrings from nix files. Keep the docstrings up to date and accurate, but don't regenerate documentation unless requested. Prefer to put durable architecture guidance under `docs/` instead of duplicating it in generated READMEs or this file.
+
+## Documentation maintenance
+
+Read the relevant non-research document before changing a system it describes,
+and update that document when an architectural boundary, public contract, or
+contributor expectation changes.
+
+Files directly under `docs/` are onboarding material. They should explain why a
+system exists, how its layers compose, who owns each concern, which invariants
+must hold, and how contributors should extend or validate it. Examples should
+use illustrative names and values. Do not maintain catalogues of current hosts,
+services, domains, consumers, package selections, open work, or other state that
+ordinary configuration changes would quickly invalidate; the code and generated
+outputs are authoritative for those details.
+
+Use `docs/research/` for investigations, alternatives, migration analysis, and
+other material that intentionally tracks unsettled or time-sensitive state.
+Generated subdirectory `README.md` files remain API summaries sourced from Nix
+docstrings and are not a substitute for durable architecture documentation.
 
 ## Guidance
 
@@ -43,10 +62,6 @@ timeout 120s nix build .#checks.x86_64-linux.check-flake-file --no-link
 
 - Name nix files after their respective modules; don't use `default.nix` for files in the `modules/` directory.
 
-
-- Read relevant `docs/` md files when interacting with their relevant systems. 
-
-- Likewise, make sure to update relevant documentation when you make architectural changes.
 
 - Always validate your changes. Start with syntax/whitespace and the narrowest affected output. Prefer using timeouts, e.g.
 
@@ -97,7 +112,8 @@ Use `lib.mkDefault` for policy intended to be refined. Preferences and host-spec
 
 Read `docs/serve.md` before changing `modules/serve/` or a host's serve/domain composition. Service modules behave like opinionated NixOS features, but export as `flake.modules.nixos.serve-<name>` and must expose `serve.<name>.enable = lib.mkEnableOption ...`; importing one must not activate it. Domain modules export as `flake.modules.nixos.domain-<name>`, import their curated service set, and add reverse-proxy routes and public firewall openings only for explicitly enabled services. Shared proxy infrastructure such as `serve-caddy` is imported once by the host. A host may instead import a service directly, in which case the host owns any ingress policy.
 
-Lanser is currently the only server host and the only consumer of serve/domain modules. Keep concrete addresses, storage paths, and host-specific refinements there rather than embedding them in reusable service modules.
+Keep concrete addresses, storage paths, and host-specific refinements in host
+modules rather than embedding them in reusable service modules.
 
 ### Non-configuration data
 

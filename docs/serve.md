@@ -1,42 +1,100 @@
-# Hosted services and domains
+# Hosted services and public domains
 
-This flake separates local hosted-service policy from public ingress policy.
-Both layers are opt-in: importing a module makes its options available but does
-not start a daemon, publish a route, or open a public firewall port.
+The serving architecture separates a workload from the policy that exposes it
+to the public Internet. Service modules configure local daemons or artifacts;
+domain modules compose selected services into reverse-proxy routes and ingress
+rules. The host chooses which compositions exist and which services are active.
 
-Lanser is currently the only server host and the only consumer of these modules.
+The central safety property is:
 
-## Module layers
+> Importing a service or domain module has no runtime or public-network effect
+> until the corresponding service is explicitly enabled.
 
-| Layer | Path | Export prefix | Responsibility |
-|---|---|---|---|
-| Service | `modules/serve/services/` | `flake.modules.nixos.serve-` | Configure one opinionated local service or served artifact. |
-| Domain | `modules/serve/domains/` | `flake.modules.nixos.domain-` | Curate service modules and expose enabled members through Caddy. |
+## Layers and ownership
 
-Services relate to ordinary features in the same way that domains relate to a
-curated feature set: a domain collects and configures related service modules,
-but the host decides which members of that collection are active.
+| Layer | Export | Owns |
+|---|---|---|
+| Service | `flake.modules.nixos.serve-<name>` | One local daemon, artifact, or shared serving component. |
+| Domain | `flake.modules.nixos.domain-<name>` | A curated service set, public names, proxy routes, TLS/authentication policy, and conditional public ports. |
+| Host | `host.<name>.modules` and refinements | Selection, enablement, concrete addresses, storage, secrets, and machine-specific policy. |
 
-Every service module exposes `serve.<name>.enable` with `lib.mkEnableOption`.
-The option defaults to `false`, and all service implementation belongs beneath
-`lib.mkIf cfg.enable`. This applies to daemons such as Matrix and Jellyfin,
-infrastructure such as Caddy, and served artifacts such as Cinny or a static
-site.
+Service modules live under `modules/serve/services/`; domain modules live under
+`modules/serve/domains/`. Both are ordinary NixOS modules exported by outer
+flake-parts modules.
 
-Domain modules do not activate the services they import. Their Caddy virtual
-hosts and firewall openings are conditional on the relevant service's enable
-option. Consequently, importing a domain with all services at their defaults
-has no externally visible effect.
+General machine policy remains under `modules/features/`. A module does not
+belong under `serve/` merely because a server consumes it.
 
-Caddy is shared infrastructure rather than a member of every domain collection.
-The host imports `serve-caddy` once and enables it when any domain should be
-published. This avoids importing the same exported module through multiple
-domain compositions.
+## Service-module contract
 
-## Host composition
+Every service module defines:
 
-A host serving a curated domain imports the domain module and explicitly enables
-the desired services:
+```nix
+serve.<name>.enable = lib.mkEnableOption "...";
+```
+
+All effects are guarded by `lib.mkIf cfg.enable`. This applies equally to a
+daemon, a static artifact, a package helper, and shared infrastructure such as a
+reverse proxy.
+
+A service owns its local implementation:
+
+- package and systemd configuration;
+- local listener address and port;
+- service user and runtime paths;
+- reusable, opinionated defaults; and
+- packages or checks tightly coupled to that service.
+
+Services should listen on loopback or another private interface by default and
+must not open public firewall ports. Use `lib.mkDefault` for values that the
+domain or host is expected to refine.
+
+A simplified service looks like:
+
+```nix
+{
+  flake.modules.nixos.serve-example = { config, lib, ... }:
+    let cfg = config.serve.example;
+    in {
+      options.serve.example = {
+        enable = lib.mkEnableOption "the example service";
+        address = lib.mkOption { default = "127.0.0.1"; };
+        port = lib.mkOption { type = lib.types.port; };
+      };
+
+      config = lib.mkIf cfg.enable {
+        services.example = {
+          enable = true;
+          inherit (cfg) address port;
+          openFirewall = false;
+        };
+      };
+    };
+}
+```
+
+## Domain-module contract
+
+A domain module imports the service modules that it knows how to publish, but
+does not enable them. It owns:
+
+- public hostnames and aliases;
+- reverse-proxy and static-file routes;
+- TLS, authentication, and protocol-specific ingress policy; and
+- public firewall ports required by enabled routes.
+
+Every route, virtual host, and port must be conditional on the corresponding
+`serve.<name>.enable` value. Importing a domain with every member disabled must
+produce no public listener and no workload.
+
+Domain modules may set values intrinsic to the public composition, such as a
+protocol's public server name. Concrete storage locations, network topology,
+credentials, and one-machine exceptions remain host-owned.
+
+## Shared proxy infrastructure
+
+The reverse proxy is shared infrastructure, not a transitive member of every
+domain. A host imports it once, then imports any number of domains:
 
 ```nix
 {
@@ -45,63 +103,57 @@ the desired services:
     domain-example
   ]) ++ [
     {
-      serve = {
-        caddy.enable = true;
-        example-api.enable = true;
-        example-site.enable = true;
-      };
+      serve.caddy.enable = true;
+      serve.example.enable = true;
     }
   ];
 }
 ```
 
-The domain owns public hostnames, reverse-proxy routes, TLS behavior,
-authentication or challenge policy, and the ports needed for those routes. The
-services own their local daemon or artifact configuration and should listen
-privately by default where applicable.
+This avoids repeatedly importing the same exported module through independent
+domain graphs and makes ownership of the public listener explicit.
 
-A service need not belong to a domain. A host can import a `serve-*` module
-directly and enable it, but then the host owns all exposure policy, including
-proxy configuration and firewall rules. Lanser uses `serve-torrenting` this way
-because qBittorrent is private and confined to its VPN namespace.
+## Standalone and private services
 
-## Current domain sets
+A host may import `serve-<name>` directly without a domain. This is appropriate
+for LAN-only applications, VPN-confined workloads, or services exposed by some
+other mechanism. In that case the host owns all ingress policy: interfaces,
+firewall rules, proxying, authentication, and reachability.
 
-| Domain module | Imported services | Published names |
-|---|---|---|
-| `domain-0x04cc` | Static site, Matrix, Cinny, Headscale/Headplane | `0x04.cc`, `matrix.0x04.cc`, `headscale.0x04.cc` |
-| `domain-remotehost` | Filebrowser, Jellyfin | `media.remotehost.cc`, `download.shota.zip`, `jellyfin.remotehost.cc`, `shota.zip` |
+The absence of a domain module does not permit a service module to expose itself
+publicly by default.
 
-Each route is independent. For example, importing `domain-0x04cc` and enabling
-only Headscale and Caddy publishes only the Headscale virtual host; it does not
-start Matrix, build Cinny, serve the static site, or open Matrix federation port
-8448.
+## Data and secrets
 
-## Configuration ownership
+Large static files and scripts belong under `data/serve/` and are reached through
+`self.data`; they should not be embedded into a module solely to avoid a separate
+file. Credentials and secret runtime files do not belong in `data/` or literal
+Nix configuration. Their encrypted metadata belongs behind `self.secrets`, and
+the consuming host or service owns deployment to a runtime path.
 
-- Service modules provide reusable, opinionated defaults. Use `lib.mkDefault`
-  where a host is expected to refine policy.
-- Domain modules provide the configured public bundle: names, routes, TLS,
-  authentication, and conditional firewall openings.
-- Host modules select services and contain concrete network addresses, storage
-  choices, hardware details, and one-host refinements.
-- Large static configuration and scripts belong under `data/serve/` and are
-  accessed through `self.data`.
-- General machine policy remains under `modules/features/`; it should not move
-  into `serve` merely because a server host consumes it.
+## Extension checklist
 
-## Adding or changing a service
+When adding a service:
 
-1. Export the NixOS module as `flake.modules.nixos.serve-<name>`.
-2. Define `serve.<name>.enable` with `lib.mkEnableOption` and guard all effects
-   with it.
-3. Keep the local listener private and avoid public firewall rules.
-4. If it belongs to a public bundle, import it from a `domain-*` module and gate
-   every corresponding route and port on its enable option.
-5. Import shared proxy infrastructure once from the host, then import the domain
-   or standalone service and enable the selected `serve.*` options there.
-6. Validate the affected host and both enabled and disabled behavior where
-   practical.
+1. Export it as `flake.modules.nixos.serve-<name>`.
+2. Define `serve.<name>.enable` with `lib.mkEnableOption`.
+3. Guard every effect with the enable option.
+4. Keep listeners private and public firewall rules absent.
+5. Expose typed options for values that domains or hosts legitimately refine.
+6. Put native-language data and scripts under `data/serve/`.
+7. Add focused checks for service-specific helpers where practical.
 
-Do not put durable guidance in `modules/serve/**/README.md`; those files are
-generated from module docstrings.
+When adding it to a domain:
+
+1. Import the service module without enabling it.
+2. Gate each public route and port on that service's enable option.
+3. Keep public protocol policy in the domain and machine facts in the host.
+4. Verify both disabled behavior and the intended enabled combinations.
+
+Validate at least the affected host evaluation. Where practical, test a minimal
+module evaluation with the service disabled and enabled; the disabled case is a
+security contract, not merely a convenience.
+
+Subdirectory `README.md` files are generated from Nix docstrings. Update the
+module docstring when its local interface changes, and keep durable architecture
+guidance in this document.
