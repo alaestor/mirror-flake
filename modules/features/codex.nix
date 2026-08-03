@@ -116,7 +116,7 @@
       serenaOverrides = [
         "mcp_servers.serena.startup_timeout_sec=15"
         "mcp_servers.serena.command=${builtins.toJSON (lib.getExe serena)}"
-        "mcp_servers.serena.env=${builtins.toJSON { SERENA_HOME = serenaHome; }}"
+        "mcp_servers.serena.env.SERENA_HOME=${builtins.toJSON serenaHome}"
         "mcp_servers.serena.args=${builtins.toJSON [
           "start-mcp-server"
           "--project-from-cwd"
