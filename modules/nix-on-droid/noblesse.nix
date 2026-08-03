@@ -1,6 +1,7 @@
 {
   config,
   inputs,
+  lib,
   ...
 }:
 let
@@ -27,7 +28,13 @@ in
               # NOTE(compatibility): complications around age sk decryption in nix-on-droid resulting from pcsc woes; see [age-plugin-yubikey#109](https://github.com/str4d/age-plugin-yubikey/issues/109)
               age
               age-plugin-yubikey
+              doggo
+              getent
             ];
+
+            environment.etc."resolv.conf".text = lib.mkForce ''
+              nameserver 100.100.100.100
+            '';
 
             hostIdentity = {
               name = "noblesse";
@@ -47,6 +54,8 @@ in
               config = {
                 imports = phoneProfile;
                 home.stateVersion = config.hostIdentity.stateVersion;
+                home.shellAliases.nswitch =
+                  "nix-on-droid switch --flake git+https://codeberg.org/alaestor/flake#noblesse";
                 ssh-client.identityFiles = [ "~/.ssh/id_ed25519_${config.hostIdentity.name}" ];
               };
             };
