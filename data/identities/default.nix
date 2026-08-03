@@ -1,4 +1,5 @@
 {
   administrative = import ./administrative;
-  host = import ./host;
+  ssh-client = import ./ssh-client;
+  ssh-host = import ./ssh-host;
 }

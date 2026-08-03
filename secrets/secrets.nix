@@ -1,10 +1,10 @@
 let
   identities = import ../data/identities;
   administrators = identities.administrative.age-keys;
-  host = name:
+  sshHost = name:
     builtins.head (
       builtins.filter builtins.isString (
-        builtins.split "\n" identities.host.${name}
+        builtins.split "\n" identities.ssh-host.${name}
       )
     );
 
@@ -25,8 +25,8 @@ let
 
     e.g. for the `apc` host:
     ```sh
-    sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key
-    ssh-keygen -lf data/identities/host/id_ed25519_apc.pub
+    sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key_apc
+    ssh-keygen -lf data/identities/ssh-host/ssh_host_ed25519_key_apc.pub
     ```
 
     Edit `secrets.nix`'s secret `publicKeys`, then from the `secrets/` directory run:
@@ -66,16 +66,20 @@ in
   */
 
   "vpn_APC-GT-18_key.age".publicKeys =
-    administrators ++ [ (host "apc") ];
+    administrators ++ [ (sshHost "apc") ];
   #yubikey
   "administrative/age_primary.age".publicKeys =
-    administrators ++ [ (host "apc") ];
+    administrators ++ [ (sshHost "apc") ];
   "administrative/ssh_primary.age".publicKeys =
-    administrators ++ [ (host "apc") ];
+    administrators ++ [ (sshHost "apc") ];
   "administrative/pgp-encrypt-801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key.age".publicKeys =
-    administrators ++ [ (host "apc") ];
+    administrators ++ [ (sshHost "apc") ];
   "administrative/pgp-sign-8AC1E18B5C36D9A715E3790ADF75EE47A8DE311A.key.age".publicKeys =
-    administrators ++ [ (host "apc") ];
+    administrators ++ [ (sshHost "apc") ];
+
+  # APC consumes its device client identity at runtime.
+  "ssh-client/id_ed25519_apc.age".publicKeys =
+    administrators ++ [ (sshHost "apc") ];
 
   /**
     ### Lanser
@@ -87,9 +91,17 @@ in
 
   */
   "vpn_P2PUSCA560.conf.age".publicKeys =
-    administrators ++ [ (host "lanser") ];
+    administrators ++ [ (sshHost "lanser") ];
   "headplane_cookie-secret.age".publicKeys =
-    administrators ++ [ (host "lanser") ];
+    administrators ++ [ (sshHost "lanser") ];
+
+  /**
+    ### Noblesse
+
+    Noblesse has no Agenix runtime, so its client key is retained only as an
+    administratively recoverable backup.
+  */
+  "ssh-client/id_ed25519_noblesse.age".publicKeys = administrators;
 
   /**
     ### Host private keys
@@ -101,16 +113,16 @@ in
 
     | Material | Repository path | Installed path |
     |---|---|---|
-    | System private key backup | `secrets/hostkeys/id_ed25519_<host>.age` | `ssh-host.hostKeyPath` (normally `/etc/ssh/ssh_host_ed25519_key`) |
-    | System public identity | `data/identities/host/id_ed25519_<host>.pub` | `<ssh-host.hostKeyPath>.pub` |
-    | Initrd private key backup | `secrets/hostkeys/id_ed25519_<host>_initrd.age` | `ssh-host.initrd.hostKeyPath` |
-    | Initrd public identity | `data/identities/host/id_ed25519_<host>_initrd.pub` | Used for client host verification; not installed as an SSH host key |
+    | System private key backup | `secrets/ssh-host/ssh_host_ed25519_key_<host>.age` | `ssh-host.hostKeyPath` (normally `/etc/ssh/ssh_host_ed25519_key_<host>`) |
+    | System public identity | `data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub` | `<ssh-host.hostKeyPath>.pub` |
+    | Initrd private key backup | `secrets/ssh-host/ssh_host_ed25519_key_<host>_initrd.age` | `ssh-host.initrd.hostKeyPath` |
+    | Initrd public identity | `data/identities/ssh-host/ssh_host_ed25519_key_<host>_initrd.pub` | Used for client host verification; not installed as an SSH host key |
 
     `<host>` is the lowercase host registry name. System backups are declared
     below because Agenix manages their recipient rules. The deployment helper
     encrypts initrd backups directly to the administrative recipients.
   */
-  "hostkeys/id_ed25519_apc.age".publicKeys = administrators;
-  "hostkeys/id_ed25519_lanser.age".publicKeys = administrators;
-  "hostkeys/id_ed25519_noblesse.age".publicKeys = administrators;
+  "ssh-host/ssh_host_ed25519_key_apc.age".publicKeys = administrators;
+  "ssh-host/ssh_host_ed25519_key_lanser.age".publicKeys = administrators;
+  "ssh-host/ssh_host_ed25519_key_noblesse.age".publicKeys = administrators;
 }

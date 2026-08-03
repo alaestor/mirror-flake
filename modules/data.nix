@@ -1,10 +1,27 @@
+/**
+  # Repository data boundary
+
+  Exposes public, non-secret repository data as `flake.data`. `path`, `read`,
+  `readJSON`, `readLines`, and `readNonEmptyLines` resolve data relative to the
+  flake root so consumers do not depend on their own source location. `vars`
+  provides named normalized views for data shared by multiple modules.
+
+  `data/` must never contain credentials or other secret material. Public
+  identity metadata belongs here and is separated by operational role:
+
+  - `identities.administrative` contains public administrator identities.
+  - `identities.ssh-client` contains public per-host SSH client identities.
+  - `identities.ssh-host` contains public SSH server identities.
+  - `sshAdminKeys` contains only administrative SSH login identities.
+  - `sshClientPublicKeys` contains only per-host SSH client identities.
+  - `sshHostPublicKeys` contains only SSH host identities.
+
+  Host identities must never be folded into `sshAdminKeys`. Encrypted
+  private material belongs behind `flake.secrets`, not this interface.
+*/
 { lib, self, ... }:
 let
   module-name = "data";
-
-  /**
-    flake.data provides utilites for interacting with the `data/` folder of the flake.
-  */
 
 in
 {
@@ -12,7 +29,7 @@ in
     flake.${module-name} = lib.mkOption {
       type = lib.types.attrsOf lib.types.unspecified;
       default = { };
-      description = "Provides utilites for interacting with the `${module-name}/` folder of the flake.";
+      description = "Public repository data and normalized consumer interfaces.";
     };
 
   };
@@ -43,10 +60,14 @@ in
       administrativeAgeRecipients =
         lib.concatMap identityLines identities.administrative.age-keys;
 
-      sshAuthorizedKeys = lib.concatMap identityLines (
-        identities.administrative.ssh-keys
-        ++ builtins.attrValues identities.host
-      );
+      sshAdminKeys =
+        lib.concatMap identityLines identities.administrative.ssh-keys;
+
+      sshClientPublicKeys =
+        lib.mapAttrs (_: value: builtins.head (identityLines value)) identities.ssh-client;
+
+      sshHostPublicKeys =
+        lib.mapAttrs (_: value: builtins.head (identityLines value)) identities.ssh-host;
 
       textart.boykisser = path "textart/boykisser.txt";
     };

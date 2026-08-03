@@ -41,7 +41,7 @@ let
   };
   pgp = {
     certificate = readFile ./pgp.pub;
-    fingerprint = "4E4AAED523F37DB64B329CCFA9B285CEFFACEEC5"; # update manually
+    fingerprint = "4E4AAED523F37DB64B329CCFA9B285CEFFACEEC5"; # update manually when cert changes
   };
 in
 {

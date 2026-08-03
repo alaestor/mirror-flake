@@ -25,7 +25,7 @@ becomes difficult to maintain.
 
 ## Identities and their roles
 
-The design separates four kinds of identity:
+The design separates five kinds of identity:
 
 1. **Administrative identities** follow the CryptID primary/recovery model.
    Primary SSH and Age keys are resident on the YubiKey; their public keys live
@@ -35,11 +35,15 @@ The design separates four kinds of identity:
    split. Recovery SSH—and eventually Age—public keys live under `data/`, while
    their breakglass private keys remain offline and have no corresponding
    `.age` payload in this repository.
-2. **System SSH host keys** identify installed hosts and decrypt their Agenix
+2. **Per-device SSH client keys** authenticate a user or process originating
+   from one host. Their public keys live under `data/identities/ssh-client/` and
+   are never authorized implicitly. Their encrypted private backups live under
+   `secrets/ssh-client/` when exact recovery is required.
+3. **System SSH host keys** identify installed hosts and decrypt their Agenix
    runtime secrets. They are persistent host state, not deployment credentials.
-3. **Initrd SSH host keys** identify the pre-boot SSH service used for remote
+4. **Initrd SSH host keys** identify the pre-boot SSH service used for remote
    LUKS unlocking. They remain distinct from the system SSH host keys.
-4. **Deployment SSH keys** are ephemeral credentials created for one
+5. **Deployment SSH keys** are ephemeral credentials created for one
    `nixos-anywhere` invocation. They are not secret recipients and are deleted
    when deployment finishes.
 
@@ -58,6 +62,12 @@ Configuration consumes administrative identities as sets. Use
 their normalized `self.data.vars` representations so primary and recovery keys
 remain authorized together. Select an individual key only for an explicitly
 role-specific operation.
+
+`self.data.vars.sshAdminKeys` is the normalized administrative SSH login set.
+`ssh-host.allow-administrative-access` controls whether a server authorizes
+that set and defaults to true. `ssh-host.authorizedKeys` is an independent,
+empty-by-default additive list for per-device or other explicit client
+identities. SSH host public keys must never appear in either client-key set.
 
 ## Recipient policy
 
@@ -169,6 +179,31 @@ The encrypted files must be tracked before evaluating a Git-backed flake. New
 untracked ciphertext is otherwise absent from the flake source even when it is
 present in the working directory.
 
+SSH identity material follows module-oriented directories and conventional
+OpenSSH basenames suffixed with the lowercase host name:
+
+```text
+data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub
+data/identities/ssh-client/id_ed25519_<host>.pub
+
+secrets/ssh-host/ssh_host_ed25519_key_<host>.age
+secrets/ssh-client/id_ed25519_<host>.age
+```
+
+Initrd host identities add an `_initrd` suffix and remain distinct from system
+host identities:
+
+```text
+data/identities/ssh-host/ssh_host_ed25519_key_<host>_initrd.pub
+secrets/ssh-host/ssh_host_ed25519_key_<host>_initrd.age
+```
+
+Public identity files are ordinary data. Each `.age` file contains the private
+counterpart encrypted to the complete administrative Age recovery set. Client
+keys additionally include a host recipient only when that host consumes the key
+at runtime. A host private-key backup must not rely on its own public key as its
+recovery recipient.
+
 ## Current consumers
 
 `secrets/secrets.nix` is the catalogue and recipient policy. Current runtime
@@ -179,6 +214,7 @@ consumers are:
 | APC | `APC-GT-18` private key | `networking.wg-quick.interfaces.wg0` |
 | APC | Age and SSH YubiKey stubs | User administration tooling |
 | APC | OpenPGP card stubs | GnuPG private-key stub directory |
+| APC | `id_ed25519_apc` client key | User SSH client (after the administrative identity) |
 | Lanser | `P2PUSCA560` configuration | Torrent VPN confinement namespace |
 | Lanser | Headplane cookie secret | Headplane sessions |
 
@@ -194,16 +230,16 @@ nix run ..#agenix -- -e vpn_APC-GT-18_key.age -i /path/to/admin-identity
 nix run ..#agenix -- -r -i /path/to/admin-identity
 ```
 
-APC's system SSH host key was manually migrated from the legacy
-`/etc/secrets/ssh/` location to `/etc/ssh/` without changing the key material.
-Its public key is recorded as the APC recipient before any APC-encrypted runtime
-secret is deployed.
+APC and noblesse are undergoing a deliberate replacement of previously
+ambiguous SSH identities. Their replacement keys must be generated, registered,
+and included in rekeyed ciphertext before activation; old identities are
+retired only after decryption and SSH verification succeed.
 
 ## Open work
 
 - Provision and restore the stable system host key in the deployment helper.
 - Add the planned recovery Age recipient.
-- Document and test deliberate host-key and secret rotation.
+- Complete and test the APC/noblesse key replacement procedure.
 - Add runtime secrets and host recipients only when a concrete consumer needs
   them.
 

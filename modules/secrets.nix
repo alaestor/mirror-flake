@@ -12,9 +12,7 @@
 
     recipients = {
       administrators = self.data.vars.administrativeAgeRecipients;
-      hosts = builtins.mapAttrs (
-        _: value: builtins.head (self.data.vars.identityLines value)
-      ) self.data.vars.identities.host;
+      hosts = self.data.vars.sshHostPublicKeys;
     };
   };
 }

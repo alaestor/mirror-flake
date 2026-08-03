@@ -547,8 +547,10 @@ nix run .#deploy-example -- root@192.168.0.5
 ```
 
 When initrd SSH is enabled, the deployer maintains an encrypted, stable initrd
-host key under `secrets/hostkeys/id_ed25519_<host>_initrd.age`, with its public
-identity at `data/identities/host/id_ed25519_<host>_initrd.pub`. On first
+host key under
+`secrets/ssh-host/ssh_host_ed25519_key_<host>_initrd.age`, with its public
+identity at
+`data/identities/ssh-host/ssh_host_ed25519_key_<host>_initrd.pub`. On first
 deployment it encrypts the generated key to
 `self.data.vars.administrativeAgeRecipients` and stages that same key for the
 installation. Later deployments reuse the encrypted backup.

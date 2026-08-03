@@ -14,6 +14,7 @@
         (
           { pkgs, ... }:
           let
+            # TODO(pkgs): migrate ffmpeg-hdr
             ffmpeg-hdr =
               (pkgs.ffmpeg-headless.override {
                 withUnfree = false;
@@ -38,6 +39,11 @@
                 });
           in
           {
+            ssh-client.identityFiles = [
+              "~/.ssh/ssh_sk"
+              "~/.ssh/id_ed25519_apc"
+            ];
+
             home = {
               stateVersion = "23.11";
               packages = with pkgs; [
@@ -195,6 +201,13 @@
                   group = "users";
                   mode = "0400";
                 };
+                apc-ssh-client-identity = {
+                  file = secretPath "ssh-client/id_ed25519_apc.age";
+                  path = "/home/${username}/.ssh/id_ed25519_apc";
+                  owner = username;
+                  group = "users";
+                  mode = "0400";
+                };
                 apc-pgp-encryption-card-stub = {
                   file = secretPath "administrative/pgp-encrypt-801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key.age";
                   path = "/home/${username}/.gnupg/private-keys-v1.d/801E05AF720F05CE66A18FF1BCCD526CDAB3D166.key";
@@ -210,10 +223,6 @@
                   mode = "0400";
                 };
               };
-            };
-
-            ssh-host = {
-              allowUsers = [ username ];
             };
 
             tailscale.enable = true;

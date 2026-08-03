@@ -19,6 +19,7 @@ in
       modules = [
         inputs.self.nixOnDroidModules.base
         inputs.self.nixOnDroidModules.host-identity
+        inputs.self.nixOnDroidModules.ssh-host
         (
           { config, pkgs, ... }:
           {
@@ -35,15 +36,18 @@ in
               stateVersion = "24.05";
             };
 
+            ssh-host = {
+              comment = "generated host key (${config.hostIdentity.name})";
+              allowUsers = [ config.hostIdentity.primaryUser ];
+            };
+
             home-manager = {
               backupFileExtension = "hm-bak";
               useGlobalPkgs = true;
               config = {
                 imports = phoneProfile;
                 home.stateVersion = config.hostIdentity.stateVersion;
-
-                home.file.".config/age/recipients/administrative".source =
-                  inputs.self.data.path "identities/administrative/age_primary";
+                ssh-client.identityFiles = [ "~/.ssh/id_ed25519_${config.hostIdentity.name}" ];
               };
             };
           }

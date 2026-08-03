@@ -238,8 +238,9 @@
         #
         # High-level implementation guide:
         # - Resolve the host backup as
-        #   secrets/hostkeys/id_ed25519_<host>.age and its public identity as
-        #   data/identities/host/id_ed25519_<host>.pub.
+        #   secrets/ssh-host/ssh_host_ed25519_key_<host>.age and its public
+        #   identity as
+        #   data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub.
         # - If the encrypted backup exists, decrypt it with the administrative
         #   age identity and stage it at ssh-host.hostKeyPath. Never generate a
         #   replacement merely because this is a fresh installation.
@@ -266,10 +267,10 @@
             fi
 
             HOST="${name}"
-            HOSTKEYS_DIR="$FLAKE_ROOT/secrets/hostkeys"
-            PUBLIC_KEYS_DIR="$FLAKE_ROOT/data/identities/host"
-            AGE_FILE="$HOSTKEYS_DIR/id_ed25519_''${HOST}_initrd.age"
-            PUBLIC_KEY_FILE="$PUBLIC_KEYS_DIR/id_ed25519_''${HOST}_initrd.pub"
+            HOSTKEYS_DIR="$FLAKE_ROOT/secrets/ssh-host"
+            PUBLIC_KEYS_DIR="$FLAKE_ROOT/data/identities/ssh-host"
+            AGE_FILE="$HOSTKEYS_DIR/ssh_host_ed25519_key_''${HOST}_initrd.age"
+            PUBLIC_KEY_FILE="$PUBLIC_KEYS_DIR/ssh_host_ed25519_key_''${HOST}_initrd.pub"
             LEGACY_AGE_FILE="$FLAKE_ROOT/secrets/hosts/$HOST/initrd-hostkey.age"
             LEGACY_PUBLIC_KEY_FILE="$FLAKE_ROOT/secrets/hosts/$HOST/initrd-hostkey.pub"
             AGE_IDENTITY_FILE="$FLAKE_ROOT/secrets/age_sk.txt"
@@ -298,7 +299,7 @@
               install -d -m700 "$HOSTKEYS_DIR"
               install -d -m755 "$PUBLIC_KEYS_DIR"
               KEY_GENERATION_DIR=$(mktemp -d)
-              GENERATED_KEY="$KEY_GENERATION_DIR/id_ed25519_''${HOST}_initrd"
+              GENERATED_KEY="$KEY_GENERATION_DIR/ssh_host_ed25519_key_''${HOST}_initrd"
               ssh-keygen -q -t ed25519 -N "" -C "''${HOST}_initrd" -f "$GENERATED_KEY"
               age ${lib.concatMapStringsSep " " (recipient: "-r ${lib.escapeShellArg recipient}") self.data.vars.administrativeAgeRecipients} \
                 -o "$AGE_FILE.tmp" "$GENERATED_KEY"

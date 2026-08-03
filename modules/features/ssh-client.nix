@@ -1,3 +1,10 @@
+/**
+  Exports `flake.modules.homeManager.ssh-client`. Importing it enables the
+  opinionated SSH program module and selects
+  `~/.ssh/id_ed25519_<lowercase-hostname>` for registered host user
+  environments. Consumers may prepend higher-priority identities through
+  `ssh-client.identityFiles`; an empty list disables identity selection.
+*/
 { inputs, ... }:
 {
   # TODO(droid): ssh-client for droid?
@@ -11,31 +18,40 @@
     let
       cfg = config.ssh-client;
       hasStructuredSettings = options.programs.ssh ? settings;
+      defaultIdentityFiles =
+        if options ? userEnvironment then
+          [ "~/.ssh/id_ed25519_${lib.toLower config.userEnvironment.hostName}" ]
+        else
+          [ ];
     in
     {
       imports = [ inputs.self.modules.homeManager.ssh ];
 
-      options.ssh-client.identityFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        example = "~/.ssh/id_ed25519";
-        description = "Identity file used by the default SSH client host block.";
+      options.ssh-client.identityFiles = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = defaultIdentityFiles;
+        defaultText = lib.literalExpression ''[ "~/.ssh/id_ed25519_\${lib.toLower config.userEnvironment.hostName}" ]'';
+        example = [
+          "~/.ssh/ssh_sk"
+          "~/.ssh/id_ed25519_apc"
+        ];
+        description = "Identity files used by the default SSH client host block, in priority order.";
       };
 
       config = {
         programs.ssh =
-          lib.mkIf (cfg.identityFile != null) (
+          lib.mkIf (cfg.identityFiles != [ ]) (
             if hasStructuredSettings then
               {
                 settings."*" = {
-                  IdentityFile = cfg.identityFile;
+                  IdentityFile = cfg.identityFiles;
                   IdentitiesOnly = true;
                 };
               }
             else
               {
                 matchBlocks."*" = {
-                  identityFile = cfg.identityFile;
+                  identityFile = cfg.identityFiles;
                   identitiesOnly = true;
                 };
               }
