@@ -5,6 +5,7 @@
 }:
 let
   hostName = "home-environment-fixture";
+  integratedOnlyHostName = "integrated-only-fixture";
   stateVersion = "24.11";
   integratedUsername = "integrated-user";
   standaloneUsername = "standalone-user";
@@ -69,14 +70,35 @@ let
         };
       };
     };
+
+  };
+
+  integratedOnlyFixture = inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+    imports = [ ../modules/host-plumbing/registry.nix ];
+
+    host.${integratedOnlyHostName} = {
+      inherit system stateVersion;
+      nixpkgs = inputs.unstable-nixpkgs;
+      description = "Integrated-only Home environment registry test fixture.";
+      primaryUser = integratedUsername;
+      modules = [ ];
+      userEnvironment.${integratedUsername} = {
+        mode = "integrated";
+        modules = [ attachedModule ];
+      };
+    };
   };
 
   nixosConfig = fixture.nixosConfigurations.${hostName}.config;
   integrated = nixosConfig.home-manager.users.${integratedUsername};
   standalone = fixture.homeConfigurations."${standaloneUsername}@${hostName}".config;
+  integratedOnlyPackages =
+    integratedOnlyFixture.nixosConfigurations.${integratedOnlyHostName}.config.environment.systemPackages;
 
   expectedFeature = "contributed-by-${hostName}";
+  homeManagerPackage = inputs.unstable-home-manager.packages.${system}.home-manager;
   helloDrvPath = config: (builtins.head config.home.packages).drvPath;
+  hasPackage = package: packages: builtins.any (candidate: candidate.drvPath == package.drvPath) packages;
 
   assertions = [
     {
@@ -136,6 +158,14 @@ let
     {
       assertion = !(builtins.hasAttr "${integratedUsername}@${hostName}" fixture.homeConfigurations);
       message = "integrated attachment unexpectedly produced a standalone output";
+    }
+    {
+      assertion = hasPackage homeManagerPackage nixosConfig.environment.systemPackages;
+      message = "standalone attachment did not install its selected Home Manager CLI";
+    }
+    {
+      assertion = !(hasPackage homeManagerPackage integratedOnlyPackages);
+      message = "Home Manager CLI was installed without a standalone attachment";
     }
   ];
 

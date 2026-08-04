@@ -262,6 +262,12 @@ The registry evaluates the associated NixOS configuration to obtain the same
 package set and feature contributions. “Standalone” therefore describes the
 activation boundary, not an independent machine registry.
 
+When a host has at least one standalone attachment, its NixOS configuration
+installs the Home Manager CLI from the same selected Home Manager input. This
+ensures the CLI needed for initial activation is available after deploying the
+host, without requiring host-specific package declarations. Choosing which
+flake reference to activate remains an operator concern.
+
 Nix-on-Droid configurations are outside this registry. They may import the same
 exported Home Manager modules directly, but NixOS feature contributions do not
 flow into them unless an explicit Nix-on-Droid composition provides an

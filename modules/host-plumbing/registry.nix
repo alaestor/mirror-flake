@@ -225,6 +225,8 @@ let
     name: host:
     let
       hasIntegratedEnvironments = integratedEnvironments host != { };
+      hasStandaloneEnvironments = standaloneEnvironments host != { };
+      homeManager = selectHomeManager host;
     in
     host.nixpkgs.lib.nixosSystem {
       modules = [
@@ -241,6 +243,11 @@ let
         }
       ]
       ++ lib.optional hasIntegratedEnvironments (mkIntegratedHomeManagerModule name host)
+      ++ lib.optional hasStandaloneEnvironments {
+        environment.systemPackages = [
+          homeManager.packages.${host.system}.home-manager
+        ];
+      }
       ++ host.modules;
     };
 
