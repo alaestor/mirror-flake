@@ -11,8 +11,8 @@ The generated NixOS configurations are pre-composed with
 inherits common base settings and a consistent identity.
 
 Hosts may also attach Home Manager environments under `userEnvironment`.
-Feature-contributed modules, reusable profiles, user preferences, and per-host
-modules are composed identically for integrated and standalone activation.
+Feature-contributed and explicitly attached modules are composed identically for
+integrated and standalone activation.
 
 */
 {
@@ -34,14 +34,6 @@ let
       };
     };
 
-  moduleCollectionType = types.submodule {
-    options.modules = mkOption {
-      type = types.listOf types.deferredModule;
-      default = [ ];
-      description = "Home Manager modules in this collection.";
-    };
-  };
-
   userEnvironmentType = types.submodule (
     { name, ... }:
     {
@@ -52,17 +44,6 @@ let
             "standalone"
           ];
           description = "Whether this user environment is activated with NixOS or independently.";
-        };
-
-        profile = mkOption {
-          type = types.nonEmptyStr;
-          description = "The homeProfile used as this environment's reusable baseline.";
-        };
-
-        preferences = mkOption {
-          type = types.nullOr types.nonEmptyStr;
-          default = null;
-          description = "Optional userPreferences layered on top of the profile.";
         };
 
         homeDirectory = mkOption {
@@ -166,21 +147,6 @@ let
     else
       inputs.unstable-home-manager;
 
-  resolveModules =
-    collectionName: collection: name:
-    if builtins.hasAttr name collection then
-      collection.${name}.modules
-    else
-      throw "Unknown ${collectionName} `${name}` in a user environment.";
-
-  environmentModules =
-    environment:
-    resolveModules "homeProfile" config.homeProfile environment.profile
-    ++ lib.optionals (environment.preferences != null) (
-      resolveModules "userPreferences" config.userPreferences environment.preferences
-    )
-    ++ environment.modules;
-
   mkHomeModules =
     hostName: hostStateVersion: username: environment: featureModules:
     [
@@ -193,7 +159,7 @@ let
       }
     ]
     ++ featureModules
-    ++ environmentModules environment;
+    ++ environment.modules;
 
   mkEnvironmentIdentityModule =
     hostName: hostStateVersion: username: environment:
@@ -212,23 +178,11 @@ let
           description = "The user for which this environment was built.";
         };
 
-        profile = mkOption {
-          type = types.nonEmptyStr;
-          readOnly = true;
-          description = "The profile used to build this user environment.";
-        };
-
-        preferences = mkOption {
-          type = types.nullOr types.nonEmptyStr;
-          readOnly = true;
-          description = "The preferences used to build this user environment.";
-        };
       };
 
       config = {
         userEnvironment = {
           inherit hostName username;
-          inherit (environment) profile preferences;
         };
         home.stateVersion = lib.mkDefault hostStateVersion;
       };
@@ -371,17 +325,6 @@ in
       description = "Declarative definitions of this flake's NixOS hosts.";
     };
 
-    homeProfile = mkOption {
-      type = types.attrsOf moduleCollectionType;
-      default = { };
-      description = "Reusable Home Manager baselines for user environments.";
-    };
-
-    userPreferences = mkOption {
-      type = types.attrsOf moduleCollectionType;
-      default = { };
-      description = "User-specific Home Manager preferences layered over a profile.";
-    };
   };
 
   config = {

@@ -1,12 +1,4 @@
-{
-  config,
-  inputs,
-  lib,
-  ...
-}:
-let
-  phoneProfile = config.homeProfile.phone.modules;
-in
+{ inputs, lib, ... }:
 {
   flake.nixOnDroidConfigurations.noblesse =
     inputs.nix-on-droid.lib.nixOnDroidConfiguration {
@@ -53,7 +45,7 @@ in
               backupFileExtension = "hm-bak";
               useGlobalPkgs = true;
               config = {
-                imports = phoneProfile;
+                imports = [ inputs.self.modules.homeManager.phone ];
                 home.stateVersion = config.hostIdentity.stateVersion;
                 home.shellAliases.nswitch =
                   "nix-on-droid switch --flake git+https://codeberg.org/alaestor/flake#noblesse";

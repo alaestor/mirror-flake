@@ -142,9 +142,7 @@ Nix evaluates the Git-backed flake source, so new untracked files can be invisib
 Home Manager environments are attached at `host.<name>.userEnvironment.<username>` and combine:
 
 1. Home Manager modules contributed by imported host features.
-2. The selected `homeProfile`.
-3. Optional `userPreferences`.
-4. Host-user attachment modules.
+2. Explicitly attached reusable and host-user Home Manager modules.
 
 `integrated` mode activates through NixOS; `standalone` mode exposes `homeConfigurations."<user>@<host>"`. Both modes must consume the same module graph. Shared modules must therefore avoid integrated-only arguments such as `osConfig`; use the Home Manager `userEnvironment` identity when host context is needed.
 

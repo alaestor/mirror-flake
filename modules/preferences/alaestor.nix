@@ -1,13 +1,11 @@
 { self, ... }:
 {
-  userPreferences.alaestor.modules = [
-    {
-      pgp.primaryFingerprint = self.data.vars.identities.administrative.pgp.fingerprint;
+  flake.modules.homeManager.alaestor = {
+    pgp.primaryFingerprint = self.data.vars.identities.administrative.pgp.fingerprint;
 
-      programs.git.settings.user = {
-        name = "Alaestor Weissman";
-        email = "alaestor@0x04.cc";
-      };
-    }
-  ];
+    programs.git.settings.user = {
+      name = "Alaestor Weissman";
+      email = "alaestor@0x04.cc";
+    };
+  };
 }

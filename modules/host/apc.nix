@@ -8,9 +8,9 @@
 
     userEnvironment.${primaryUser} = {
       mode = "standalone";
-      profile = "workstation";
-      preferences = "alaestor";
       modules = [
+        inputs.self.modules.homeManager.workstation
+        inputs.self.modules.homeManager.alaestor
         (
           { pkgs, ... }:
           let

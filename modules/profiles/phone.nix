@@ -1,9 +1,7 @@
 { inputs, ... }:
 {
-  homeProfile.phone.modules = [
-    inputs.self.modules.homeManager.ssh-client
-    {
-      programs.home-manager.enable = true;
-    }
-  ];
+  flake.modules.homeManager.phone = {
+    imports = [ inputs.self.modules.homeManager.ssh-client ];
+    programs.home-manager.enable = true;
+  };
 }

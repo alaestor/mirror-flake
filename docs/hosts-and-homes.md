@@ -2,9 +2,9 @@
 
 This flake treats a machine and the user environments attached to it as related,
 but separately owned, configuration. A host declaration selects NixOS modules;
-each user attachment selects a reusable Home Manager profile, optional personal
-preferences, and final host-specific refinements. The host registry assembles
-those declarations into flake outputs.
+each user attachment explicitly composes reusable Home Manager modules and final
+host-specific refinements. The host registry assembles those declarations into
+flake outputs.
 
 The goal is to make ownership visible. Reusable policy should not be buried in a
 host, personal choices should not leak into a shared profile, and a NixOS feature
@@ -15,8 +15,7 @@ flowchart LR
     H[host declaration] --> R[host registry]
     F[NixOS features] --> R
     F --> C[shared Home Manager contributions]
-    P[profile] --> E[user environment]
-    U[preferences] --> E
+    M[explicit Home Manager modules] --> E[user environment]
     A[attachment refinements] --> E
     C --> E
     R --> N[nixosConfigurations]
@@ -80,8 +79,10 @@ A representative declaration is:
 
     userEnvironment.alice = {
       mode = "integrated";
-      profile = "workstation";
-      preferences = "alice";
+      modules = [
+        inputs.self.modules.homeManager.workstation
+        inputs.self.modules.homeManager.alice
+      ];
     };
   };
 }
@@ -145,10 +146,9 @@ hostname.
 An attachment lives at `host.<host>.userEnvironment.<username>`. It records:
 
 - `mode`: integrated with NixOS or activated standalone;
-- `profile`: the reusable environment role;
-- `preferences`: an optional personal preference collection;
 - `homeDirectory`: normally inferred from the username; and
-- `modules`: final configuration unique to this user on this host.
+- `modules`: the complete explicit composition of reusable and host-specific
+  Home Manager modules.
 
 Each evaluated Home Manager environment receives read-only context:
 
@@ -156,8 +156,6 @@ Each evaluated Home Manager environment receives read-only context:
 userEnvironment = {
   hostName = "example";
   username = "alice";
-  profile = "workstation";
-  preferences = "alice"; # or null
 };
 ```
 
@@ -171,9 +169,7 @@ The effective Home Manager module graph combines:
 
 ```text
 host feature contributions
-+ selected profile
-+ selected preferences
-+ attachment modules
++ explicitly attached modules
 ```
 
 The layers have distinct responsibilities:
@@ -194,8 +190,10 @@ priority:
 - use `lib.mkBefore` and `lib.mkAfter` for meaningful list ordering; and
 - reserve `lib.mkForce` for explicit conflict resolution.
 
-Unknown profile or preference names are errors. This is intentional: a typo
-must not silently produce a partial environment.
+Profiles and preferences remain useful organizational concepts, but they are
+ordinary exported Home Manager modules rather than separate registry types. A
+host attachment composes them explicitly through `modules`, just like any other
+reusable Home Manager module.
 
 ## Feature contributions and host context
 
@@ -231,8 +229,8 @@ the context being absent so it remains usable outside that feature composition.
 
 ## Activation modes
 
-Both modes consume the same profile, preferences, attachment modules, feature
-contributions, package set, and selected Home Manager input.
+Both modes consume the same explicitly attached modules, feature contributions,
+package set, and selected Home Manager input.
 The registry constructs their effective Home Manager module list once and passes
 that same composition to either evaluator, so activation mode cannot change the
 environment's module graph.
@@ -258,9 +256,10 @@ The registry evaluates the associated NixOS configuration to obtain the same
 package set and feature contributions. “Standalone” therefore describes the
 activation boundary, not an independent machine registry.
 
-Nix-on-Droid configurations are outside this registry. They may reuse Home
-Manager profiles, but NixOS feature contributions do not flow into them unless
-an explicit Nix-on-Droid composition provides an equivalent contract.
+Nix-on-Droid configurations are outside this registry. They may import the same
+exported Home Manager modules directly, but NixOS feature contributions do not
+flow into them unless an explicit Nix-on-Droid composition provides an
+equivalent contract.
 
 ## Extension checklist
 

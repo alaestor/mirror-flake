@@ -1,7 +1,4 @@
 { inputs, config, lib, ... }:
-let
-  phoneProfile = config.homeProfile.phone.modules;
-in
 {
   options.flake.nixOnDroidConfigurations = lib.mkOption {
     type = lib.types.lazyAttrsOf lib.types.raw;
@@ -77,7 +74,7 @@ in
                 backupFileExtension = "hm-bak";
                 useGlobalPkgs = true;
                 config = {
-                  imports = phoneProfile;
+                  imports = [ inputs.self.modules.homeManager.phone ];
                   home.stateVersion = config.hostIdentity.stateVersion;
                   home.shellAliases.nswitch =
                     "nix-on-droid switch --flake git+https://codeberg.org/alaestor/flake#noblesse";
