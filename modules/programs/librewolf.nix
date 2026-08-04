@@ -11,7 +11,7 @@
 
 { inputs, self, ... }:
 {
-  flake-file.inputs.firefox-extensions-declarative = {
+  nucleus.inputs.firefox-extensions-declarative = {
     url = "github:firefox-extensions-declarative/firefox-extensions-declarative";
     inputs.nixpkgs.follows = "unstable-nixpkgs";
   };

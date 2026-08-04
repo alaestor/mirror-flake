@@ -178,7 +178,7 @@ let
     };
 in
 {
-  flake-file.inputs.plasma-manager = {
+  nucleus.inputs.plasma-manager = {
     url = "github:nix-community/plasma-manager";
     inputs.nixpkgs.follows = "unstable-nixpkgs";
     inputs.home-manager.follows = "unstable-home-manager";

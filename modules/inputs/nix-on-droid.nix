@@ -1,5 +1,5 @@
 {
-  flake-file.inputs = {
+  nucleus.inputs = {
     android-nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
 
     android-home-manager = {

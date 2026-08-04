@@ -320,7 +320,7 @@ Suggested ownership:
 
 - `modules/app-config/<app>.nix`: outer flake-parts modules defining configured
   package/wrapper modules and canonical package outputs. Every `.nix` file still
-  satisfies the import-tree rule.
+  satisfies the nucleus module-discovery rule.
 - `data/programs/<app>/...`: native config text, JSON, scripts, and other
   value-only data, reached through `self.data` where appropriate.
 - `modules/programs/<app>.nix`: thin Home Manager adapters that install an
@@ -444,7 +444,7 @@ Every wrapper must document its precedence contract:
 ## Incremental migration plan
 
 1. **Complete:** pin `nix-wrapper-modules` and `alpkgs` through
-   `flake-file.inputs`, with the dependency hidden behind an app-config module.
+   `nucleus.inputs`, with the dependency hidden behind an app-config module.
 2. **Complete:** port MPV with hermetic `--config-dir` precedence, exposing a
    canonical package and thin Home Manager adapter.
 3. **Automated checks complete:** validate both `nix run` entry points, wrapper

@@ -9,9 +9,9 @@
   };
 
   config = {
-    flake-file.inputs = {
+    nucleus.inputs = {
       stable-nixpkgs.url   = "nixpkgs/nixos-${config.common.nixpkgs-stable-version}";
-      unstable-nixpkgs.url = "nixpkgs/nixos-unstable";
+      unstable-nixpkgs.follows = "nixpkgs";
     };
   };
 

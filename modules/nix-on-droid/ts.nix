@@ -14,7 +14,7 @@
   */
 
   config = {
-    flake-file.inputs.nix-on-droid-ts = {
+    nucleus.inputs.nix-on-droid-ts = {
       url = "github:alaestor/fork-nix-on-droid/better-cross-compile-1";
       inputs.nixpkgs.follows = "android-nixpkgs";
       inputs.home-manager.follows = "android-home-manager";

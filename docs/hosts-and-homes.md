@@ -26,7 +26,7 @@ flowchart LR
 
 ## Layers and module classes
 
-All `.nix` files under `modules/` are discovered by `import-tree` and evaluated
+All `.nix` files under `modules/` are discovered by `nucleus` and evaluated
 as **flake-parts modules**. Those outer modules may declare registry data or
 export modules for another module system:
 

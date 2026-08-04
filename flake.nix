@@ -1,88 +1,151 @@
-# DO-NOT-EDIT. This file was auto-generated using github:vic/flake-file.
-# Use `nix run .#write-flake` to regenerate it.
+# DO-NOT-EDIT. Generated from nucleus declarations.
 {
   description = "Alaestor Weissman's personal flake";
 
-  outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
+  outputs = inputs:
+  inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+    imports = [ ./nucleus/flake-module.nix ]
+      ++ import ./nucleus/list-modules.nix ./modules;
+  }
+;
 
   inputs = {
-    agenix = {
-      url = "github:ryantm/agenix";
-      inputs = {
-        home-manager.follows = "unstable-home-manager";
-        nixpkgs.follows = "unstable-nixpkgs";
+  agenix = {
+    inputs = {
+      home-manager = {
+        follows = "unstable-home-manager";
+      };
+      nixpkgs = {
+        follows = "unstable-nixpkgs";
       };
     };
-    alpkgs = {
-      url = "git+https://codeberg.org/alaestor/pkgs.git";
-      inputs = {
-        flake-file.follows = "flake-file";
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
-    android-home-manager = {
-      url = "github:nix-community/home-manager/release-24.05";
-      inputs.nixpkgs.follows = "android-nixpkgs";
-    };
-    android-nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
-    cryptid-nixpkgs.url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";
-    disko = {
-      url = "github:nix-community/disko";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    firefox-extensions-declarative = {
-      url = "github:firefox-extensions-declarative/firefox-extensions-declarative";
-      inputs.nixpkgs.follows = "unstable-nixpkgs";
-    };
-    flake-file.url = "github:vic/flake-file";
-    flake-parts = {
-      url = "github:hercules-ci/flake-parts";
-      inputs.nixpkgs-lib.follows = "nixpkgs";
-    };
-    impermanence = {
-      url = "github:nix-community/impermanence";
-      inputs = {
-        home-manager.follows = "";
-        nixpkgs.follows = "";
-      };
-    };
-    import-tree.url = "github:vic/import-tree";
-    nix-on-droid = {
-      url = "github:nix-community/nix-on-droid/release-24.05";
-      inputs = {
-        home-manager.follows = "android-home-manager";
-        nixpkgs.follows = "android-nixpkgs";
-      };
-    };
-    nix-on-droid-ts = {
-      url = "github:alaestor/fork-nix-on-droid/better-cross-compile-1";
-      inputs = {
-        home-manager.follows = "android-home-manager";
-        nixpkgs.follows = "android-nixpkgs";
-      };
-    };
-    nix-wrapper-modules = {
-      url = "github:BirdeeHub/nix-wrapper-modules";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nixpkgs.url = "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.xz";
-    plasma-manager = {
-      url = "github:nix-community/plasma-manager";
-      inputs = {
-        home-manager.follows = "unstable-home-manager";
-        nixpkgs.follows = "unstable-nixpkgs";
-      };
-    };
-    stable-home-manager = {
-      url = "github:nix-community/home-manager/release-26.05";
-      inputs.nixpkgs.follows = "stable-nixpkgs";
-    };
-    stable-nixpkgs.url = "nixpkgs/nixos-26.05";
-    unstable-home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "unstable-nixpkgs";
-    };
-    unstable-nixpkgs.url = "nixpkgs/nixos-unstable";
-    vpn-confinement.url = "github:Maroka-chan/VPN-Confinement";
+    url = "github:ryantm/agenix";
   };
+  alpkgs = {
+    inputs = {
+      nixpkgs = {
+        follows = "nixpkgs";
+      };
+    };
+    url = "git+https://codeberg.org/alaestor/pkgs.git";
+  };
+  android-home-manager = {
+    inputs = {
+      nixpkgs = {
+        follows = "android-nixpkgs";
+      };
+    };
+    url = "github:nix-community/home-manager/release-24.05";
+  };
+  android-nixpkgs = {
+    url = "github:NixOS/nixpkgs/nixos-24.05";
+  };
+  cryptid-nixpkgs = {
+    url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";
+  };
+  disko = {
+    inputs = {
+      nixpkgs = {
+        follows = "nixpkgs";
+      };
+    };
+    url = "github:nix-community/disko";
+  };
+  firefox-extensions-declarative = {
+    inputs = {
+      nixpkgs = {
+        follows = "unstable-nixpkgs";
+      };
+    };
+    url = "github:firefox-extensions-declarative/firefox-extensions-declarative";
+  };
+  flake-parts = {
+    inputs = {
+      nixpkgs-lib = {
+        follows = "nixpkgs";
+      };
+    };
+    url = "github:hercules-ci/flake-parts";
+  };
+  impermanence = {
+    inputs = {
+      home-manager = {
+        follows = "";
+      };
+      nixpkgs = {
+        follows = "";
+      };
+    };
+    url = "github:nix-community/impermanence";
+  };
+  nix-on-droid = {
+    inputs = {
+      home-manager = {
+        follows = "android-home-manager";
+      };
+      nixpkgs = {
+        follows = "android-nixpkgs";
+      };
+    };
+    url = "github:nix-community/nix-on-droid/release-24.05";
+  };
+  nix-on-droid-ts = {
+    inputs = {
+      home-manager = {
+        follows = "android-home-manager";
+      };
+      nixpkgs = {
+        follows = "android-nixpkgs";
+      };
+    };
+    url = "github:alaestor/fork-nix-on-droid/better-cross-compile-1";
+  };
+  nix-wrapper-modules = {
+    inputs = {
+      nixpkgs = {
+        follows = "nixpkgs";
+      };
+    };
+    url = "github:BirdeeHub/nix-wrapper-modules";
+  };
+  nixpkgs = {
+    url = "nixpkgs/nixos-unstable";
+  };
+  plasma-manager = {
+    inputs = {
+      home-manager = {
+        follows = "unstable-home-manager";
+      };
+      nixpkgs = {
+        follows = "unstable-nixpkgs";
+      };
+    };
+    url = "github:nix-community/plasma-manager";
+  };
+  stable-home-manager = {
+    inputs = {
+      nixpkgs = {
+        follows = "stable-nixpkgs";
+      };
+    };
+    url = "github:nix-community/home-manager/release-26.05";
+  };
+  stable-nixpkgs = {
+    url = "nixpkgs/nixos-26.05";
+  };
+  unstable-home-manager = {
+    inputs = {
+      nixpkgs = {
+        follows = "unstable-nixpkgs";
+      };
+    };
+    url = "github:nix-community/home-manager";
+  };
+  unstable-nixpkgs = {
+    follows = "nixpkgs";
+  };
+  vpn-confinement = {
+    url = "github:Maroka-chan/VPN-Confinement";
+  };
+};
 }

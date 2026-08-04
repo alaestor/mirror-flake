@@ -6,11 +6,9 @@ Evaluate whether changes should be surgical or broad. If a problem is better sol
 
 ## Repository model
 
-[flake-parts](https://flake.parts/) composes the outputs,
-[import-tree](https://github.com/vic/import-tree) loads the module tree, and
-[flake-file](https://github.com/vic/flake-file) generates `flake.nix`.
+[flake-parts](https://flake.parts/) composes the outputs. The local `nucleus` module discovers the module tree and generates `flake.nix` from distributed input declarations.
 
-`flake.nix` passes `modules/` to `import-tree`. Consequently, **every `.nix` file under `modules/` must be a flake-parts module**. Do not place a conventional value-only `default.nix`, package expression, or manually imported helper there; put non-module Nix data outside the module tree, normally under `data/`.
+`nucleus` passes every discovered `.nix` file below `modules/` to flake-parts in lexical order, excluding underscore-prefixed paths. Consequently, **every `.nix` file under `modules/` must be a flake-parts module**. Do not place a conventional value-only `default.nix`, package expression, or manually imported helper there; put non-module Nix data outside the module tree, normally under `data/`.
 
 | Path | Responsibility |
 |---|---|
@@ -42,12 +40,12 @@ When making architectural changes, always refresh the relevant documentation. Do
 
 ## Guidance
 
-- Never hand-edit `flake.nix`. Declare inputs through `flake-file.inputs` in an appropriate module, then run:
+- Never hand-edit `flake.nix`. Declare inputs through `nucleus.inputs` in an appropriate module, then run:
 
 ```sh
 nix run .#write-flake
 nix flake lock          # only when inputs changed
-timeout 120s nix build .#checks.x86_64-linux.check-flake-file --no-link
+timeout 120s nix build .#checks.x86_64-linux.nucleus --no-link
 ```
 
 - Name dendritic-style nix files after their respective modules; don't use `default.nix` for files in the `modules/` directory.
@@ -113,7 +111,7 @@ modules rather than embedding them in reusable service modules.
 - `self.data.readLines "..."` and `readNonEmptyLines` normalize line-oriented files.
 - `self.data.vars` provides named, normalized representations used in several places.
 
-This boundary also avoids a dendritic import trap. A helper `.nix` file placed beside its consumer under `modules/` would itself be discovered by `import-tree` and evaluated as a flake-parts module. Moving the helper outside `modules/` makes direct relative imports awkward and sensitive to relocating the consumer. `self.data` provides a stable flake-root-relative route to those files instead.
+This boundary also avoids a dendritic import trap. A helper `.nix` file placed beside its consumer under `modules/` would itself be discovered by `nucleus` and evaluated as a flake-parts module. Moving the helper outside `modules/` makes direct relative imports awkward and sensitive to relocating the consumer. `self.data` provides a stable flake-root-relative route to those files instead.
 
 Keep large configuration blobs, scripts in their native language, and value-only Nix expressions in `data/`, mirroring the consuming feature or program when useful. Extend `self.data.vars` for genuinely shared normalized values rather than repeating parsing logic. Do not move credentials into `data/`; it is ordinary flake source, not secret storage.
 

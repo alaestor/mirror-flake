@@ -106,7 +106,7 @@ has no legitimate reason to inspect secret plaintext. Keeping the interface path
 oriented also permits the encrypted tree to move behind another repository or
 flake input without changing consumers.
 
-Every `.nix` file under `modules/` is evaluated by `import-tree` as a flake-parts
+Every `.nix` file under `modules/` is evaluated by `nucleus` as a flake-parts
 module. Value-only Agenix rules and recipient tables therefore belong outside
 that tree, normally with the encrypted repository policy.
 

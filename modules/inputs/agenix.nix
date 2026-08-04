@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake-file.inputs.agenix = {
+  nucleus.inputs.agenix = {
     url = "github:ryantm/agenix";
     inputs.nixpkgs.follows = "unstable-nixpkgs";
     inputs.home-manager.follows = "unstable-home-manager";

@@ -142,7 +142,7 @@ in
 {
   # Something between here and 8c50a710ddca43d7a530fb805ad55bde8d0141c5 breaks mounting the btrfs partition... Too lazy to bisect.
   # TODO(workaround): occassionally check if cryptid nixpkgs is fixed
-  flake-file.inputs.cryptid-nixpkgs.url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";
+  nucleus.inputs.cryptid-nixpkgs.url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";
 
   /**
     Bootable installer ISO (~1.5GB) intended for offline management of cryptographic identities; not intended for system installation. Provides various commandline tools for working with pgp, yubikeys, and veracrypt containers.

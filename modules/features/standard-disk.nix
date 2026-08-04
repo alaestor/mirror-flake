@@ -54,7 +54,7 @@ let
 
 in with lib;
 {
-  flake-file.inputs = {
+  nucleus.inputs = {
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";

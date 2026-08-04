@@ -2,7 +2,7 @@
 {
   imports = [ inputs.unstable-home-manager.flakeModules.home-manager ];
 
-  flake-file.inputs = {
+  nucleus.inputs = {
     stable-home-manager = {
       url = "github:nix-community/home-manager/release-${config.common.nixpkgs-stable-version}";
       inputs.nixpkgs.follows = "stable-nixpkgs";
