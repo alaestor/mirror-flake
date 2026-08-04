@@ -181,6 +181,20 @@ let
     )
     ++ environment.modules;
 
+  mkHomeModules =
+    hostName: hostStateVersion: username: environment: featureModules:
+    [
+      (mkEnvironmentIdentityModule hostName hostStateVersion username environment)
+      {
+        home = {
+          inherit username;
+          inherit (environment) homeDirectory;
+        };
+      }
+    ]
+    ++ featureModules
+    ++ environmentModules environment;
+
   mkEnvironmentIdentityModule =
     hostName: hostStateVersion: username: environment:
     { lib, ... }:
@@ -239,13 +253,15 @@ let
       home-manager = {
         useGlobalPkgs = true;
         useUserPackages = true;
-        sharedModules = config.userEnvironment.sharedModules;
         users = lib.mapAttrs (
           username: environment:
           {
-            imports = [
-              (mkEnvironmentIdentityModule hostName host.stateVersion username environment)
-            ] ++ environmentModules environment;
+            imports = mkHomeModules
+              hostName
+              host.stateVersion
+              username
+              environment
+              config.userEnvironment.sharedModules;
           }
         ) environments;
       };
@@ -289,17 +305,12 @@ let
       lib.nameValuePair "${username}@${hostName}" (
         homeManager.lib.homeManagerConfiguration {
           pkgs = nixosConfiguration.pkgs;
-          modules = [
-            (mkEnvironmentIdentityModule hostName host.stateVersion username environment)
-            {
-              home = {
-                inherit username;
-                inherit (environment) homeDirectory;
-              };
-            }
-          ]
-          ++ nixosConfiguration.config.userEnvironment.sharedModules
-          ++ environmentModules environment;
+          modules = mkHomeModules
+            hostName
+            host.stateVersion
+            username
+            environment
+            nixosConfiguration.config.userEnvironment.sharedModules;
         }
       )
     ) (standaloneEnvironments host);

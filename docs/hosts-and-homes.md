@@ -233,6 +233,9 @@ the context being absent so it remains usable outside that feature composition.
 
 Both modes consume the same profile, preferences, attachment modules, feature
 contributions, package set, and selected Home Manager input.
+The registry constructs their effective Home Manager module list once and passes
+that same composition to either evaluator, so activation mode cannot change the
+environment's module graph.
 
 ### Integrated
 
