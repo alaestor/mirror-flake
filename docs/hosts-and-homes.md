@@ -222,6 +222,12 @@ This keeps the registry responsible for attachment and gives integrated and
 standalone environments the same feature contribution. A feature must not set
 `home-manager.users` itself.
 
+Feature contributions apply to every Home Manager environment explicitly
+attached under `host.<name>.userEnvironment`; they do not apply to other NixOS
+users or service accounts. Consequently, attaching a service account also opts
+it into every host-wide contribution. Keep this invariant in mind before adding
+managed users with roles that differ from the host's primary user.
+
 When the Home Manager half needs a small piece of evaluated host state, define a
 narrow typed option under `hostContext.<feature>` and populate it from the NixOS
 half. Do not mirror the entire NixOS configuration. The consumer should tolerate
