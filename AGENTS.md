@@ -1,8 +1,8 @@
 # Agent guide
 
-This is a personal NixOS flake built from dendritic modules. Keep changes small,
-preserve unrelated worktree state, and validate only the outputs a change can
-affect.
+This is a personal NixOS flake built from dendritic modules.
+
+Evaluate whether changes should be surgical or broad. If a problem is better solved through a larger architectural change, you should propose it to the user.
 
 ## Repository model
 
@@ -21,7 +21,6 @@ affect.
 | `modules/serve/domains/` | Disabled-by-default public ingress compositions exported as `domain-*`. |
 | `modules/de/` | Desktop features; `kde.nix` is the dual NixOS/Home Manager reference. |
 | `modules/programs/` | Opinionated, reusable Home Manager program modules. |
-| `modules/profiles/` | Reusable user-environment roles, such as `workstation`. |
 | `modules/preferences/` | Settings and identities that follow a person across hosts. |
 | `modules/inputs/` | Flake inputs and their integration modules. |
 | `modules/utils/` | Shared flake library and maintenance apps. |
@@ -29,39 +28,29 @@ affect.
 | `docs/` | Durable onboarding material for architecture, contracts, and contributor expectations. |
 | `docs/research/` | Exploratory notes that may discuss alternatives or volatile implementation state. |
 
-`README.md` files in subdirectories are generated automatically from the `nix run .#mkflakedocs` script, which sources `/** ... */` docstrings from nix files. Keep the docstrings up to date and accurate, but don't regenerate documentation unless requested. Prefer to put durable architecture guidance under `docs/` instead of duplicating it in generated READMEs or this file.
-
 ## Documentation maintenance
 
-Read the relevant non-research document before changing a system it describes,
-and update that document when an architectural boundary, public contract, or
-contributor expectation changes.
+Read relevant documents before changing a system it describes, and update that document when an architectural boundary, public contract, or contributor expectation changes.
 
-Files directly under `docs/` are onboarding material. They should explain why a
-system exists, how its layers compose, who owns each concern, which invariants
-must hold, and how contributors should extend or validate it. Examples should
-use illustrative names and values. Do not maintain catalogues of current hosts,
-services, domains, consumers, package selections, open work, or other state that
-ordinary configuration changes would quickly invalidate; the code and generated
-outputs are authoritative for those details.
+Files directly under `docs/` are onboarding material. They should explain why a system exists, how its layers compose, who owns each concern, which invariants must hold, and how contributors should extend or validate it. Examples should use illustrative names and values. Do not maintain catalogues of current hosts, consumers, package selections, or other non-durable state that ordinary configuration changes would quickly invalidate; the in-source docstrings are intended to be the authority for those details.
 
-Use `docs/research/` for investigations, alternatives, migration analysis, and
-other material that intentionally tracks unsettled or time-sensitive state.
-Generated subdirectory `README.md` files remain API summaries sourced from Nix
-docstrings and are not a substitute for durable architecture documentation.
+`README.md` files in subdirectories are generated automatically from the `nix run .#mkflakedocs` script, which sources `/** ... */` docstrings from nix files. Keep the docstrings up to date and accurate, but don't regenerate documentation unless requested. Prefer to put durable architecture guidance under `docs/` instead of duplicating it other files.
+
+`docs/research/` is for long-running repo experiments, investigations, and other materials involving unsettled architecture or design decisions.
+
+When making architectural changes, always refresh the relevant documentation. Don't merely append unless your change is strictly additive; the documents should always be kept relevant and concise, without of stale, redundant, or misleading information. This direction also applies to the local `AGENTS.md`.
 
 ## Guidance
 
 - Never hand-edit `flake.nix`. Declare inputs through `flake-file.inputs` in an appropriate module, then run:
 
 ```sh
-timeout 120s nix run .#write-flake
-timeout 120s nix flake lock          # only when inputs changed
+nix run .#write-flake
+nix flake lock          # only when inputs changed
 timeout 120s nix build .#checks.x86_64-linux.check-flake-file --no-link
 ```
 
-- Name nix files after their respective modules; don't use `default.nix` for files in the `modules/` directory.
-
+- Name dendritic-style nix files after their respective modules; don't use `default.nix` for files in the `modules/` directory.
 
 - Always validate your changes. Start with syntax/whitespace and the narrowest affected output. Prefer using timeouts, e.g.
 
@@ -83,9 +72,9 @@ timeout 60s nix eval --raw \
 
 - Run only the checks relevant to the change. Do not claim a check passed unless it actually ran successfully; if broader validation would pull in an unrelated large host, state the focused validation boundary.
 
-- Ideally, try to build relevant targets to ensure correctness. You can use `nix build` with `--no-link` and `--dry-run` to avoid artifact pollution.
+- Where possible, try to build relevant targets to ensure correctness. You can use `nix build` with `--no-link` and `--dry-run` to avoid artifact pollution.
 
-### Keep module classes separate
+### Keep distinct module classes
 
 - Export NixOS modules as `flake.modules.nixos.<name>`.
 - Export Home Manager modules as `flake.modules.homeManager.<name>`.
@@ -102,7 +91,6 @@ Likewise, distinguish
 
 - **Programs** configure one Home Manager program with reusable, refinable defaults. Importing a program module should enable it.
 - **Features** assemble programs or implement a coherent capability. A feature may export both NixOS and Home Manager modules.
-- **Profiles** bundle features into a reusable user-environment role.
 - **Preferences** hold personal identity and choices, not reusable policy.
 - **Host-user attachment modules** contain the final refinements unique to one user on one host.
 
