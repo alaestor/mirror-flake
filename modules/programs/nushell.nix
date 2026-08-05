@@ -1,4 +1,4 @@
-{ inputs, self, ... }:
+{ self, ... }:
 {
   flake.modules.homeManager.nushell =
     {
@@ -10,14 +10,7 @@
     }:
     let
       hasNasVault = lib.hasAttrByPath [ "hostContext" "nas" "vaultMountpoint" ] options;
-      shortcuts = builtins.replaceStrings
-        [ "@CURRENT_FLAKE@" "@STABLE_NIXPKGS@" "@UNSTABLE_NIXPKGS@" ]
-        [
-          (toString inputs.self)
-          (toString inputs.stable-nixpkgs)
-          (toString inputs.unstable-nixpkgs)
-        ]
-        (self.data.read "programs/nushell/shortcuts.nu");
+      shortcuts = self.data.read "programs/nushell/shortcuts.nu";
       passwordHelper = builtins.replaceStrings [ "@DICEWARE@" ] [ (lib.getExe pkgs.diceware) ] (
         self.data.read "programs/nushell/diceware-helper.nu"
       );
