@@ -37,6 +37,7 @@
             inputs.self.nixOnDroidModules.host-identity
             inputs.self.nixOnDroidModules.local-cache
             inputs.self.nixOnDroidModules.ssh-host
+            inputs.self.nixOnDroidModules.tailscale
             ({ config, pkgs, ... }:
             {
               system.stateVersion = "24.05";
@@ -45,10 +46,6 @@
                 uid = 10229;
                 gid = 10229;
               };
-
-              environment.etc."resolv.conf".text = lib.mkForce ''
-                nameserver 100.100.100.100
-              '';
 
               ssh-host = {
                 comment = "generated host key (${config.hostIdentity.name})";

@@ -14,6 +14,7 @@
         inputs.self.nixOnDroidModules.host-identity
         inputs.self.nixOnDroidModules.local-cache
         inputs.self.nixOnDroidModules.ssh-host
+        inputs.self.nixOnDroidModules.tailscale
         (
           { config, pkgs, ... }:
           {
@@ -24,10 +25,6 @@
               doggo
               getent
             ];
-
-            environment.etc."resolv.conf".text = lib.mkForce ''
-              nameserver 100.100.100.100
-            '';
 
             hostIdentity = {
               name = "noblesse";

@@ -1,32 +1,40 @@
 /**
   Composes the interactive terminal environment and packages every direct
   `data/features/standard-terminal/scripts/*.nix` declaration. Each script
-  file must return a package whose name matches its filename.
+  file must return a script declaration whose name and package name match its
+  filename. Declarations can disable themselves from their supplied context.
+  The Nix-on-Droid adapter provides only these script packages because its
+  pinned Home Manager lacks the program-module interfaces used on NixOS.
 */
 { inputs, self, ... }:
-{
-  flake.modules.homeManager.standard-terminal =
+let
+  mkHomeModule =
+    {
+      includeGhostty,
+      includePrograms,
+    }:
     { config, lib, pkgs, ... }:
     let
 
       # automatic discovery of scripts
       nixpkgsAllowUnfree = if pkgs.config.allowUnfree or false then "1" else "0";
       scriptDirectory = self.data.path "features/standard-terminal/scripts";
-      scriptPackages = lib.mapAttrsToList (
+      scriptPackages = lib.filter (script: script.enable) (lib.mapAttrsToList (
         fileName: _:
         let
           expectedName = lib.removeSuffix ".nix" fileName;
-          package = import "${scriptDirectory}/${fileName}" {
+          script = import "${scriptDirectory}/${fileName}" {
             inherit inputs nixpkgsAllowUnfree pkgs;
+            tailnetDomain = config.standard-terminal.tailscale.domain;
           };
         in
-        if package.name != expectedName then
-          throw "standard-terminal script ${fileName} declares the mismatched name ${package.name}"
+        if script.name != expectedName || script.package.name != expectedName then
+          throw "standard-terminal script ${fileName} declares the mismatched name ${script.name}"
         else
-          package
+          script
       ) (lib.filterAttrs (fileName: fileType: fileType == "regular" && lib.hasSuffix ".nix" fileName) (
         builtins.readDir scriptDirectory
-      ));
+      )));
 
       # processed "uwu" themed fastfetch config (inserts ascii art)
       customLogoPath = self.data.vars.textart.boykisser;
@@ -38,18 +46,24 @@
 
     in
     {
-      home.packages = scriptPackages;
+      imports = with inputs.self.modules.homeManager;
+        lib.optional includePrograms nushell ++ lib.optional includeGhostty ghostty;
 
-      imports = with inputs.self.modules.homeManager; [
-        ghostty
-        nushell
-      ];
+      options.standard-terminal.tailscale.domain = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "Tailnet DNS suffix that enables the ts SSH shortcut.";
+      };
 
-      programs = {
-        ghostty.settings = {
-          command = lib.mkDefault "nu";
-          working-directory = lib.mkDefault config.home.homeDirectory;
-        };
+      config = {
+        home.packages = map (script: script.package) scriptPackages;
+      } // lib.optionalAttrs includePrograms {
+        programs = (lib.optionalAttrs includeGhostty {
+          ghostty.settings = {
+            command = lib.mkDefault "nu";
+            working-directory = lib.mkDefault config.home.homeDirectory;
+          };
+        }) // {
 
         fastfetch = {
           enable = lib.mkDefault true;
@@ -114,6 +128,22 @@
 
           clear
         '';
+        };
       };
     };
+in
+{
+  flake.modules.homeManager.standard-terminal = mkHomeModule {
+    includeGhostty = true;
+    includePrograms = true;
+  };
+
+  flake.nixOnDroidModules.standard-terminal = {
+    home-manager.config.imports = [
+      (mkHomeModule {
+        includeGhostty = false;
+        includePrograms = false;
+      })
+    ];
+  };
 }

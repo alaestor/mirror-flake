@@ -91,13 +91,12 @@ This split leaves authentication imperative in the Android application but
 keeps the SSH server, keys, and access policy declarative in this flake. It is
 the lowest-maintenance design and does not require a rooted phone.
 
-Nix-on-droid currently writes a static `/etc/resolv.conf` using public
-resolvers. Consequently, MagicDNS names may not resolve inside its proot even
-when the Android Tailscale application is connected. This exact interaction is
-recorded in
-[nix-on-droid issue 322](https://github.com/nix-community/nix-on-droid/issues/322).
-Direct tailnet IP access is unaffected; using MagicDNS would require a separate,
-conditional resolver change.
+The flake's Nix-on-Droid `tailscale` attachment sets `/etc/resolv.conf` to
+Tailscale's MagicDNS resolver (`100.100.100.100`) and enables terminal
+shortcuts. It does not run Tailscale: the Android application remains
+responsible for the VPN lifecycle. This resolver configuration is conditional
+on importing the attachment, because a device without the Android application
+cannot reach it.
 
 ### A native droid module
 
