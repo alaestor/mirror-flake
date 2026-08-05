@@ -13,9 +13,9 @@
     text = ''
       nix_installable() {
         case "$1" in
-          s.*) printf '%s#%s\\n' '${inputs.stable-nixpkgs}' "''${1#s.}" ;;
-          u.*) printf '%s#%s\\n' '${inputs.unstable-nixpkgs}' "''${1#u.}" ;;
-          *) printf '%s#%s\\n' '${inputs.self}' "$1" ;;
+          s.*) printf '%s#%s' '${inputs.stable-nixpkgs}' "''${1#s.}" ;;
+          u.*) printf '%s#%s' '${inputs.unstable-nixpkgs}' "''${1#u.}" ;;
+          *) printf '%s#%s' '${inputs.self}' "$1" ;;
         esac
       }
 
