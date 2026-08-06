@@ -157,7 +157,7 @@
                 user) reviewer="user" ;;
                 auto) reviewer="auto_review" ;;
                 --cx-help)
-                  echo "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small|tiny] [user|auto] [--] [codex arguments...]"
+                  echo "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small] [user|auto] [--] [codex arguments...]"
                   echo "selectors are recognized in any order before --; later selectors replace earlier ones"
                   exit 0
                   ;;
