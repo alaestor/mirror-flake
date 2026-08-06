@@ -3,6 +3,8 @@
   `data/features/standard-terminal/scripts/*.nix` declaration. Each script
   file must return a script declaration whose name and package name match its
   filename. Declarations can disable themselves from their supplied context.
+
+  # TODO(workaround): try nushell config with newer pinnned nixpkgs
   The Nix-on-Droid adapter provides Nushell and these script packages, but
   omits other program integrations unavailable from its pinned Home Manager.
   Bash and Nushell functions adapt the external ncd helper so it can change
