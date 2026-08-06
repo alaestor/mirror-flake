@@ -98,6 +98,19 @@ responsible for the VPN lifecycle. This resolver configuration is conditional
 on importing the attachment, because a device without the Android application
 cannot reach it.
 
+## Remote builds
+
+The prototype configuration declares APC as an SSH builder for both its native
+`x86_64-linux` platform and the emulated `aarch64-linux` platform. Local jobs
+remain enabled, so an unreachable builder degrades to slower on-device builds
+rather than preventing an upgrade. The builder's speed factor makes Nix prefer
+APC when it is available.
+
+The ordinary `nswitch` shortcut uses this configuration without needing a
+remote-specific variant. Pass `--max-jobs 0` to require remote execution for a
+particular upgrade; with local jobs disabled, an unavailable builder instead
+causes the command to fail.
+
 ### A native droid module
 
 A module can trivially install the `tailscale` package and generate wrapper

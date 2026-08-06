@@ -6,13 +6,6 @@
     description = "Nix-on-Droid configurations exported by this flake.";
   };
 
-  /**
-    Cross compiling
-      pc -> nix build --no-link --print-out-paths .#nixOnDroidConfigurations.ts.activationPackage
-      copy path
-      droid -> nix copy --from ssh-ng://user@172.16.0.8?ssh-key=.ssh/id_ed25519_noblesse <nix/store/
-  */
-
   config = {
     nucleus.inputs.nix-on-droid-ts = {
       url = "github:alaestor/fork-nix-on-droid/better-cross-compile-1";
@@ -59,6 +52,11 @@
                 doggo
                 getent
               ];
+
+              nix.extraOptions = lib.mkAfter ''
+                builders = ssh://user@apc.tailnet.0x04.cc aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
+                builders-use-substitutes = true
+              '';
 
               hostIdentity = {
                 name = "noblesse";
