@@ -140,6 +140,7 @@
             model=""
             effort=""
             instruction_file=${lib.escapeShellArg (if cfg.modelInstructionsFile == null then "" else toString cfg.modelInstructionsFile)}
+            reviewer=""
             passthrough=()
 
             while (( $# > 0 )); do
