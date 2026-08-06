@@ -153,8 +153,10 @@
                 xhi|xhigh) effort="xhigh" ;;
                 full) instruction_file=${lib.escapeShellArg (toString instructionFiles.full)} ;;
                 small) instruction_file=${lib.escapeShellArg (toString instructionFiles.small)} ;;
+                user) reviewer="user" ;;
+                auto) reviewer="auto_review" ;;
                 --cx-help)
-                  echo "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small|tiny] [--] [codex arguments...]"
+                  echo "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small|tiny] [user|auto] [--] [codex arguments...]"
                   echo "selectors are recognized in any order before --; later selectors replace earlier ones"
                   exit 0
                   ;;
@@ -183,6 +185,9 @@
             fi
             if [[ -n "$instruction_file" ]]; then
               codex_args+=( -c "model_instructions_file=\"''${instruction_file}\"" )
+            fi
+            if [[ -n "$reviewer" ]]; then
+              codex_args+=( -c "approvals_reviewer=\"''${reviewer}\"" )
             fi
 
             exec ${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
