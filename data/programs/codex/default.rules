@@ -1,9 +1,9 @@
 # MAINTAINED
 prefix_rule(pattern=["git", ["add", "commit", "restore", "rm", "diff", "status"]], decision="allow")
 prefix_rule(pattern=["nix", ["run", "build", "eval", "flake", "develop"]], decision="allow")
-prefix_rule(pattern=["timeout", ["30s","60s","90s","120s"], "nix", ["run", "build", "eval", "flake"]], decision="allow")
+prefix_rule(pattern=["timeout", ["30","60","90","120"], "s", "nix", ["run", "build", "eval", "flake"]], decision="allow")
 # MAINTAINED RTK VARIANT
 prefix_rule(pattern=["rtk", "git", ["add", "commit", "restore", "rm", "diff", "status"]], decision="allow")
 prefix_rule(pattern=["rtk", "nix", ["run", "build", "eval", "flake", "develop"]], decision="allow")
-prefix_rule(pattern=["rtk", "timeout", ["30s","60s","90s","120s"], "nix", ["run", "build", "eval", "flake"]], decision="allow")
+prefix_rule(pattern=["rtk", "timeout", ["30","60","90","120"], "s", "nix", ["run", "build", "eval", "flake"]], decision="allow")
 # RUNTIME
