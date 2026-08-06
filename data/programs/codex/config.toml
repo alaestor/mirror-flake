@@ -2,7 +2,7 @@ model = "gpt-5.6-sol"
 model_reasoning_effort = "low"
 approvals_reviewer = "auto_review"
 
-model_instructions_file = "/home/user/.agents/codex/codex-instructions-gpt-5-medium.md"
+model_instructions_file = "/home/user/.agents/codex/codex-instructions-gpt-5-small.md"
 
 include_apps_instructions = false
 include_collaboration_mode_instructions = false

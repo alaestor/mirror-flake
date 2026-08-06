@@ -15,9 +15,7 @@
 
       instructionFiles = {
         full = self.data.path "programs/codex/codex-instructions-gpt-5-full.md";
-        # Short outward-facing names keep `medium` available for reasoning effort.
-        small = self.data.path "programs/codex/codex-instructions-gpt-5-medium.md";
-        tiny = self.data.path "programs/codex/codex-instructions-gpt-5-small.md";
+        small = self.data.path "programs/codex/codex-instructions-gpt-5-small.md";
       };
 
       cliBase = with pkgs; [
@@ -155,7 +153,6 @@
                 xhi|xhigh) effort="xhigh" ;;
                 full) instruction_file=${lib.escapeShellArg (toString instructionFiles.full)} ;;
                 small) instruction_file=${lib.escapeShellArg (toString instructionFiles.small)} ;;
-                tiny) instruction_file=${lib.escapeShellArg (toString instructionFiles.tiny)} ;;
                 --cx-help)
                   echo "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small|tiny] [--] [codex arguments...]"
                   echo "selectors are recognized in any order before --; later selectors replace earlier ones"
@@ -237,12 +234,9 @@
     {
       imports = [ inputs.self.modules.homeManager.headroom ];
 
-      # Quick references retained from the old README:
-      # - `codex features list` shows current feature flags.
-      # - Feature defaults for the referenced release:
-      #   https://github.com/openai/codex/blob/rust-v0.145.0/codex-rs/features/src/lib.rs
-      # - Configuration types for the referenced release:
-      #   https://github.com/openai/codex/blob/rust-v0.145.0/codex-rs/config/src/config_toml.rs
+      # Calling `codex features list` shows current feature flags.
+      # Feature defaults: https://github.com/openai/codex/blob/rust-v0.145.0/codex-rs/features/src/lib.rs
+      # Configuration types: https://github.com/openai/codex/blob/rust-v0.145.0/codex-rs/config/src/config_toml.rs
       options.codex.modelInstructionsFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = instructionFiles.small;
