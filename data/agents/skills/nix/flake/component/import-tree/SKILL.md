@@ -1,8 +1,8 @@
 ---
 name: nix-flake-component-import-tree
-description: Using import-tree to recursively discover and import .nix files as flake-parts modules.
+description: Using import-tree to recursively discover and import .nix files as flake-parts modules (DEPRECATED).
 license: MIT
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # import-tree: Recursive Module Discovery

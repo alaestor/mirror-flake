@@ -1,8 +1,8 @@
 ---
 name: nix-flake-pattern-dendritic-flakes
-description: High-level overview of dendritic flake architecture using flake-parts, flake-file, and import-tree.
+description: High-level overview of dendritic flake architecture using flake-parts, flake-file, and import-tree. (DEPRECATED)
 license: MIT
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # About Dendritic Flakes

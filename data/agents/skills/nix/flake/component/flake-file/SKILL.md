@@ -1,8 +1,8 @@
 ---
 name: nix-flake-component-flake-file
-description: Declaring flake inputs via flake-file, regenerating flake.nix, and recovering from a bad state.
+description: Declaring flake inputs via flake-file, regenerating flake.nix, and recovering from a bad state (DEPRECATED).
 license: MIT
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # flake-file: Declaring Inputs in Modules
