@@ -3,8 +3,8 @@
   `data/features/standard-terminal/scripts/*.nix` declaration. Each script
   file must return a script declaration whose name and package name match its
   filename. Declarations can disable themselves from their supplied context.
-  The Nix-on-Droid adapter provides only these script packages because its
-  pinned Home Manager lacks the program-module interfaces used on NixOS.
+  The Nix-on-Droid adapter provides Nushell and these script packages, but
+  omits other program integrations unavailable from its pinned Home Manager.
 */
 { inputs, self, ... }:
 let
@@ -139,11 +139,14 @@ in
   };
 
   flake.nixOnDroidModules.standard-terminal = {
-    home-manager.config.imports = [
-      (mkHomeModule {
-        includeGhostty = false;
-        includePrograms = false;
-      })
-    ];
+    home-manager.config = {
+      imports = [
+        (mkHomeModule {
+          includeGhostty = false;
+          includePrograms = false;
+        })
+      ];
+      programs.nushell.enable = true;
+    };
   };
 }
