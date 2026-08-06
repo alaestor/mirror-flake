@@ -28,7 +28,8 @@
           ]) ++ [
             ({ config, pkgs, ... }:
             {
-              system.stateVersion = "24.05";
+
+              system.stateVersion = "24.05"; # TODO: can droid system state be inferred from hostIdentity?
 
               user = {
                 uid = 10229;
@@ -41,11 +42,13 @@
               };
 
               environment.packages = with pkgs; [
+                openssh
                 # NOTE(compatibility): complications around age sk decryption in nix-on-droid resulting from pcsc woes; see [age-plugin-yubikey#109](https://github.com/str4d/age-plugin-yubikey/issues/109)
                 age
                 age-plugin-yubikey
                 doggo
-                getent
+                curl
+                ripgrep
               ];
 
               nix.extraOptions = lib.mkAfter ''
@@ -69,6 +72,7 @@
                   ssh-client.identityFiles = [ "~/.ssh/id_ed25519_${config.hostIdentity.name}" ];
                 };
               };
+
             })
           ];
         };

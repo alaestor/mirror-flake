@@ -12,10 +12,9 @@
       environment = {
         etcBackupExtension = ".bak";
         packages = with pkgs; [
+          busybox
           git
           neovim
-          openssh
-          ripgrep
         ];
       };
 
