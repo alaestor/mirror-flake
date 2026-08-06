@@ -135,7 +135,7 @@ let
           ntest)
             ${if isNixOnDroid then ''printf 'ntest: nix-on-droid has no test action\n' >&2; return 2'' else ''command=(nixos-rebuild test)''}
             ;;
-          hswitch) command=(home-manager switch) ;;
+          hswitch) command=(home-manager switch -b backup) ;;
           *)
             printf 'nflake-target: unknown shortcut: %s\n' "$shortcut" >&2
             return 2
