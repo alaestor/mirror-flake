@@ -65,6 +65,7 @@ let
         home.packages = map (script: script.package) scriptPackages;
         programs = lib.mkMerge [
           {
+            # TODO: normalize all the ncd/nboot/hswitch commands into a feature module and make standard-terminal a metafeature / feature-set
             bash = {
               enable = lib.mkDefault true;
               initExtra = lib.mkAfter ''
@@ -117,6 +118,7 @@ let
               starship = {
                 enable = lib.mkDefault true;
                 enableNushellIntegration = lib.mkDefault true;
+                enableBashIntegration = lib.mkDefault false;
                 settings = {
                   add_newline = lib.mkDefault true;
                   character = {
