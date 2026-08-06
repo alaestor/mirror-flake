@@ -87,17 +87,6 @@
         follows = "android-nixpkgs";
       };
     };
-    url = "github:nix-community/nix-on-droid/release-24.05";
-  };
-  nix-on-droid-ts = {
-    inputs = {
-      home-manager = {
-        follows = "android-home-manager";
-      };
-      nixpkgs = {
-        follows = "android-nixpkgs";
-      };
-    };
     url = "github:alaestor/fork-nix-on-droid/better-cross-compile-1";
   };
   nix-wrapper-modules = {

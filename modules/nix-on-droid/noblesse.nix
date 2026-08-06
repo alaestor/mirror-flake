@@ -1,54 +1,76 @@
 { inputs, lib, ... }:
 {
-  flake.nixOnDroidConfigurations.noblesse =
-    inputs.nix-on-droid.lib.nixOnDroidConfiguration {
-      pkgs = import inputs.android-nixpkgs {
-        system = "aarch64-linux";
-        overlays = [ inputs.nix-on-droid.overlays.default ];
-      };
+  options.flake.nixOnDroidConfigurations = lib.mkOption {
+    type = lib.types.lazyAttrsOf lib.types.raw;
+    default = { };
+    description = "Nix-on-Droid configurations exported by this flake.";
+  };
 
-      home-manager-path = inputs.android-home-manager.outPath;
+  config = {
+    flake.nixOnDroidConfigurations.noblesse =
+      inputs.nix-on-droid.lib.nixOnDroidConfiguration
+        {
+          pkgs = import inputs.android-nixpkgs {
+            system = "aarch64-linux";
+            overlays = [ inputs.nix-on-droid.overlays.default ];
+          };
 
-      modules = [
-        inputs.self.nixOnDroidModules.base
-        inputs.self.nixOnDroidModules.host-identity
-        inputs.self.nixOnDroidModules.local-cache
-        inputs.self.nixOnDroidModules.ssh-host
-        inputs.self.nixOnDroidModules.tailscale
-        (
-          { config, pkgs, ... }:
-          {
-            environment.packages = with pkgs; [
-              # NOTE(compatibility): complications around age sk decryption in nix-on-droid resulting from pcsc woes; see [age-plugin-yubikey#109](https://github.com/str4d/age-plugin-yubikey/issues/109)
-              age
-              age-plugin-yubikey
-              doggo
-              getent
-            ];
+          home-manager-path = inputs.android-home-manager.outPath;
 
-            hostIdentity = {
-              name = "noblesse";
-              description = "Android phone running nix-on-droid.";
-              primaryUser = "nix-on-droid";
-              stateVersion = "24.05";
-            };
+          bootstrapSystem = "x86_64-linux";
 
-            ssh-host = {
-              comment = "generated host key (${config.hostIdentity.name})";
-              allowUsers = [ config.hostIdentity.primaryUser ];
-            };
+          modules = (with inputs.self.nixOnDroidModules; [
+            base
+            host-identity
+            local-cache
+            ssh-host
+            tailscale
+          ]) ++ [
+            ({ config, pkgs, ... }:
+            {
+              system.stateVersion = "24.05";
 
-            home-manager = {
-              backupFileExtension = "hm-bak";
-              useGlobalPkgs = true;
-              config = {
-                imports = [ inputs.self.modules.homeManager.phone ];
-                home.stateVersion = config.hostIdentity.stateVersion;
-                ssh-client.identityFiles = [ "~/.ssh/id_ed25519_${config.hostIdentity.name}" ];
+              user = {
+                uid = 10229;
+                gid = 10229;
               };
-            };
-          }
-        )
-      ];
-    };
+
+              ssh-host = {
+                comment = "generated host key (${config.hostIdentity.name})";
+                allowUsers = [ config.hostIdentity.primaryUser ];
+              };
+
+              environment.packages = with pkgs; [
+                # NOTE(compatibility): complications around age sk decryption in nix-on-droid resulting from pcsc woes; see [age-plugin-yubikey#109](https://github.com/str4d/age-plugin-yubikey/issues/109)
+                age
+                age-plugin-yubikey
+                doggo
+                getent
+              ];
+
+              nix.extraOptions = lib.mkAfter ''
+                builders = ssh://user@apc.tailnet.0x04.cc aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
+                builders-use-substitutes = true
+              '';
+
+              hostIdentity = {
+                name = "noblesse";
+                description = "Android phone running nix-on-droid.";
+                primaryUser = "nix-on-droid";
+                stateVersion = "24.05";
+              };
+
+              home-manager = {
+                backupFileExtension = "hm-bak";
+                useGlobalPkgs = true;
+                config = {
+                  imports = [ inputs.self.modules.homeManager.phone ];
+                  home.stateVersion = config.hostIdentity.stateVersion;
+                  ssh-client.identityFiles = [ "~/.ssh/id_ed25519_${config.hostIdentity.name}" ];
+                };
+              };
+            })
+          ];
+        };
+  };
 }
