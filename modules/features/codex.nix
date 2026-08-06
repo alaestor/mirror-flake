@@ -190,6 +190,9 @@
               codex_args+=( -c "approvals_reviewer=\"''${reviewer}\"" )
             fi
 
+            # automatically trust the working-directory
+            codex_args+=( -c "projects={\"$PWD\"={trust_level=\"trusted\"}}")
+
             exec ${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
           '';
         };

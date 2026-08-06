@@ -40,51 +40,6 @@ fast_mode = false
 remote_compaction_v2 = false
 workspace_dependencies = false
 
-[projects."/home/user/Projects"]
-trust_level = "trusted"
-
-[projects."/home/user"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/alaestor-codeberg"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/alaestor-codeberg/flake-sha1"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/alaestor-codeberg/alce"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/alaestor-codeberg/fnlua"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/alaestor-github/protonhax"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/alaestor-codeberg/pkgs"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/alaestor-codeberg/protonhax-nix"]
-trust_level = "trusted"
-
-[projects."/home/user/.agents"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/alaestor-codeberg/flake"]
-trust_level = "trusted"
-
-[projects."/mnt/Cauldron/.bottles/Gaming/drive_c/ce/7_7"]
-trust_level = "trusted"
-
-[projects."/home/user/Projects/vocalinux"]
-trust_level = "trusted"
-
-[projects."/mnt/Vault/.dotfiles/flake"]
-trust_level = "trusted"
-
-[projects."/home/user/.codex"]
-trust_level = "trusted"
-
 [tui]
 status_line = ["model-with-reasoning", "context-used", "weekly-limit", "thread-title"]
 status_line_use_colors = true
