@@ -29,8 +29,6 @@
             ({ config, pkgs, ... }:
             {
 
-              system.stateVersion = "24.05"; # TODO: can droid system state be inferred from hostIdentity?
-
               user = {
                 uid = 10229;
                 gid = 10229;
@@ -55,6 +53,11 @@
                 builders = ssh://user@apc.tailnet.0x04.cc aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
                 builders-use-substitutes = true
               '';
+
+              # TODO(droid): can these be generalized in base?
+              environment.sessionVariables.HOSTNAME = config.hostIdentity.name;
+              system.stateVersion = config.hostIdentity.stateVersion;
+              #user.userName = config.hostIdentity.primaryUser; # TODO(droid): experiment; if we set droid name to `user` it may conflict with existing ownership
 
               hostIdentity = {
                 name = "noblesse";
