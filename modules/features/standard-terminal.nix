@@ -76,7 +76,7 @@ let
               '';
             };
             nushell.extraConfig = lib.mkAfter ''
-              def ncd [] {
+              def --env ncd [] {
                 let target = (^ncd)
                 if $env.LAST_EXIT_CODE == 0 {
                   cd $target
