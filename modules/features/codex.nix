@@ -257,7 +257,10 @@
           (mkCodexWrapper "cx" false)
           (mkCodexWrapper "cxs" true)
         ];
-        home.file.".serena-cxs/serena_config.yml".source = serenaConfig;
+        home.file.".serena-cxs/serena_config.yml" = {
+          force = true;
+          source = serenaConfig;
+        };
 
         programs.codex = {
           enable = lib.mkDefault true;
