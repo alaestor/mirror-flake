@@ -73,8 +73,6 @@
                 config = {
                   imports = [ inputs.self.modules.homeManager.phone ];
                   home.stateVersion = config.hostIdentity.stateVersion;
-                  home.shellAliases.nswitch =
-                    "nix-on-droid switch --flake git+https://codeberg.org/alaestor/flake#noblesse";
                   ssh-client.identityFiles = [ "~/.ssh/id_ed25519_${config.hostIdentity.name}" ];
                 };
               };

@@ -5,6 +5,8 @@
   filename. Declarations can disable themselves from their supplied context.
   The Nix-on-Droid adapter provides Nushell and these script packages, but
   omits other program integrations unavailable from its pinned Home Manager.
+  Bash and Nushell functions adapt the external ncd helper so it can change
+  the current shell's directory to the cached local flake root.
 */
 { inputs, self, ... }:
 let
@@ -12,6 +14,7 @@ let
     {
       includeGhostty,
       includePrograms,
+      isNixOnDroid,
     }:
     { config, lib, pkgs, ... }:
     let
@@ -25,6 +28,7 @@ let
           expectedName = lib.removeSuffix ".nix" fileName;
           script = import "${scriptDirectory}/${fileName}" {
             inherit inputs nixpkgsAllowUnfree pkgs;
+            inherit isNixOnDroid;
             tailnetDomain = config.standard-terminal.tailscale.domain;
           };
         in
@@ -57,78 +61,101 @@ let
 
       config = {
         home.packages = map (script: script.package) scriptPackages;
-      } // lib.optionalAttrs includePrograms {
-        programs = (lib.optionalAttrs includeGhostty {
-          ghostty.settings = {
-            command = lib.mkDefault "nu";
-            working-directory = lib.mkDefault config.home.homeDirectory;
-          };
-        }) // {
-
-        fastfetch = {
-          enable = lib.mkDefault true;
-          settings = self.data.readJSON "features/standard-terminal/fastfetch.json";
-        };
-
-        hyfetch = {
-          enable = lib.mkDefault true;
-          settings = {
-            backend = lib.mkDefault "fastfetch";
-            mode = lib.mkDefault "rgb";
-            preset = lib.mkDefault "random";
-            light_dark = lib.mkDefault "dark";
-            pride_month_disable = lib.mkDefault true;
-            color_align.mode = lib.mkDefault "horizontal";
-          };
-        };
-
-        carapace = {
-          enable = lib.mkDefault true;
-          enableNushellIntegration = lib.mkDefault true;
-        };
-
-        starship = {
-          enable = lib.mkDefault true;
-          enableNushellIntegration = lib.mkDefault true;
-          settings = {
-            add_newline = lib.mkDefault true;
-            character = {
-              success_symbol = lib.mkDefault "[λ](bold green)";
-              error_symbol = lib.mkDefault "[✗](bold red)";
+        programs = lib.mkMerge [
+          {
+            bash = {
+              enable = lib.mkDefault true;
+              initExtra = lib.mkAfter ''
+                ncd() {
+                  local target
+                  target="$(command ncd)" || return
+                  builtin cd -- "$target"
+                }
+              '';
             };
-          };
-        };
-
-        zoxide = {
-          enable = lib.mkDefault true;
-          enableNushellIntegration = lib.mkDefault true;
-        };
-
-        atuin = {
-          enable = lib.mkDefault true;
-          enableNushellIntegration = lib.mkDefault true;
-        };
-
-        nushell.extraConfig = lib.mkAfter ''
-          def --wrapped ff [...args] {
-            fastfetch ...$args
+            nushell.extraConfig = lib.mkAfter ''
+              def ncd [] {
+                let target = (^ncd)
+                if $env.LAST_EXIT_CODE == 0 {
+                  cd $target
+                }
+              }
+            '';
           }
+          (lib.optionalAttrs includePrograms (
+            (lib.optionalAttrs includeGhostty {
+              ghostty.settings = {
+                command = lib.mkDefault "nu";
+                working-directory = lib.mkDefault config.home.homeDirectory;
+              };
+            })
+            // {
+              fastfetch = {
+                enable = lib.mkDefault true;
+                settings = self.data.readJSON "features/standard-terminal/fastfetch.json";
+              };
 
-          def --wrapped ffuwu [...args] {
-            fastfetch -c ${fastfetchUwuSettingsPath} ...$args
-          }
+              hyfetch = {
+                enable = lib.mkDefault true;
+                settings = {
+                  backend = lib.mkDefault "fastfetch";
+                  mode = lib.mkDefault "rgb";
+                  preset = lib.mkDefault "random";
+                  light_dark = lib.mkDefault "dark";
+                  pride_month_disable = lib.mkDefault true;
+                  color_align.mode = lib.mkDefault "horizontal";
+                };
+              };
 
-          def --wrapped hy [...args] {
-            hyfetch ...$args
-          }
+              carapace = {
+                enable = lib.mkDefault true;
+                enableNushellIntegration = lib.mkDefault true;
+              };
 
-          def --wrapped hyuwu [...args] {
-            hyfetch --ascii-file ${customLogoPath} ...$args --args "-c ${fastfetchUwuSettingsPath}"
-          }
+              starship = {
+                enable = lib.mkDefault true;
+                enableNushellIntegration = lib.mkDefault true;
+                settings = {
+                  add_newline = lib.mkDefault true;
+                  character = {
+                    success_symbol = lib.mkDefault "[λ](bold green)";
+                    error_symbol = lib.mkDefault "[✗](bold red)";
+                  };
+                };
+              };
 
-          clear
-        '';
-        };
+              zoxide = {
+                enable = lib.mkDefault true;
+                enableNushellIntegration = lib.mkDefault true;
+              };
+
+              atuin = {
+                enable = lib.mkDefault true;
+                enableNushellIntegration = lib.mkDefault true;
+              };
+
+              nushell.extraConfig = lib.mkAfter ''
+                def --wrapped ff [...args] {
+                  fastfetch ...$args
+                }
+
+                def --wrapped ffuwu [...args] {
+                  fastfetch -c ${fastfetchUwuSettingsPath} ...$args
+                }
+
+                def --wrapped hy [...args] {
+                  hyfetch ...$args
+                }
+
+                def --wrapped hyuwu [...args] {
+                  hyfetch --ascii-file ${customLogoPath} ...$args --args "-c ${fastfetchUwuSettingsPath}"
+                }
+
+                clear
+              '';
+            }
+          ))
+        ];
       };
     };
 in
@@ -136,6 +163,7 @@ in
   flake.modules.homeManager.standard-terminal = mkHomeModule {
     includeGhostty = true;
     includePrograms = true;
+    isNixOnDroid = false;
   };
 
   flake.nixOnDroidModules.standard-terminal = {
@@ -144,6 +172,7 @@ in
         (mkHomeModule {
           includeGhostty = false;
           includePrograms = false;
+          isNixOnDroid = true;
         })
       ];
       programs.nushell.enable = true;
