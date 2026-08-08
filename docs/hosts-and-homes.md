@@ -7,7 +7,7 @@ host-specific refinements. The host registry assembles those declarations into
 flake outputs.
 
 The goal is to make ownership visible. Reusable policy should not be buried in a
-host, personal choices should not leak into a shared profile, and a NixOS feature
+host, personal choices should not leak into a shared aspect, and a NixOS feature
 should not reach into `home-manager.users` directly.
 
 ```mermaid
@@ -34,7 +34,7 @@ export modules for another module system:
 |---|---|---|
 | Flake-parts | Flake inputs, registries, packages, apps, and exported modules | `modules/` |
 | NixOS | Machine services, hardware, users, boot, and system policy | `modules/features/`, `modules/de/`, `modules/host/` |
-| Home Manager | User programs and session configuration | `modules/programs/`, `modules/profiles/`, `modules/preferences/` |
+| Home Manager | User programs and session configuration | `modules/programs/`, `modules/aspects/`, `modules/preferences/` |
 | Nix-on-Droid | Android-hosted Nix environment and device activation | `modules/nix-on-droid/` |
 
 Keep these module classes separate:
@@ -178,7 +178,7 @@ The layers have distinct responsibilities:
 |---|---|
 | Program | Configure one Home Manager program with reusable, refinable defaults. Importing it enables that program. |
 | Feature | Implement a coherent capability, possibly with separate NixOS and Home Manager exports. |
-| Profile | Bundle features into a reusable user-environment role. |
+| Aspect | Bundle features into a reusable, composable user-environment role. |
 | Preferences | Hold identity and choices that should follow a person between hosts. |
 | Attachment | Apply the final exception that is specific to one user on one host. |
 
@@ -190,10 +190,11 @@ priority:
 - use `lib.mkBefore` and `lib.mkAfter` for meaningful list ordering; and
 - reserve `lib.mkForce` for explicit conflict resolution.
 
-Profiles and preferences remain useful organizational concepts, but they are
-ordinary exported Home Manager modules rather than separate registry types. A
-host attachment composes them explicitly through `modules`, just like any other
-reusable Home Manager module.
+Aspects and preferences are ordinary exported Home Manager modules rather than
+separate registry types. A host attachment composes them explicitly through
+`modules`, just like any other reusable Home Manager module. See
+[Module ownership](modules.md) for the repository-wide ownership model,
+including fleet state and the policy-promotion rule.
 
 ## Feature contributions and host context
 
@@ -281,7 +282,7 @@ When adding or changing a host-facing capability:
 2. Export each reusable module in the namespace for its class.
 3. Put reusable machine policy in a feature and concrete machine facts in the
    host declaration.
-4. Put reusable user policy in programs, features, or profiles; put personal
+4. Put reusable user policy in programs, features, or aspects; put personal
    choices in preferences.
 5. Use attachment modules only for one-user-on-one-host refinements.
 6. Contribute Home Manager behavior through `userEnvironment.sharedModules`.

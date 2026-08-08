@@ -14,7 +14,9 @@ Evaluate whether changes should be surgical or broad. If a problem is better sol
 |---|---|
 | `modules/host-plumbing/` | Host registry, identities, and Home Manager attachment machinery. |
 | `modules/host/` | Concrete host declarations and host-only refinements. |
-| `modules/features/` | Reusable capabilities and compositions. |
+| `modules/features/` | Reusable capabilities with neutral, typed interfaces. |
+| `modules/aspects/` | High-level, composable bundles of features and their interoperability policy. |
+| `modules/fleet/` | Typed, public, non-secret facts shared by multiple repository consumers. |
 | `modules/serve/services/` | Disabled-by-default hosted-service features exported as `serve-*`. |
 | `modules/serve/domains/` | Disabled-by-default public ingress compositions exported as `domain-*`. |
 | `modules/de/` | Desktop features; `kde.nix` is the dual NixOS/Home Manager reference. |
@@ -88,9 +90,17 @@ Likewise, distinguish
 ## Configuration ownership
 
 - **Programs** configure one Home Manager program with reusable, refinable defaults. Importing a program module should enable it.
-- **Features** assemble programs or implement a coherent capability. A feature may export both NixOS and Home Manager modules.
+- **Features** implement a coherent capability with neutral, typed options. A feature may export both NixOS and Home Manager modules.
+- **Aspects** compose features into a high-level, reusable use case and may wire fleet policy into those features.
 - **Preferences** hold personal identity and choices, not reusable policy.
 - **Host-user attachment modules** contain the final refinements unique to one user on one host.
+
+Read [`docs/modules.md`](docs/modules.md) before introducing or moving module
+ownership boundaries. Fleet state is typed, public, and non-secret; hosts must
+consume it directly rather than evaluating another host. Repeated policy should
+move from host fragments to the narrowest reusable typed module only when its
+semantics and lifecycle are shared. Repeated concrete values belong in fleet
+only when every consumer intentionally shares one source of truth.
 
 Use `lib.mkDefault` for policy intended to be refined. Preferences and host-specific refinements usually use ordinary definitions. Module order is not “last definition wins”; use priorities, `lib.mkBefore`, and `lib.mkAfter`. Reserve `lib.mkForce` for deliberate conflict resolution.
 
