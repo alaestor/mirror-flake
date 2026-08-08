@@ -1,144 +1,9 @@
 { config, inputs, ...} :
 let
-  # cryptid-specific
-
-  version                   = "0.1.0-20260620";
-
-  persist-partition-label   = "PERSIST";
-  path-mount-persist        = "/persist";
-  vault-name                = ".VAULT";
-  path-vault-file           = "${path-mount-persist}/${vault-name}";
-  path-mount-vault          = "/vault";
-
-  vault-fs                  = "FAT";
-  vault-size                = "300K";
-  vault-hasher              = "sha512";
-  vault-crypto              = "AES-Twofish";
-  vault-pim                 = "0"; # use defaults
-
-  pgp-expiry-in-months      = "13"; # one month buffer for annual extension
-  pgp-rootkey-type          = "eddsa";
-  pgp-rootkey-curve         = "ed25519";
-  pgp-preferences           = "SHA512 AES256 ZLIB BZIP2 ZIP Uncompressed";
-  pgp-sign-algorithm        = "ed25519";
-  pgp-encrypt-algorithm     = "cv25519";
-
-  yubi-retries-pin          = "5"; # signing, decryption, authentication
-  yubi-retries-puk          = "5"; # the unblock pin, to reset user pin retry counter
-  yubi-retries-admin        = "5"; # changing pins, setting retries, etc.
-  yubi-touch-policy         = "on";
-  yubi-pass-policy          = "once";
-  yubi-age-pass-policy      = "once"; # never / once / always
-  yubi-age-touch-policy     = "always"; # never / always / cached
-  yubi-age-piv-slot         = "1";
-  yubi-stock-pgp-pin        = "123456"; # "stock" pins from the factory
-  yubi-stock-pgp-admin      = "12345678";
-  yubi-stock-piv-pin        = yubi-stock-pgp-pin;
-  yubi-stock-piv-puk        = yubi-stock-pgp-admin;
-  yubi-stock-piv-mgt        = "010203040506070801020304050607080102030405060708";
-  # TODO(crypt): age: switch back to AES192 PIV management key, pending https://github.com/str4d/age-plugin-yubikey/issues/92
-  yubi-piv-management-alg   = "TDES"; # TDES|AES128|AES192|AES256  -- blocked by https://github.com/str4d/age-plugin-yubikey/issues/92
-
-  path-firsttimeflag        = "/tmp/first-time-init";
-  path-log-expectScript     = "./expectScript.log";
-
-  pathv-yubicodes           = "${path-mount-vault}/yubicodes/yubicodes.env";
-  pathv-pgp-private         = "${path-mount-vault}/pgp/pgp.key.asc";
-  pathv-pgp-public          = "${path-mount-persist}/pgp-cert/pgp.certificate.asc";
-  pathv-pgp-revoke          = "${path-mount-persist}/pgp-revoke/pgp.revocation.asc";
-  pathv-ssh-public          = "${path-mount-persist}/sk-public/ssh_sk.pub";
-  pathv-ssh-stub            = "${path-mount-persist}/sk-stub/ssh_sk";
-  pathv-age-public          = "${path-mount-persist}/sk-public/age_sk.pub";
-  pathv-age-stub            = "${path-mount-persist}/sk-stub/age_sk";
-  pathv-merged-pubs-ssh     = "${path-mount-persist}/merged-ssh/authorized_keys";
-  pathv-merged-pubs-age     = "${path-mount-persist}/merged-age/recipients.txt";
-  emergency-label-ssh       = "cryptid-breakglass-ssh";
-  emergency-label-age       = "cryptid-breakglass-age";
-  emergency-filename        = name: "breakglass-${name}";
-  emergency-filename-ssh    = emergency-filename "ssh";
-  pathv-emerg-ssh-private   = "${path-mount-vault}/breakglass/${emergency-filename-ssh}";
-  pathv-emerg-ssh-public    = "${path-mount-persist}/breakglass/${emergency-filename-ssh}.pub";
-  emergency-filename-age    = emergency-filename "age";
-  pathv-emerg-age-private   = "${path-mount-vault}/breakglass/${emergency-filename-age}";
-  pathv-emerg-age-public    = "${path-mount-persist}/breakglass/${emergency-filename-age}.pub";
-
-  mkdirs = [
-    "${path-mount-persist}/merged-age"
-    "${path-mount-persist}/merged-ssh"
-    "${path-mount-persist}/breakglass"
-    "${path-mount-persist}/sk-public"
-    "${path-mount-persist}/sk-stub"
-    "${path-mount-persist}/pgp-cert"
-    "${path-mount-persist}/pgp-revoke"
-    "${path-mount-vault}/pgp"
-    "${path-mount-vault}/breakglass"
-    "${path-mount-vault}/yubicodes"
-  ];
-
-  /*
-
-  Persistent folder hierarchy
-  Vault is an encrypted container.
-  All files are versioned with a timestamp extension `<>`
-  `sk-*` contents can be generated from the yubikey, but captured for convenience.
-
-  ```
-  vault/
-    | pgp/
-    |  | pgp-key.asc.<>
-    | breakglass/
-    |  | breakglass-ssh.<>
-    |  | breakglass-age.<>
-    | yubicodes/
-    |  | yubicodes.env.<>
-
-  merged-age/
-    | recipients.txt.<>
-
-  merged-ssh/
-    | authorized_keys.<>
-
-  breakglass/
-    | breakglass-ssh.pub.<>
-    | breakglass-age.pub.<>
-
-  sk-public/
-    | age_sk.pub.<>
-    | ssh_sk.pub.<>
-
-  sk-stub/
-    | age_sk.<>
-    | ssh_sk.<>
-
-  pgp-cert/
-    | pgp.certificate.asc.<>
-
-  pgp-revoke/
-    | pgp.revocation.asc.<>
-  ```
-  */
-
-  env = {
-    keyid = "KEYID";
-    name = "USER_NAME";
-    email = "USER_EMAIL";
-    vaultpass = "VAULTPASS";
-    yubi = {
-      serial = "YUBI_SERIAL";
-      fido.pin = "YUBI_FIDO_PIN";
-      piv = {
-        pin = "YUBI_PIV_PIN";
-        puk = "YUBI_PIV_PUK";
-      };
-      pgp = {
-        pin  = "YUBI_PGP_PIN";
-        reset = "YUBI_PGP_RESET";
-        admin = "YUBI_PGP_ADMIN";
-      };
-    };
-  };
+  constants = import (inputs.self.data.path "cryptid/constants.nix");
 
 in
+with constants;
 {
   # Something between here and 8c50a710ddca43d7a530fb805ad55bde8d0141c5 breaks mounting the btrfs partition... Too lazy to bisect.
   # TODO(workaround): occassionally check if cryptid nixpkgs is fixed
@@ -153,7 +18,11 @@ in
     stateVersion = "26.05";
     nixpkgs = inputs.cryptid-nixpkgs;
 
+    # TODO(hosts): abstract path indirection
     modules = [
+      { _module.args.cryptidConstants = constants; }
+      ../../hosts/cryptid/storage.nix
+      ../../hosts/cryptid/system.nix
       ({config, pkgs, lib, ...} :
   let
     username = config.hostIdentity.primaryUser;
@@ -252,7 +121,7 @@ in
       }
     '';
 
-    scriptCatalog = import (inputs.self + /data/cryptid) {
+    scriptCatalog = import (inputs.self.data.path "cryptid") {
       inherit lib pkgs;
       context = {
         inherit
@@ -326,66 +195,9 @@ in
       airgap
       # not using cryptos from flake; micromanage dependencies
     ];
-    image.fileName = lib.mkForce "${config.hostIdentity.name}-${pkgs.stdenv.hostPlatform.system}";
-    boot = {
-      tmp.cleanOnBoot = true;
-      supportedFilesystems = { btrfs = true; };
-      kernel.sysctl = {"kernel.unprivileged_bpf_disabled" = 1;};
-      loader.grub = {
-        enable                   = true;
-        device                   = "nodev";
-        efiSupport               = true;
-        efiInstallAsRemovable    = true;
-      };
-    };
-    swapDevices = [];
-    fileSystems = lib.mkOverride 59 (
-      config.lib.isoFileSystems // {
-      "${path-mount-persist}" = {
-        device = "/dev/disk/by-label/${persist-partition-label}";
-        fsType = "btrfs";
-        neededForBoot = true;
-        options = [ "defaults" "compress=zstd" "noatime" ];
-      };}
-    );
-
-    # user
-    services.getty.autologinUser = lib.mkForce username;
-    users.users."${username}" = {
-      isNormalUser      = true;
-      description       = "admin";
-      extraGroups       = [ "wheel" "systemd-journal" ];
-      # This image uses console autologin and passwordless sudo; keep password
-      # authentication explicitly locked instead of publishing a placeholder.
-      hashedPassword = "!";
-    };
-    security.sudo.wheelNeedsPassword = lib.mkForce false;
-
-    # services
-    services.pcscd.enable = true;
-
-    # TODO(quality): these scripts use gpg; if I was doing it again I'd use sq/sequoia-pgp + oct/OpenPGP-card-tools
-    programs.gnupg.agent.enable = true;
-    programs.gnupg.agent.pinentryPackage = pkgs.pinentry-tty;
-    hardware.gpgSmartcards.enable = true;
-
     environment.etc."issue".text = scriptCatalog.helpText;
     environment.interactiveShellInit = bash-make-gnupg-home;
-
-    environment.systemPackages = with pkgs; [
-      expect
-      rusty-diceware
-      paperkey
-      qrencode
-      kpcli
-      zbar
-      veracrypt
-      gnupg
-      pcsc-tools
-      yubikey-manager
-      age
-      age-plugin-yubikey
-    ] ++ scriptCatalog.packages;
+    environment.systemPackages = scriptCatalog.packages;
   })
     ];
   };

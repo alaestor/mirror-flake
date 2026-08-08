@@ -64,6 +64,14 @@ Nix consumers normally use `identities.administrative.ssh-keys` and
 identities. Keeping them as a set ensures routine authorization and encryption
 retain the breakglass path.
 
+The ISO assembly point remains `modules/host/cryptid.nix`, including its
+dedicated pinned nixpkgs input and USB-writer app. Conventional NixOS setup is
+kept in `hosts/cryptid/system.nix` and `hosts/cryptid/storage.nix`: the former
+defines the air-gapped runtime and operator account, while the latter mounts
+the persistent BTRFS partition. Protocol constants and the native-language
+automation live under `data/cryptid/`; the host assembly loads the constants
+through `self.data` and passes the storage facts to its storage fragment.
+
 ### Features and Layout
 
 CRYPTID is designed as a reproducible system for managing cryptographic identities and keys. It leverages NixOS and bash scripts to orchestrate tools like `veracrypt`, `gpg`, `ssh-keygen`, `age`, `age-plugin-yubikey`, and `ykman` into (mostly) automated workflows.
@@ -239,7 +247,7 @@ The need to rotate keys varies, but CRYPTID is intended for long-lived keys; as 
 #### Respond
 Exact disaster responses depend on the event and your planning & procedures, but CRYPTID gives you access to physically and digitally redundant copies of:
 
-- a bootable Linux environment with various tools (see `cryptid.nix` packages)
+- a bootable Linux environment with the protocol runtime tools
 - a copy of your public keys.
 - the root revocation certificate, available even if you've forgotten the vault password.
 - The encrypted vault, containing:
