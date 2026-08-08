@@ -2,28 +2,31 @@
   Fleet-aware Tailscale client composition.
 
   Configures the shared tailnet's coordination URL and DNS suffix for NixOS
-  clients. NixOS user environments synthesize known-host entries for every
-  registered SSH host identity at its tailnet DNS name. SSH client identity
-  deployment remains an explicit host concern. The Nix-on-Droid composition
-  configures terminal integration only:
+  clients. When an environment imports `ssh-client`, NixOS user environments
+  add known-host entries for every registered SSH host identity at its tailnet
+  DNS name. SSH client identity deployment remains an explicit host concern.
+  The Nix-on-Droid composition configures terminal integration only:
   Android's Tailscale application owns the VPN lifecycle.
 */
-{ config, inputs, lib, self, ... }:
+{ config, inputs, self, ... }:
 let
   tailnet = config.flake.fleet.tailnets."0x04cc";
-  sshKnownHosts = lib.concatStringsSep "\n" (
-    lib.mapAttrsToList (
-      hostName: publicKey: "${hostName}.${tailnet.dnsSuffix} ${publicKey}"
-    ) self.data.vars.sshHostPublicKeys
-  ) + "\n";
 in
 {
   flake.modules.nixos.tailnet-client =
     { lib, ... }:
     let
-      homeModule = {
-        home.file.".ssh/known_hosts".text = sshKnownHosts;
-      };
+      homeModule = { config, ... }:
+        {
+          imports = [ inputs.self.modules.homeManager.ssh-known-hosts ];
+
+          ssh-client.knownHosts.${tailnet.dnsSuffix} = lib.mkIf config.ssh-client.knowTailnetHosts (
+            lib.mapAttrs' (hostName: publicKey: {
+              name = "${hostName}.${tailnet.dnsSuffix}";
+              value = [ publicKey ];
+            }) self.data.vars.sshHostPublicKeys
+          );
+        };
     in
     {
       imports = [ inputs.self.modules.nixos.tailscale ];

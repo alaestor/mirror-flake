@@ -1,15 +1,55 @@
 /**
-  Exports `flake.modules.nixos.ssh-client` and
-  `flake.modules.homeManager.ssh-client`. The NixOS feature deploys the
+  Exports `flake.modules.nixos.ssh-client`, the dormant Home Manager option
+  interface `ssh-known-hosts`, and `flake.modules.homeManager.ssh-client`.
+  The NixOS feature deploys the
   host-named client identity through Agenix when its ciphertext exists and
   otherwise warns without blocking bootstrap. The Home Manager feature enables
   the opinionated SSH program module and selects
   `~/.ssh/id_ed25519_<lowercase-hostname>` for registered host user
   environments. Consumers may prepend higher-priority identities through
   `ssh-client.identityFiles`; an empty list disables identity selection.
+  `ssh-client.knownHosts` declares SSH host keys grouped by DNS domain, and
+  accepts additive entries from compositions such as `tailnet-client`.
+  Repository-managed common and tailnet host keys are enabled independently
+  through `knowCommonHosts` and `knowTailnetHosts`.
 */
 { inputs, self, ... }:
 {
+  flake.modules.homeManager.ssh-known-hosts = { lib, ... }: {
+    # The interface may arrive through both ssh-client and a contributing composition.
+    key = "flake.modules.homeManager.ssh-known-hosts";
+
+    options.ssh-client = {
+      knowCommonHosts = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Whether to include the repository-managed common SSH host keys.";
+      };
+
+      knowTailnetHosts = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Whether tailnet compositions may contribute repository-managed SSH host keys.";
+      };
+
+      knownHosts = lib.mkOption {
+        type = lib.types.attrsOf (lib.types.attrsOf (lib.types.listOf lib.types.str));
+        default = { };
+        example = {
+          "example.org"."git.example.org" = [
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeExampleHostKey"
+          ];
+        };
+        description = ''
+          SSH host public keys grouped by DNS domain, then hostname. Each key
+          is the `type base64-data` portion of a known-host entry. Definitions
+          merge additively, so compositions may contribute further domains or
+          host keys.
+        '';
+      };
+    };
+  };
+
   flake.modules.nixos.ssh-client =
     {
       config,
@@ -52,6 +92,19 @@
     let
       cfg = config.ssh-client;
       hasStructuredSettings = options.programs.ssh ? settings;
+      defaultKnownHosts = import (self.data.path "features/ssh-client/known-hosts.nix") { inherit lib; };
+      renderKnownHosts =
+        lib.concatMapStringsSep "\n\n" (
+          domain:
+          let
+            hosts = cfg.knownHosts.${domain};
+            hostLines = lib.concatMap (
+              hostName:
+              map (publicKey: "${hostName} ${publicKey}") hosts.${hostName}
+            ) (lib.sort builtins.lessThan (builtins.attrNames hosts));
+          in
+          "# ${domain}\n${lib.concatStringsSep "\n" hostLines}"
+        ) (lib.sort builtins.lessThan (builtins.attrNames cfg.knownHosts)) + "\n";
       defaultIdentityFiles =
         if options ? userEnvironment then
           [ "~/.ssh/id_ed25519_${lib.toLower config.userEnvironment.hostName}" ]
@@ -59,7 +112,10 @@
           [ ];
     in
     {
-      imports = [ inputs.self.modules.homeManager.ssh ];
+      imports = [
+        inputs.self.modules.homeManager.ssh
+        inputs.self.modules.homeManager.ssh-known-hosts
+      ];
 
       options.ssh-client.identityFiles = lib.mkOption {
         type = lib.types.listOf lib.types.str;
@@ -73,6 +129,10 @@
       };
 
       config = {
+        ssh-client.knownHosts = lib.mkIf cfg.knowCommonHosts defaultKnownHosts;
+
+        home.file.".ssh/known_hosts".text = renderKnownHosts;
+
         programs.ssh =
           lib.mkIf (cfg.identityFiles != [ ]) (
             if hasStructuredSettings then

@@ -12,6 +12,8 @@
   - `identities.administrative` contains public administrator identities.
   - `identities.ssh-client` contains public per-host SSH client identities.
   - `identities.ssh-host` contains public SSH server identities.
+  - `data/features/ssh-client/known-hosts.nix` constructs declarative public
+    SSH known-host entries from domain-specific files.
   - Nix store signing public keys are resolved by signing authority name.
   - `sshAdminKeys` contains only administrative SSH login identities.
   - `sshClientPublicKeys` contains only per-host SSH client identities.
