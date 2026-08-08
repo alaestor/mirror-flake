@@ -1,6 +1,7 @@
-{ config, inputs, ...} :
+{ config, inputs, self, ...} :
 let
   constants = import (inputs.self.data.path "cryptid/constants.nix");
+  hostFragments = import "${self}/hosts/cryptid";
 
 in
 with constants;
@@ -18,11 +19,8 @@ with constants;
     stateVersion = "26.05";
     nixpkgs = inputs.cryptid-nixpkgs;
 
-    # TODO(hosts): abstract path indirection
-    modules = [
+    modules = hostFragments.nixos ++ [
       { _module.args.cryptidConstants = constants; }
-      ../../hosts/cryptid/storage.nix
-      ../../hosts/cryptid/system.nix
       ({config, pkgs, lib, ...} :
   let
     username = config.hostIdentity.primaryUser;

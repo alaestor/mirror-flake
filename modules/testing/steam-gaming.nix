@@ -1,9 +1,9 @@
-{ inputs, ... }:
+{ inputs, self, ... }:
 {
   perSystem =
     { pkgs, system, ... }:
     {
-      checks.steam-gaming = import ../../tests/steam-gaming.nix {
+      checks.steam-gaming = import "${self}/tests/steam-gaming.nix" {
         inherit inputs pkgs system;
       };
     };

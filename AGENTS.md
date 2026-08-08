@@ -10,6 +10,12 @@ Evaluate whether changes should be surgical or broad. If a problem is better sol
 
 `nucleus` passes every discovered `.nix` file below `modules/` to flake-parts in lexical order, excluding underscore-prefixed paths. Consequently, **every `.nix` file under `modules/` must be a flake-parts module**. Do not place a conventional value-only `default.nix`, package expression, or manually imported helper there; put non-module Nix data outside the module tree, normally under `data/`.
 
+Flake-parts modules are position-independent components. Files under `modules/`
+must not use relative paths to reach external repository source. Use
+flake-rooted `${self}/...` paths or a richer interface such as `self.data`.
+Adjacent assets that are an intrinsic part of a self-contained component may
+remain relative. This keeps moving a component from changing its dependencies.
+
 | Path | Responsibility |
 |---|---|
 | `modules/host-plumbing/` | Host registry, identities, and Home Manager attachment machinery. |
@@ -114,6 +120,12 @@ modules rather than embedding them in reusable service modules.
 
 ### Non-configuration data
 
+Use `${self}/...` for ordinary flake-root-relative source paths outside
+`data/`, including host entrypoints and test fixtures. A relative path is
+acceptable only for an adjacent asset that belongs to the component itself,
+such as a utility's script or its colocated test. Prefer a richer repository
+interface when one exists.
+
 `modules/data.nix` exposes `self.data` as the common boundary for files under `data/`:
 
 - `self.data.path "..."` returns a store-backed path/string for imports or file consumers.
@@ -154,7 +166,9 @@ It must not configure `home-manager.users` directly—the registry owns activati
 Keep each host declaration as the assembly point for identity, reusable module
 selection, capabilities, and its private fragments. Conventional NixOS and Home
 Manager fragments belong under `hosts/<hostname>/`, grouped by ownership and
-imported only by that host. Do not export private fragments or place them under
+exposed through that host's `hosts/<hostname>/default.nix` entrypoint, and
+imported only by that host through `${self}/hosts/<hostname>`. Do not export
+private fragments or place them under
 the nucleus-discovered `modules/` tree. When repeated host policy has genuinely
 shared semantics and lifecycle, promote it to the narrowest reusable typed
 module instead of cross-importing a private fragment.

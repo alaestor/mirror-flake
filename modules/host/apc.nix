@@ -1,20 +1,19 @@
-{ inputs, ... }:
+{ inputs, self, ... }:
+let
+  hostFragments = import "${self}/hosts/apc" { inherit inputs; };
+in
 {
   host.apc = rec {
     description = "APC desktop workstation.";
     primaryUser = "user";
     stateVersion = "24.05";
 
-    # TODO(hosts): abstract path indirection
-  
     userEnvironment.${primaryUser} = {
       mode = "standalone";
       modules = [
         inputs.self.modules.homeManager.workstation
         inputs.self.modules.homeManager.alaestor
-        ../../hosts/apc/home/plasma.nix
-        ../../hosts/apc/home/user.nix
-      ];
+      ] ++ hostFragments.homeManager;
     };
 
     modules =
@@ -31,10 +30,6 @@
         steam-gaming
         tailnet-client
       ])
-      ++ [
-        ../../hosts/apc/hardware.nix
-        (import ../../hosts/apc/networking.nix { inherit inputs; })
-        (import ../../hosts/apc/system.nix { inherit inputs; })
-      ];
+      ++ hostFragments.nixos;
   };
 }

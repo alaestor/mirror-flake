@@ -1,9 +1,9 @@
-{ inputs, ... }:
+{ inputs, self, ... }:
 {
   perSystem =
     { pkgs, system, ... }:
     {
-      checks.plasma-composition = import ../../tests/plasma-composition.nix {
+      checks.plasma-composition = import "${self}/tests/plasma-composition.nix" {
         inherit inputs pkgs system;
       };
     };

@@ -59,9 +59,21 @@ ownership remain host-local.
 
 Outer flake-parts modules define fleet and host registries and export reusable
 modules. NixOS, Home Manager, and Nix-on-Droid implementations remain separate
-module classes. Host-only fragments live outside the nucleus-discovered module
-tree under `hosts/<hostname>/`; their host assembly module imports them directly
-and they are not exported as reusable modules.
+module classes.
+
+Every flake-parts module under `modules/` is a position-independent component.
+Its dependencies must not change when the file moves within the module tree, so
+it must not use relative paths to reach external repository source. Resolve
+ordinary source from the flake root with `${self}/...`; resolve `data/` through
+the richer `self.data` interface. Adjacent scripts, templates, or tests that are
+intrinsic parts of a self-contained component may remain relative.
+
+Host-only fragments live outside the nucleus-discovered module tree under
+`hosts/<hostname>/`. Each host tree exposes one conventional `default.nix`
+entrypoint that may use relative paths internally to assemble its fragments.
+The position-independent host declaration imports only that entrypoint through
+`${self}/hosts/<hostname>`; private fragments are not exported as reusable
+modules.
 
 For host and Home Manager attachment mechanics, see
 [Hosts and user environments](hosts-and-homes.md). For hosted ingress, see

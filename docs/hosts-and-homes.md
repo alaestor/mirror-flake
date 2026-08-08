@@ -114,7 +114,11 @@ fragments. Put conventional NixOS and Home Manager fragments under
 `hosts/<hostname>/`, group them by ownership, and import them only from that
 host's declaration. They are private configuration, not exports in
 `flake.modules.*`. Keep identity, reusable module and aspect selection, helper
-capabilities, and the private-fragment imports visible in the declaration.
+capabilities, and the private-fragment composition visible in the declaration.
+Each host tree exposes a conventional `default.nix` entrypoint that assembles
+its NixOS and Home Manager fragments. The flake-parts host declaration imports
+that entrypoint through `${self}/hosts/<hostname>` rather than reaching into the
+tree with location-dependent relative paths.
 
 Never put a conventional fragment under `modules/`: nucleus evaluates every
 discovered `.nix` file there as a flake-parts module. If policy in private host
