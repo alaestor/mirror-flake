@@ -6,10 +6,18 @@ let
   };
 in
 {
-  host.lanser = {
+  host.lanser = rec {
     description = "Home server and public service host.";
     primaryUser = "user";
     stateVersion = "24.11";
+
+    userEnvironment.${primaryUser} = {
+      mode = "integrated";
+      modules = (with inputs.self.modules.homeManager; [
+        standard-terminal
+      ])
+      ++ hostFragments.homeManager;
+    };
 
     modules =
       (with inputs.self.modules.nixos; [
