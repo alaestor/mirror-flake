@@ -109,9 +109,11 @@ A host declaration owns:
 - zero or more user-environment attachments; and
 - optional helper-output capabilities.
 
-`stateVersion` is compatibility metadata. Set it to the version used when an
-installation or user environment was created, and do not advance it as part of
-routine Nixpkgs or Home Manager updates.
+`stateVersion` is required compatibility metadata. Set it to the version used
+when an installation or user environment was created, and do not advance it as
+part of routine Nixpkgs or Home Manager updates. A genuinely fresh
+reinstallation may intentionally choose a new baseline; an in-place update
+almost never should.
 
 ## Host identity
 

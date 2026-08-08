@@ -6,6 +6,7 @@
 let
   hostName = "home-environment-fixture";
   integratedOnlyHostName = "integrated-only-fixture";
+  missingStateVersionHostName = "missing-state-version-fixture";
   stateVersion = "24.11";
   integratedUsername = "integrated-user";
   standaloneUsername = "standalone-user";
@@ -89,11 +90,26 @@ let
     };
   };
 
+  missingStateVersionFixture = inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+    imports = [ ../modules/host-plumbing/registry.nix ];
+
+    host.${missingStateVersionHostName} = {
+      inherit system;
+      nixpkgs = inputs.unstable-nixpkgs;
+      description = "Fixture that must reject an omitted host state version.";
+      primaryUser = integratedUsername;
+      modules = [ ];
+    };
+  };
+
   nixosConfig = fixture.nixosConfigurations.${hostName}.config;
   integrated = nixosConfig.home-manager.users.${integratedUsername};
   standalone = fixture.homeConfigurations."${standaloneUsername}@${hostName}".config;
   integratedOnlyPackages =
     integratedOnlyFixture.nixosConfigurations.${integratedOnlyHostName}.config.environment.systemPackages;
+  missingStateVersion = builtins.tryEval (
+    missingStateVersionFixture.nixosConfigurations.${missingStateVersionHostName}.config.hostIdentity.stateVersion
+  );
 
   expectedFeature = "contributed-by-${hostName}";
   homeManagerPackage = inputs.unstable-home-manager.packages.${system}.home-manager;
@@ -101,6 +117,10 @@ let
   hasPackage = package: packages: builtins.any (candidate: candidate.drvPath == package.drvPath) packages;
 
   assertions = [
+    {
+      assertion = !missingStateVersion.success;
+      message = "host declarations may not omit stateVersion";
+    }
     {
       assertion = integrated.userEnvironment == {
         inherit hostName;

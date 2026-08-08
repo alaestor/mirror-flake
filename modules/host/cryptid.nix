@@ -150,6 +150,7 @@ in
   host.cryptid = {
     description = "Offline cryptographic identity management ISO.";
     primaryUser = "user";
+    stateVersion = "26.05";
     nixpkgs = inputs.cryptid-nixpkgs;
 
     modules = [

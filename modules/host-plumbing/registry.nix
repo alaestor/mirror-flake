@@ -92,8 +92,7 @@ let
 
       stateVersion = mkOption {
         type = types.nonEmptyStr;
-        default = "26.05";
-        description = "The NixOS state version, also used as the default Home Manager state version.";
+        description = "The required NixOS compatibility state version, also used as the default Home Manager state version. Set it when a host is first installed; change it only for an intentional fresh-install baseline, not during an in-place update.";
       };
 
       modules = mkOption {
