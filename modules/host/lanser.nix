@@ -17,6 +17,7 @@ in
         nas
         ssh-host
         server-hardening
+        tailnet-client
         serve-caddy
         domain-0x04cc
         domain-remotehost
