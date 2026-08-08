@@ -2,9 +2,10 @@
   Fleet-aware Tailscale client composition.
 
   Configures the shared tailnet's coordination URL and DNS suffix for NixOS
-  clients. NixOS user environments also receive the SSH client and synthesize
-  known-host entries for every registered SSH host identity at its tailnet DNS
-  name. The Nix-on-Droid composition configures terminal integration only:
+  clients. NixOS user environments synthesize known-host entries for every
+  registered SSH host identity at its tailnet DNS name. SSH client identity
+  deployment remains an explicit host concern. The Nix-on-Droid composition
+  configures terminal integration only:
   Android's Tailscale application owns the VPN lifecycle.
 */
 { config, inputs, lib, self, ... }:
@@ -25,10 +26,7 @@ in
       };
     in
     {
-      imports = [
-        inputs.self.modules.nixos.ssh-client
-        inputs.self.modules.nixos.tailscale
-      ];
+      imports = [ inputs.self.modules.nixos.tailscale ];
 
       tailscale = {
         enable = lib.mkDefault true;
