@@ -109,6 +109,18 @@ A host declaration owns:
 - zero or more user-environment attachments; and
 - optional helper-output capabilities.
 
+The declaration is also the assembly point for private host implementation
+fragments. Put conventional NixOS and Home Manager fragments under
+`hosts/<hostname>/`, group them by ownership, and import them only from that
+host's declaration. They are private configuration, not exports in
+`flake.modules.*`. Keep identity, reusable module and aspect selection, helper
+capabilities, and the private-fragment imports visible in the declaration.
+
+Never put a conventional fragment under `modules/`: nucleus evaluates every
+discovered `.nix` file there as a flake-parts module. If policy in private host
+trees is repeated with the same semantics and lifecycle, promote it to the
+narrowest reusable typed module instead of sharing a private fragment.
+
 `stateVersion` is required compatibility metadata. Set it to the version used
 when an installation or user environment was created, and do not advance it as
 part of routine Nixpkgs or Home Manager updates. A genuinely fresh

@@ -14,6 +14,7 @@ Evaluate whether changes should be surgical or broad. If a problem is better sol
 |---|---|
 | `modules/host-plumbing/` | Host registry, identities, and Home Manager attachment machinery. |
 | `modules/host/` | Concrete host declarations and host-only refinements. |
+| `hosts/` | Conventional, private host fragments imported only by their owning declaration. |
 | `modules/features/` | Reusable capabilities with neutral, typed interfaces. |
 | `modules/aspects/` | High-level, composable bundles of features and their interoperability policy. |
 | `modules/fleet/` | Typed, public, non-secret facts shared by multiple repository consumers. |
@@ -149,3 +150,11 @@ userEnvironment.sharedModules = [ homeModule ];
 ```
 
 It must not configure `home-manager.users` directly—the registry owns activation and attachment. Contributions are evaluated only when the host imports the feature and has a user environment.
+
+Keep each host declaration as the assembly point for identity, reusable module
+selection, capabilities, and its private fragments. Conventional NixOS and Home
+Manager fragments belong under `hosts/<hostname>/`, grouped by ownership and
+imported only by that host. Do not export private fragments or place them under
+the nucleus-discovered `modules/` tree. When repeated host policy has genuinely
+shared semantics and lifecycle, promote it to the narrowest reusable typed
+module instead of cross-importing a private fragment.
