@@ -69,8 +69,10 @@ dedicated pinned nixpkgs input and USB-writer app. Conventional NixOS setup is
 kept in `hosts/cryptid/system.nix` and `hosts/cryptid/storage.nix`: the former
 defines the air-gapped runtime and operator account, while the latter mounts
 the persistent BTRFS partition. Protocol constants and the native-language
-automation live under `data/cryptid/`; the host assembly loads the constants
-through `self.data` and passes the storage facts to its storage fragment.
+automation live under `data/cryptid/`. In particular, `script-context.nix`
+constructs the Bash and Expect fragments used by the individual protocol
+scripts. The host assembly loads these values through `self.data` and passes
+the storage facts to its storage fragment.
 
 ### Features and Layout
 
