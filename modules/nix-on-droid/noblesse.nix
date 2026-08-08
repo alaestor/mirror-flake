@@ -24,7 +24,7 @@
             host-identity
             local-cache
             ssh-host
-            tailscale
+            tailnet-client
           ]) ++ [
             ({ config, pkgs, ... }:
             {

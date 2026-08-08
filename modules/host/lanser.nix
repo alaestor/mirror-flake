@@ -1,4 +1,7 @@
-{ inputs, lib, ... }:
+{ config, inputs, lib, ... }:
+let
+  tailnet = config.flake.fleet.tailnets."0x04cc";
+in
 {
   host.lanser = {
     description = "Home server and public service host.";
@@ -205,10 +208,10 @@
 
             services = {
               headscale.settings = { # TODO(domains): delegate headscale subdomain config to domain
-                server_url = "https://headscale.0x04.cc";
+                server_url = tailnet.coordinationUrl;
                 dns = {
                   magic_dns = true;
-                  base_domain = "tailnet.0x04.cc";
+                  base_domain = tailnet.dnsSuffix;
                   override_local_dns = true;
                   nameservers.global = [
                     "1.1.1.1"
@@ -219,8 +222,8 @@
               };
 
               headplane.settings = {
-                server.base_url = "https://headscale.0x04.cc";
-                headscale.public_url = "https://headscale.0x04.cc";
+                server.base_url = tailnet.coordinationUrl;
+                headscale.public_url = tailnet.coordinationUrl;
               };
             };
           }

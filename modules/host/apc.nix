@@ -163,7 +163,7 @@
         serve-nix-cache
         ssh-client
         ssh-host
-        tailscale
+        tailnet-client
       ])
       ++ [
         (
@@ -196,8 +196,6 @@
             serve.nix-cache.enable = true;
 
             ssh-host.authorizedKeys = [ inputs.self.data.vars.sshClientPublicKeys.noblesse ];
-
-            tailscale.enable = true;
 
             boot = {
               binfmt.emulatedSystems = [ "aarch64-linux" ]; # to cross-compile for noblesse
