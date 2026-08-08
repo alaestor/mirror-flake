@@ -24,6 +24,7 @@ integrated and standalone activation.
 let
   inherit (lib) mkOption types;
 
+  # Host and user-environment option schema.
   userEnvironmentModule =
     { lib, ... }:
     {
@@ -139,6 +140,7 @@ let
     };
   };
 
+  # Home Manager selection, identity, and shared module assembly.
   selectHomeManager =
     host:
     if host.homeManager.channel == "stable" then
@@ -187,6 +189,7 @@ let
       };
     };
 
+  # NixOS host construction, including integrated Home Manager environments.
   integratedEnvironments = host: lib.filterAttrs (_: environment: environment.mode == "integrated") host.userEnvironment;
 
   mkIntegratedHomeManagerModule =
@@ -221,7 +224,7 @@ let
     };
 
   mkNixosConfiguration =
-    name: host:
+    hostName: host:
     let
       hasIntegratedEnvironments = integratedEnvironments host != { };
       hasStandaloneEnvironments = standaloneEnvironments host != { };
@@ -236,12 +239,12 @@ let
           nixpkgs.hostPlatform = lib.mkDefault host.system;
           system.stateVersion = lib.mkDefault host.stateVersion;
           hostIdentity = {
-            inherit name;
+            name = hostName;
             inherit (host) description primaryUser stateVersion;
           };
         }
       ]
-      ++ lib.optional hasIntegratedEnvironments (mkIntegratedHomeManagerModule name host)
+      ++ lib.optional hasIntegratedEnvironments (mkIntegratedHomeManagerModule hostName host)
       ++ lib.optional hasStandaloneEnvironments {
         environment.systemPackages = [
           homeManager.packages.${host.system}.home-manager
@@ -250,15 +253,16 @@ let
       ++ host.modules;
     };
 
-  configurations = lib.mapAttrs mkNixosConfiguration config.host;
+  nixosConfigurations = lib.mapAttrs mkNixosConfiguration config.host;
 
+  # Standalone Home Manager construction from the shared module assembly.
   standaloneEnvironments = host: lib.filterAttrs (_: environment: environment.mode == "standalone") host.userEnvironment;
 
   mkStandaloneHomeConfigurations =
     hostName: host:
     let
       homeManager = selectHomeManager host;
-      nixosConfiguration = configurations.${hostName};
+      nixosConfiguration = nixosConfigurations.${hostName};
     in
     lib.mapAttrs' (
       username: environment:
@@ -279,21 +283,23 @@ let
     lib.mapAttrsToList mkStandaloneHomeConfigurations config.host
   );
 
+  # Per-host ISO writer and nixos-anywhere helper apps.
   mkHostApps =
-    name: host:
+    hostName: host:
     let
       pkgs = host.nixpkgs.legacyPackages.${host.system};
-      systemConfig = configurations.${name}.config;
+      systemConfig = nixosConfigurations.${hostName}.config;
     in
     lib.mkMerge [
 
       (lib.mkIf host.capabilities.isoWriter {
-        ${host.system}."mkbootable-${name}" = {
+        ${host.system}."mkbootable-${hostName}" = {
           type = "app";
-          meta.description = "Write the ${name} ISO to a block device: ${host.description}";
+          meta.description = "Write the ${hostName} ISO to a block device: ${host.description}";
           program = toString (
             config.flake.lib.mkIsoWriter {
-              inherit name pkgs;
+              name = hostName;
+              inherit pkgs;
               iso = systemConfig.system.build.isoImage;
             }
           );
@@ -301,17 +307,18 @@ let
       })
 
       (lib.mkIf host.capabilities.nixosAnywhere {
-        ${host.system}."deploy-${name}" =
+        ${host.system}."deploy-${hostName}" =
           let
             deployer = config.flake.lib.mkNixosAnywhereDeployer {
-              inherit name pkgs;
+              name = hostName;
+              inherit pkgs;
               system-config = systemConfig;
             };
           in
           {
             type = "app";
-            meta.description = "Deploy ${name} with nixos-anywhere: ${host.description}";
-            program = "${deployer}/bin/deploy-${name}";
+            meta.description = "Deploy ${hostName} with nixos-anywhere: ${host.description}";
+            program = "${deployer}/bin/deploy-${hostName}";
           };
       })
 
@@ -335,7 +342,7 @@ in
 
   config = {
     flake.modules.nixos.user-environment = userEnvironmentModule;
-    flake.nixosConfigurations = configurations;
+    flake.nixosConfigurations = nixosConfigurations;
     flake.homeConfigurations = homeConfigurations;
     flake.apps = lib.mkMerge (lib.mapAttrsToList mkHostApps config.host);
   };
