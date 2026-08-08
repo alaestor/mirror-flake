@@ -28,7 +28,7 @@ options can still override the packaged policy.
 
 `modules/programs/mpv.nix` is deliberately thin. It constructs the canonical
 wrapper with the Home Manager evaluation's own `pkgs`, installs it, and retains
-the legacy `mpv.desktop` MIME defaults. The workstation profile selects this
+the legacy `mpv.desktop` MIME defaults. The workstation aspect selects this
 adapter; Home Manager's `programs.mpv` and ambient MPV configuration files are
 not used.
 
@@ -44,7 +44,7 @@ The useful architectural split is:
 | Immutable configuration needed whenever one executable starts | Configured package/wrapper |
 | A portable `nix run repo#app` artifact | Configured package/wrapper |
 | Package selection, desktop/MIME integration, session variables, shell registration, and user services | Home Manager or NixOS |
-| Cross-program policy and host/user refinement | Features, profiles, preferences, and attachment modules |
+| Cross-program policy and host/user refinement | Features, aspects, preferences, and attachment modules |
 | Mutable application state | The application in XDG state/data/cache paths |
 | Credentials, private keys, and tokens | Secret/runtime facilities, never a wrapper or ordinary flake data |
 
@@ -270,7 +270,7 @@ support, bubblewrap helpers, and transfer to `nix-community` as future work, and
 its public API has a currently deprecated output scheduled for removal in 2026
 ([project roadmap][nwm-roadmap], [flake outputs][nwm-flake]). It should therefore
 be pinned, hidden behind this flake's own interface, and adopted incrementally.
-Do not spread its raw API through profiles, preferences, and host files.
+Do not spread its raw API through aspects, preferences, and host files.
 
 ### `wrapper-manager`
 
@@ -298,7 +298,7 @@ precisely the details the two libraries centralize.
 Prototype with `nix-wrapper-modules`, but place a narrow repository-owned facade
 around it. If the dependency proves too volatile, the facade leaves room to
 replace the backend with `wrapper-manager` or a local helper without rewriting
-profiles and host declarations.
+aspects and host declarations.
 
 ## Proposed architecture
 
@@ -311,7 +311,7 @@ flowchart TD
     P --> R[nix run repo#app]
     W --> H[Thin Home Manager adapter]
     F[Features] --> H
-    U[Profiles / preferences / host-user refinements] --> H
+    U[Aspects / preferences / host-user refinements] --> H
     H --> E[User environment]
     H --> I[Desktop, MIME, session, services, mutable seed files]
 ```
@@ -326,7 +326,7 @@ Suggested ownership:
 - `modules/programs/<app>.nix`: thin Home Manager adapters that install an
   instance of the configured package and add only user-environment integration.
 - `modules/features/`: continue to express cross-program relationships.
-- `modules/profiles`, `modules/preferences`, and host-user attachments: continue
+- `modules/aspects/`, `modules/preferences/`, and host-user attachments: continue
   deciding which adapters/variants apply and providing user/host values.
 
 The exact directory name is less important than keeping package construction

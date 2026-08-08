@@ -2,7 +2,7 @@
 let
   fixture = inputs.flake-parts.lib.mkFlake { inherit inputs; } {
     imports = [
-      ../modules/fleet.nix
+      ../modules/fleet/fleet.nix
       ../modules/fleet/tailnet.nix
       ({ config, ... }: {
         flake.fleetFixture = config.flake.fleet.tailnets."0x04cc";
