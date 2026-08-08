@@ -385,7 +385,7 @@
                 "172.16.0.1" = [ "router.lan" ];
                 "192.168.1.200" = [ "NAS" ];
               };
-              # TODO(apc): make a gaming featureset and move this into a steam module
+              # TODO(apc): make a gaming aspect and move this into a steam module
               extraHosts = "0.0.0.0 crash.steampowered.com";
               firewall = {
                 enable = lib.mkForce true;
@@ -452,7 +452,7 @@
               tmpfiles.rules = [
                 "L+    /opt/rocm/hip   -    -    -     -    ${pkgs.rocmPackages.clr}"
               ];
-               # TODO(apc): make a gaming featureset and move this into a steam module
+               # TODO(apc): make a gaming aspect and move this into a steam module
               user.services.preventSteamDumps = {
                 description = "Symlink Steam crash reports to /dev/null";
                 script = "ln -s /dev/null /tmp/dumps";

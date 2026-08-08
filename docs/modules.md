@@ -23,6 +23,11 @@ An aspect is the repository term for high-level reusable composition. Do not use
 “profile” or “featureset” for that meaning; retain “profile” only when it is an
 upstream application's own term.
 
+Exported modules remain in the flat target-specific registries such as
+`flake.modules.homeManager`. Aspect ownership is conveyed by the
+`modules/aspects/` path and module docstrings, not an `aspect-` name suffix or
+an additional registry namespace.
+
 ## Repository composition and state
 
 These concepts are not generic reusable configuration modules.

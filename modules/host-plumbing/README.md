@@ -38,8 +38,8 @@ Plumbs the `hosts` into `nixosConfiguration` and associated `apps`
 ## user environments
 
 Hosts can attach Home Manager environments under `host.<name>.userEnvironment.<username>`.
-Each attachment selects a reusable `homeProfile`, optional `userPreferences`, and
-an activation mode:
+Each attachment selects reusable Home Manager modules (including aspects and
+preferences) and an activation mode:
 
 - `integrated` rebuilds the environment with its NixOS host.
 - `standalone` exposes `homeConfigurations."<username>@<host>"`.

@@ -1,11 +1,12 @@
 /**
-  Composes the interactive terminal environment and packages every direct
+  Implements the interactive terminal feature and packages every direct
   `data/features/standard-terminal/scripts/*.nix` declaration. Each script
   file must return a script declaration whose name and package name match its
   filename. Declarations can disable themselves from their supplied context.
 
   # TODO(workaround): try nushell config with newer pinnned nixpkgs
-  The Nix-on-Droid adapter provides Nushell and these script packages, but
+  `standard-terminal.tailscale.domain` is its typed interface used by the
+  Tailscale feature. The Nix-on-Droid adapter provides Nushell and these script packages, but
   omits other program integrations unavailable from its pinned Home Manager.
   Bash and Nushell functions adapt the external ncd helper so it can change
   the current shell's directory to the cached local flake root.
@@ -65,7 +66,7 @@ let
         home.packages = map (script: script.package) scriptPackages;
         programs = lib.mkMerge [
           {
-            # TODO: normalize all the ncd/nboot/hswitch commands into a feature module and make standard-terminal a metafeature / feature-set
+            # TODO: normalize the ncd/nboot/hswitch commands into focused features.
             bash = {
               enable = lib.mkDefault true;
               initExtra = lib.mkAfter ''
