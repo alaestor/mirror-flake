@@ -28,6 +28,7 @@
         serve-nix-cache
         ssh-client
         ssh-host
+        steam-gaming
         tailnet-client
       ])
       ++ [

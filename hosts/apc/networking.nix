@@ -48,8 +48,6 @@
       "172.16.0.1" = [ "router.lan" ];
       "192.168.1.200" = [ "NAS" ];
     };
-    # TODO(apc): make a gaming aspect and move this into a steam module
-    extraHosts = "0.0.0.0 crash.steampowered.com";
     firewall = {
       enable = lib.mkForce true;
       allowPing = false;

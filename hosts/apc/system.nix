@@ -56,12 +56,12 @@ in
     pocket.enable = true;
   };
 
-  programs = {
-    steam = {
-      enable = true;
-      remotePlay.openFirewall = true;
-    };
-    virt-manager.enable = true;
+  programs.virt-manager.enable = true;
+
+  steam-gaming = {
+    enable = true;
+    remotePlay.openFirewall = true;
+    suppressCrashReports = true;
   };
 
   security = {
@@ -97,16 +97,7 @@ in
     };
   };
 
-  systemd = {
-    oomd.enable = false; # TODO: oomd + earlyoomkiller module (or just global?)
-
-    # TODO(apc): make a gaming aspect and move this into a steam module
-    user.services.preventSteamDumps = {
-      description = "Symlink Steam crash reports to /dev/null";
-      script = "ln -s /dev/null /tmp/dumps";
-      wantedBy = [ "multi-user.target" ];
-    };
-  };
+  systemd.oomd.enable = false; # TODO: oomd + earlyoomkiller module (or just global?)
 
   users.users.${username} = {
     isNormalUser = true;
