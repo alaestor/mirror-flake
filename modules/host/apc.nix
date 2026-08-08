@@ -11,6 +11,7 @@
       modules = [
         inputs.self.modules.homeManager.workstation
         inputs.self.modules.homeManager.alaestor
+        ../../hosts/apc/home/plasma.nix
         (
           { pkgs, ... }:
           let
