@@ -168,7 +168,11 @@ An attachment lives at `host.<host>.userEnvironment.<username>`. It records:
 - `modules`: the complete explicit composition of reusable and host-specific
   Home Manager modules.
 
-Each evaluated Home Manager environment receives read-only context:
+The registry sets `hasGui` when the NixOS host enables a display manager, so
+shared modules can select graphical behavior without relying on integrated-only
+`osConfig`.
+
+Each evaluated Home Manager environment receives context:
 
 ```nix
 userEnvironment = {

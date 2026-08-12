@@ -43,7 +43,7 @@
         enable = lib.mkDefault true;
         enableSshSupport = lib.mkDefault true;
         enableScDaemon = lib.mkDefault true;
-        pinentry.package = lib.mkDefault pkgs.pinentry-curses;
+        pinentry.package = lib.mkDefault (if config.userEnvironment.hasGui then pkgs.pinentry-qt else pkgs.pinentry-curses);
         extraConfig = lib.mkDefault "allow-loopback-pinentry";
 
         # The Nushell configuration below supports alternate GPG implementations.

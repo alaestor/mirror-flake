@@ -173,6 +173,12 @@ let
           description = "The host for which this user environment was built.";
         };
 
+        hasGui = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether this environment has a graphical user-session context.";
+        };
+
         username = mkOption {
           type = types.nonEmptyStr;
           readOnly = true;
@@ -234,8 +240,13 @@ let
       modules = [
         inputs.self.modules.nixos.global-config
         inputs.self.modules.nixos.host-identity
-        userEnvironmentModule
-        {
+      userEnvironmentModule
+      ({ config, lib, ... }: {
+        userEnvironment.sharedModules = lib.mkIf config.services.displayManager.enable [
+          { userEnvironment.hasGui = true; }
+        ];
+      })
+      {
           nixpkgs.hostPlatform = lib.mkDefault host.system;
           system.stateVersion = lib.mkDefault host.stateVersion;
           hostIdentity = {
