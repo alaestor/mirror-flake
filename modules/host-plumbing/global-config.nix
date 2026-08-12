@@ -8,18 +8,26 @@
     default_timezone = "America/Toronto";
   in
   {
+
     nix = {
-      gc.automatic = true;
+      gc = {
+        dates = "monthly";
+        options = "--delete-older-than 90d";
+        automatic = true;
+      };
       optimise.automatic = true;
       settings = {
         auto-optimise-store = true;
         experimental-features = [ "nix-command" "flakes" ];
       };
     };
+
     nixpkgs.config.allowUnfree = true;
+
     environment.systemPackages = with pkgs; [
       neovim
     ];
+
     time.timeZone = lib.mkDefault default_timezone;
     i18n = {
       defaultLocale        = lib.mkDefault default_locale;
@@ -35,5 +43,6 @@
         LC_TIME            = lib.mkDefault default_locale;
       };
     };
+
   };
 }
