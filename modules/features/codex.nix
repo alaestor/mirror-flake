@@ -68,6 +68,28 @@
       '';
 
       serena = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
+
+      serenaInstructions = ''
+        # Serena — Symbol-First Code Navigation
+
+        Serena's MCP tools expose the project's code symbol graph backed by a
+        language server. Prefer these tools over reading whole files: return only
+        the code you need, cutting context usage sharply. Read a file end-to-end
+        only when the symbol view is insufficient (non-code files, or when you
+        need surrounding glue).
+
+        ## Preferred workflow
+
+        - `get_symbols_overview(<file>)` — list a file's top-level symbols before opening it.
+        - `find_symbol(<name>)` — fetch a symbol's definition/body instead of reading the file.
+        - `find_referencing_symbols(<name>)` — find call sites/usages instead of grepping.
+        - `find_declaration(<name>)` — jump to where a symbol is defined.
+
+        ## Rule
+
+        Reach for a symbol tool first; fall back to reading the whole file only when
+        the symbol view does not answer the question.
+      '';
       bashLanguageServerWithShellcheck = pkgs.writeShellApplication {
         name = "bash-language-server-with-shellcheck";
         runtimeInputs = [ pkgs.nodejs ];
@@ -113,6 +135,7 @@
         "mcp_servers.headroom.args=${builtins.toJSON [ "mcp" "serve" ]}"
       ];
       serenaOverrides = [
+        "developer_instructions=${builtins.toJSON (preprompt + "\n\n" + serenaInstructions)}"
         "mcp_servers.serena.startup_timeout_sec=15"
         "mcp_servers.serena.command=${builtins.toJSON (lib.getExe serena)}"
         "mcp_servers.serena.env.SERENA_HOME=${builtins.toJSON serenaHome}"
