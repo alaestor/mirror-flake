@@ -3,7 +3,7 @@
 
   nucleus.inputs = {
     stable-home-manager = {
-      url = "github:nix-community/home-manager/release-${config.common.nixpkgs-stable-version}";
+      url = "github:nix-community/home-manager/release-${config.flake.fleet.channels.stable}";
       inputs.nixpkgs.follows = "stable-nixpkgs";
     };
     unstable-home-manager = {

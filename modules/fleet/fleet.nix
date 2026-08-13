@@ -23,6 +23,12 @@ let
   };
 in
 {
+  options.flake.fleet.channels = mkOption {
+    type = types.attrsOf types.nonEmptyStr;
+    default = { };
+    description = "Named NixOS releases that the correspondingly named input families track.";
+  };
+
   options.flake.fleet.tailnets = mkOption {
     type = types.attrsOf tailnetType;
     default = { };
