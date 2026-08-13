@@ -1,6 +1,6 @@
-{ inputs, self, ... }:
+{ config, inputs, ... }:
 let
-  hostFragments = import "${self}/hosts/armatus";
+  hostFragments = config.flake.lib.importHostFragments "armatus";
 in
 {
   host.armatus = rec {

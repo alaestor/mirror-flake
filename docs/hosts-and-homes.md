@@ -126,9 +126,24 @@ host's declaration. They are private configuration, not exports in
 `flake.modules.*`. Keep identity, reusable module and aspect selection, helper
 capabilities, and the private-fragment composition visible in the declaration.
 Each host tree exposes a conventional `default.nix` entrypoint that assembles
-its NixOS and Home Manager fragments. The flake-parts host declaration imports
-that entrypoint through `${self}/hosts/<hostname>` rather than reaching into the
-tree with location-dependent relative paths.
+its fragments into lists keyed by module class. The entrypoint is a function of
+one attribute set; the flake-parts host declaration calls it through
+`config.flake.lib.importHostFragments "<hostname>"` rather than reaching into
+the tree with location-dependent relative paths.
+
+```nix
+# hosts/example/default.nix
+{ fleet, inputs, ... }:
+{
+  nixos = [ ./hardware.nix (import ./system.nix { inherit inputs; }) ];
+  homeManager = [ ./home/user.nix ];
+}
+```
+
+Every entrypoint receives the same arguments and ignores the ones it does not
+need. Shared facts are handed to the tree instead of being read out of
+`config.flake`, so a fragment that starts depending on fleet state does not
+change how its host declares it.
 
 Never put a conventional fragment under `modules/`: nucleus evaluates every
 discovered `.nix` file there as a flake-parts module. If policy in private host

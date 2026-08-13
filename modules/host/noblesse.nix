@@ -1,6 +1,6 @@
-{ inputs, self, ... }:
+{ config, inputs, ... }:
 let
-  hostFragments = import "${self}/hosts/noblesse";
+  hostFragments = config.flake.lib.importHostFragments "noblesse";
 in
 {
   host.noblesse = rec {

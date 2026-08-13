@@ -1,3 +1,4 @@
+{ ... }:
 {
   nixos = [
     ./storage.nix

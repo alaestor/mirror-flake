@@ -1,4 +1,4 @@
-{ inputs }:
+{ inputs, ... }:
 {
   nixos = [
     ./hardware.nix

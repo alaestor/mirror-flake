@@ -1,7 +1,7 @@
-{ config, inputs, self, ...} :
+{ config, inputs, ...} :
 let
   constants = import (inputs.self.data.path "cryptid/constants.nix");
-  hostFragments = import "${self}/hosts/cryptid";
+  hostFragments = config.flake.lib.importHostFragments "cryptid";
 
 in
 with constants;

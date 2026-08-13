@@ -169,8 +169,11 @@ Keep each host declaration as the assembly point for identity, reusable module
 selection, capabilities, and its private fragments. Conventional NixOS and Home
 Manager fragments belong under `hosts/<hostname>/`, grouped by ownership and
 exposed through that host's `hosts/<hostname>/default.nix` entrypoint, and
-imported only by that host through `${self}/hosts/<hostname>`. Do not export
-private fragments or place them under
+imported only by that host through
+`config.flake.lib.importHostFragments "<hostname>"`. That entrypoint is a
+function of one attribute set which ignores unused arguments with `{ ... }`;
+give a fragment tree what it needs through those arguments instead of letting it
+read `config.flake`. Do not export private fragments or place them under
 the nucleus-discovered `modules/` tree. When repeated host policy has genuinely
 shared semantics and lifecycle, promote it to the narrowest reusable typed
 module instead of cross-importing a private fragment.

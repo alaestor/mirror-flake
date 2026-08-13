@@ -1,6 +1,6 @@
-{ inputs, self, ... }:
+{ config, inputs, ... }:
 let
-  hostFragments = import "${self}/hosts/apc" { inherit inputs; };
+  hostFragments = config.flake.lib.importHostFragments "apc";
 in
 {
   host.apc = rec {

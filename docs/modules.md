@@ -79,9 +79,15 @@ intrinsic parts of a self-contained component may remain relative.
 Host-only fragments live outside the nucleus-discovered module tree under
 `hosts/<hostname>/`. Each host tree exposes one conventional `default.nix`
 entrypoint that may use relative paths internally to assemble its fragments.
-The position-independent host declaration imports only that entrypoint through
-`${self}/hosts/<hostname>`; private fragments are not exported as reusable
-modules.
+The position-independent host declaration reaches only that entrypoint, through
+`flake.lib.importHostFragments "<hostname>"`; private fragments are not exported
+as reusable modules.
+
+Every entrypoint is a function of one attribute set and receives the same
+arguments, ignoring what it does not use with `{ ... }`. Repository-wide facts
+a fragment tree needs are passed in through those arguments rather than reached
+for, so no private fragment evaluates `config.flake`, and gaining a dependency
+is not a signature change at the call site.
 
 For host and Home Manager attachment mechanics, see
 [Hosts and user environments](hosts-and-homes.md). For hosted ingress, see

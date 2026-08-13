@@ -1,9 +1,6 @@
-{ config, inputs, self, ... }:
+{ config, inputs, ... }:
 let
-  hostFragments = import "${self}/hosts/lanser" {
-    inherit inputs;
-    tailnet = config.flake.fleet.tailnets."0x04cc";
-  };
+  hostFragments = config.flake.lib.importHostFragments "lanser";
 in
 {
   host.lanser = rec {
