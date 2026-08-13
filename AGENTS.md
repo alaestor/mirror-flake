@@ -50,6 +50,8 @@ When making architectural changes, always refresh the relevant documentation. Do
 
 ## Guidance
 
+Flake-related nix commands operate from git; if nix files are added they must be staged to be visible in order to be evaluated.
+
 - Never hand-edit `flake.nix`. Declare inputs through `nucleus.inputs` in an appropriate module, then run:
 
 ```sh
