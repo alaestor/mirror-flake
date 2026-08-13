@@ -14,11 +14,11 @@
 
     nix = {
       gc = {
-        dates = "monthly";
-        options = "--delete-older-than 90d";
-        automatic = true;
+        dates = lib.mkDefault "monthly";
+        options = lib.mkDefault "--delete-older-than 90d";
+        automatic = lib.mkDefault true;
       };
-      optimise.automatic = true;
+      optimise.automatic = lib.mkDefault true;
       settings = {
         auto-optimise-store = true;
         experimental-features = [ "nix-command" "flakes" ];
