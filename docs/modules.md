@@ -14,6 +14,7 @@ concrete host consumes them.
 | Kind | Owns |
 |---|---|
 | Program | One Home Manager program and its reusable, refinable defaults. Importing it enables that program. |
+| App config | A package-coupled configuration exported as a wrapper module, consumed by a thin program adapter. It owns configuration that must travel with the package rather than with a user's Home Manager state. |
 | Feature | A coherent capability with neutral typed options. It may export NixOS and Home Manager implementations separately. |
 | Aspect | A high-level, composable bundle of features that wires their interoperability or shared policy for a use case. |
 | Serve | A network-hosted feature with an explicit disabled-by-default enable option. |
@@ -22,6 +23,13 @@ concrete host consumes them.
 An aspect is the repository term for high-level reusable composition. Do not use
 “profile” or “featureset” for that meaning; retain “profile” only when it is an
 upstream application's own term.
+
+App config is an experimental kind. It lives in `modules/app-config/` and is
+exported through `flake.wrappers` rather than a module class registry, so the
+Home Manager program module for the same application stays a thin adapter over
+it. Prefer a plain program module unless configuration genuinely belongs to the
+package; see [package-coupled application configuration](research/appconfig.md)
+for the rationale and its open questions.
 
 Exported modules remain in the flat target-specific registries such as
 `flake.modules.homeManager`. Aspect ownership is conveyed by the

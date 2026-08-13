@@ -28,6 +28,7 @@ remain relative. This keeps moving a component from changing its dependencies.
 | `modules/serve/domains/` | Disabled-by-default public ingress compositions exported as `domain-*`. |
 | `modules/de/` | Desktop features; `kde.nix` is the dual NixOS/Home Manager reference. |
 | `modules/programs/` | Opinionated, reusable Home Manager program modules. |
+| `modules/app-config/` | Experimental package-coupled application configuration exported as wrapper modules. |
 | `modules/preferences/` | Settings and identities that follow a person across hosts. |
 | `modules/inputs/` | Flake inputs and their integration modules. |
 | `modules/utils/` | Shared flake library and maintenance apps. |
