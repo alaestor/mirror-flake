@@ -105,11 +105,7 @@
           in
           "# ${domain}\n${lib.concatStringsSep "\n" hostLines}"
         ) (lib.sort builtins.lessThan (builtins.attrNames cfg.knownHosts)) + "\n";
-      defaultIdentityFiles =
-        if options ? userEnvironment then
-          [ "~/.ssh/id_ed25519_${lib.toLower config.userEnvironment.hostName}" ]
-        else
-          [ ];
+      defaultIdentityFiles = [ "~/.ssh/id_ed25519_${lib.toLower config.userEnvironment.hostName}" ];
     in
     {
       imports = [

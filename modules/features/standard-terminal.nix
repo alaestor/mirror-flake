@@ -5,8 +5,9 @@
   filename. Declarations can disable themselves from their supplied context.
 
   # TODO(workaround): try nushell config with newer pinnned nixpkgs
-  `standard-terminal.tailscale.domain` is its typed interface used by the
-  Tailscale feature. The Nix-on-Droid adapter provides Nushell and these script packages, but
+  `flake.modules.homeManager.standard-terminal-tailnet` is the dormant option
+  interface declaring `standard-terminal.tailscale.domain`; the Tailscale
+  feature imports it to supply the suffix. The Nix-on-Droid adapter provides Nushell and these script packages, but
   omits other program integrations unavailable from its pinned Home Manager.
   Bash and Nushell functions adapt the external ncd helper so it can change
   the current shell's directory to the cached local flake root.
@@ -54,13 +55,9 @@ let
     in
     {
       imports = with inputs.self.modules.homeManager;
-        lib.optional includePrograms nushell ++ lib.optional includeGhostty ghostty;
-
-      options.standard-terminal.tailscale.domain = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "Tailnet DNS suffix that enables the ts SSH shortcut.";
-      };
+        [ standard-terminal-tailnet ]
+        ++ lib.optional includePrograms nushell
+        ++ lib.optional includeGhostty ghostty;
 
       config = {
         home.packages = map (script: script.package) scriptPackages;
@@ -165,6 +162,17 @@ let
     };
 in
 {
+  flake.modules.homeManager.standard-terminal-tailnet = { lib, ... }: {
+    # The interface may arrive through both standard-terminal and a contributing feature.
+    key = "flake.modules.homeManager.standard-terminal-tailnet";
+
+    options.standard-terminal.tailscale.domain = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "Tailnet DNS suffix that enables the ts SSH shortcut.";
+    };
+  };
+
   flake.modules.homeManager.standard-terminal = mkHomeModule {
     includeGhostty = true;
     includePrograms = true;

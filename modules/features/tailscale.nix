@@ -4,19 +4,22 @@
   Automatic enrollment still requires services.tailscale.authKeyFile; without
   one, use `tailscale up --login-server <URL>` to authenticate interactively.
 
+  Attached user environments receive `standard-terminal.tailscale.domain`
+  through the dormant `standard-terminal-tailnet` option interface.
+
 */
-{ ... }:
+{ inputs, ... }:
 {
   flake.modules.nixos.tailscale =
-    { config, lib, options, ... }:
+    { config, lib, ... }:
     let
       cfg = config.tailscale;
       homeModule =
-        { lib, options, ... }:
+        { lib, ... }:
         {
-          config = lib.mkIf (options ? standard-terminal) {
-            standard-terminal.tailscale.domain = lib.mkDefault cfg.tailnetDomain;
-          };
+          imports = [ inputs.self.modules.homeManager.standard-terminal-tailnet ];
+
+          standard-terminal.tailscale.domain = lib.mkDefault cfg.tailnetDomain;
         };
     in
     {
