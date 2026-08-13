@@ -73,6 +73,42 @@
           else
             collectSkills relativePath
         ) (builtins.readDir directory);
+      # The built-in tool catalogue is the largest single block of the prompt
+      # preamble: measured with `claude -p ok --output-format json`, the full
+      # set costs ~10.8k of an ~18.3k floor. `--tools` replaces it with a
+      # chosen subset, and the skill catalogue only loads alongside the `Skill`
+      # tool, so an entry dropped here removes its documentation too.
+      #
+      # Kept: the four working tools and `WebSearch`, which has no shell
+      # equivalent. Dropped: subagent and scheduling tools (`Agent`, `Task*`,
+      # `Cron*`, `Monitor`, `SendMessage`), `WebFetch` (`curl` covers it), and
+      # `Glob`/`Grep` (`rg`/`fd` cover them).
+      #
+      # `Skill` is behind the `skills` selector because typing `/<skill-name>`
+      # loads a skill whether or not the tool is present; the tool only lets
+      # the model reach for one unprompted, and it drags the whole catalogue
+      # (~2.1k, of which ~1.4k is the bundled skills) in with it.
+      #
+      # Further levers, none used here, all documented at
+      # <https://code.claude.com/docs/en/tools> and `/settings`:
+      #   --system-prompt[-file]    replace rather than append the preamble; the analogue of codex `model_instructions_file`
+      #   --settings <json|file>    per-invocation settings, like codex `-c`
+      #   --setting-sources         restrict to user/project/local settings
+      #   --disallowedTools         subtract from the catalogue instead of replacing it; also removes the schema
+      #   --disable-slash-commands  drop every skill, bundled or not (~2k)
+      defaultTools = [
+        "Bash"
+        "Read"
+        "Edit"
+        "Write"
+        "WebSearch"
+      ];
+      # Plan mode is unusable without the tools that enter and leave it.
+      planTools = [
+        "EnterPlanMode"
+        "ExitPlanMode"
+      ];
+      skillTools = [ "Skill" ];
       mkClaudeWrapper =
         name: withSerena:
         pkgs.writeShellApplication {
@@ -89,6 +125,8 @@
             model=""
             effort=""
             permission_mode=""
+            tools=${lib.escapeShellArg (lib.concatStringsSep "," defaultTools)}
+            skills=0
             headroom_args=(
               --code-memory ${if withSerena then "serena" else "none"}
               --tool-search true
@@ -98,7 +136,7 @@
 
             while (( $# )); do
               case "$1" in
-                sonnet|opus|haiku) model="$1" ;;
+                haiku|sonnet|opus) model="$1" ;;
                 lo|low) effort="low" ;;
                 med|medium) effort="medium" ;;
                 hi|high) effort="high" ;;
@@ -112,8 +150,11 @@
                 graph|code-graph) headroom_args+=( --code-graph ) ;;
                 1m) headroom_args+=( --1m ) ;;
                 search|tool-search) headroom_args+=( --tool-search auto ) ;;
+                alltools|all-tools) tools="default" ;;
+                skill|skills) skills=1 ;;
                 --cc-help)
-                  echo "usage: ${name} [sonnet|opus|haiku] [lo|med|hi|max] [user|edits|auto|plan|bypass] [memory|graph|1m|search] [--] [claude arguments...]"
+                  echo "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [memory|graph|1m|search|skills|alltools] [--] [claude arguments...]"
+                  echo "skills adds the Skill tool and its catalogue; /<skill-name> works without it"
                   echo "selectors are recognized in any order before --; later selectors replace earlier ones"
                   exit 0
                   ;;
@@ -130,6 +171,13 @@
             [[ -z "$model" ]] || claude_args+=( --model "$model" )
             [[ -z "$effort" ]] || claude_args+=( --effort "$effort" )
             [[ -z "$permission_mode" ]] || claude_args+=( --permission-mode "$permission_mode" )
+
+            if [[ "$tools" != "default" ]]; then
+              [[ "$permission_mode" != "plan" ]] || tools+=",${lib.concatStringsSep "," planTools}"
+              (( ! skills )) || tools+=",${lib.concatStringsSep "," skillTools}"
+            fi
+            [[ "$tools" == "default" ]] || claude_args+=( --tools "$tools" )
+
             claude_args+=( --append-system-prompt ${lib.escapeShellArg shellInstructions} )
 
             exec ${lib.getExe headroomPackage} wrap claude "''${headroom_args[@]}" -- "''${claude_args[@]}"
