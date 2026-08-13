@@ -2,9 +2,9 @@
 let
   constants = import (inputs.self.data.path "cryptid/constants.nix");
   hostFragments = config.flake.lib.importHostFragments "cryptid";
+  inherit (constants) persist-partition-label;
 
 in
-with constants;
 {
   # Something between here and 8c50a710ddca43d7a530fb805ad55bde8d0141c5 breaks mounting the btrfs partition... Too lazy to bisect.
   # TODO(workaround): occassionally check if cryptid nixpkgs is fixed
@@ -21,29 +21,6 @@ with constants;
 
     modules = hostFragments.nixos ++ [
       { _module.args.cryptidConstants = constants; }
-      ({config, pkgs, lib, ...} :
-  let
-    username = config.hostIdentity.primaryUser;
-    scriptContext = constants // import (inputs.self.data.path "cryptid/script-context.nix") {
-      inherit constants username;
-    };
-    scriptCatalog = import (inputs.self.data.path "cryptid") {
-      inherit lib pkgs;
-      context = scriptContext;
-    };
-
-  in {
-
-    # platform
-    imports = with inputs.self.modules.nixos; [
-      isolive
-      airgap
-      # not using cryptos from flake; micromanage dependencies
-    ];
-    environment.etc."issue".text = scriptCatalog.helpText;
-    environment.interactiveShellInit = scriptContext.bash-make-gnupg-home;
-    environment.systemPackages = scriptCatalog.packages;
-  })
     ];
   };
 
