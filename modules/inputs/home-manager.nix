@@ -1,6 +1,5 @@
 { config, inputs, ... }:
 {
-  imports = [ inputs.unstable-home-manager.flakeModules.home-manager ];
 
   nucleus.inputs = {
     stable-home-manager = {

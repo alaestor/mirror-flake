@@ -461,6 +461,12 @@ in
       description = "Nix-on-Droid configurations built from the host registry.";
     };
 
+    flake.homeConfigurations = mkOption {
+      type = types.lazyAttrsOf types.raw;
+      default = { };
+      description = "Standalone Home Manager configurations built from the host registry.";
+    };
+
   };
 
   config = {
