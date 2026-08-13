@@ -1,16 +1,73 @@
+/**
+  # Shared flake library
+
+  Exposes reusable helpers as `flake.lib`. The helpers defined here are typed
+  by the `flake.lib` submodule; other modules may still contribute their own
+  helpers through its freeform space.
+*/
 {
   inputs,
   lib,
   self,
   ...
 }:
+let
+  inherit (lib) mkOption types;
+
+  unitTableType = types.attrsOf (types.attrsOf (types.attrsOf types.number));
+
+  libType = types.submodule {
+    freeformType = types.attrsOf types.unspecified;
+
+    options = {
+      zipLists = mkOption {
+        type = types.functionTo (types.functionTo (types.listOf (types.attrsOf types.unspecified)));
+        description = "Pairs two equal-length lists into `{ first, second }` records.";
+      };
+
+      math = mkOption {
+        type = types.submodule {
+          options = {
+            pow = mkOption {
+              type = types.functionTo (types.functionTo types.number);
+              description = "Raises a base to a non-negative integer exponent.";
+            };
+          };
+        };
+        description = "Arithmetic that the Nix builtins do not provide.";
+      };
+
+      unit-systems = mkOption {
+        type = unitTableType;
+        description = "Multipliers of the SI and IEC units, by system and quantity.";
+      };
+
+      units = mkOption {
+        type = types.attrsOf (types.attrsOf (types.attrsOf (types.functionTo types.number)));
+        description = "Unit constructors derived from `unit-systems`.";
+      };
+
+      mkIsoWriter = mkOption {
+        type = types.functionTo types.package;
+        description = "Builds a script that writes a NixOS ISO to a block device.";
+      };
+
+      mkNixosAnywhereDeployer = mkOption {
+        type = types.functionTo types.package;
+        description = "Builds a nixos-anywhere deployer for a host.";
+      };
+    };
+  };
+
+in
 {
 
   options = {
 
-    flake.lib = lib.mkOption {
-      type = lib.types.attrsOf lib.types.unspecified;
+    flake.lib = mkOption {
+      type = libType;
       default = { };
+      description = "Reusable helpers shared by the repository's modules.";
     };
 
   };
