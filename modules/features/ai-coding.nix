@@ -100,6 +100,7 @@
     in
     {
       imports = with inputs.self.modules.homeManager; [
+        claude-code
         codex
         zed
       ];
