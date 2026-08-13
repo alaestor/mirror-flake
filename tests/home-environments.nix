@@ -124,6 +124,7 @@ let
     {
       assertion = integrated.userEnvironment == {
         inherit hostName;
+        hasGui = false;
         username = integratedUsername;
       };
       message = "integrated identity differs from its host attachment";
@@ -131,6 +132,7 @@ let
     {
       assertion = standalone.userEnvironment == {
         inherit hostName;
+        hasGui = false;
         username = standaloneUsername;
       };
       message = "standalone identity differs from its host attachment";
