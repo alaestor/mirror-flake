@@ -171,7 +171,7 @@ in
     isNixOnDroid = false;
   };
 
-  flake.nixOnDroidModules.standard-terminal = {
+  flake.modules.nixOnDroid.standard-terminal = {
     home-manager.config = {
       imports = [
         (mkHomeModule {

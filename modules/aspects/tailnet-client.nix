@@ -40,10 +40,10 @@ in
       userEnvironment.sharedModules = [ homeModule ];
     };
 
-  flake.nixOnDroidModules.tailnet-client =
+  flake.modules.nixOnDroid.tailnet-client =
     { lib, ... }:
     {
-      imports = [ inputs.self.nixOnDroidModules.standard-terminal ];
+      imports = [ inputs.self.modules.nixOnDroid.standard-terminal ];
 
       environment.etc."resolv.conf".text = lib.mkForce ''
         nameserver 100.100.100.100

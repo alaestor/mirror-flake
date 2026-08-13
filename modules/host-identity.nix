@@ -42,7 +42,7 @@ in
         networking.hostName = config.hostIdentity.name;
       };
 
-    flake.nixOnDroidModules.host-identity =
+    flake.modules.nixOnDroid.host-identity =
       { config, lib, ... }:
       {
         imports = [ hostIdentityModule ];

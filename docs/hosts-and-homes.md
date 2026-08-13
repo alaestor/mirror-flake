@@ -35,13 +35,13 @@ export modules for another module system:
 | Flake-parts | Flake inputs, registries, packages, apps, and exported modules | `modules/` |
 | NixOS | Machine services, hardware, users, boot, and system policy | `modules/features/`, `modules/de/`, `modules/host/` |
 | Home Manager | User programs and session configuration | `modules/programs/`, `modules/aspects/`, `modules/preferences/` |
-| Nix-on-Droid | Android-hosted Nix environment and device activation | `modules/nix-on-droid/` |
+| Nix-on-Droid | Android-hosted Nix environment and device activation | `modules/features/`, `modules/host/` |
 
 Keep these module classes separate:
 
 - export NixOS modules as `flake.modules.nixos.<name>`;
 - export Home Manager modules as `flake.modules.homeManager.<name>`;
-- export Nix-on-Droid modules as `flake.nixOnDroidModules.<name>`; and
+- export Nix-on-Droid modules as `flake.modules.nixOnDroid.<name>`; and
 - evaluate flake-parts modules only at the outer flake layer.
 
 An exported NixOS module cannot be imported as a Home Manager module merely
@@ -52,15 +52,22 @@ contract.
 ## Host registry
 
 `modules/host-plumbing/registry.nix` declares the `host.<name>` registry. Each
-entry describes one NixOS evaluation target and produces:
+entry describes one evaluation target, in the module class it declares, and
+produces the configuration output of that class:
 
 ```text
-host.<name>  ->  nixosConfigurations.<name>
+host.<name>  ->  nixosConfigurations.<name>            # class = "nixos"
+host.<name>  ->  nixOnDroidConfigurations.<name>       # class = "nixOnDroid"
 ```
+
+A host's `class` selects both the configuration builder and the module
+namespace its `modules` are drawn from. It defaults to `nixos`, so only a
+non-NixOS host declares it.
 
 Capabilities may additionally produce system-indexed helper applications, such
 as an ISO writer or a `nixos-anywhere` deployer. Capabilities describe auxiliary
-outputs; they do not change how a user's Home Manager configuration is activated.
+outputs; they do not change how a user's Home Manager configuration is
+activated, and they are generated for NixOS hosts only.
 
 A representative declaration is:
 
@@ -88,14 +95,15 @@ A representative declaration is:
 }
 ```
 
-The registry supplies common NixOS plumbing before the host's selected modules:
+The registry supplies common plumbing before the host's selected modules:
 
-- global system policy;
-- the NixOS host-identity implementation; and
-- the interface through which NixOS features contribute Home Manager modules.
+- global system policy, for NixOS hosts;
+- the host-identity implementation of the host's class; and
+- the interface through which platform features contribute Home Manager modules.
 
 It also selects the target platform and Nixpkgs input, and uses the declared
-state version as the default for NixOS and attached Home Manager environments.
+state version as the default for the host system and its attached Home Manager
+environments.
 
 ### Host declaration contract
 
@@ -103,9 +111,11 @@ A host declaration owns:
 
 - a human-readable description and primary interactive user;
 - compatibility state version;
+- the module class it is evaluated in, when it is not NixOS;
 - target system and Nixpkgs source when the repository defaults are unsuitable;
-- the NixOS module graph;
-- the Home Manager channel used by its attachments;
+- the module graph of its class;
+- the Home Manager channel used by its attachments, or the Home Manager flake
+  itself when the host's platform requires a release outside those channels;
 - zero or more user-environment attachments; and
 - optional helper-output capabilities.
 
@@ -281,6 +291,7 @@ homeConfigurations."<username>@<host>"
 ```
 
 They activate independently, but are still attached to a registered NixOS host.
+Only NixOS hosts accept standalone attachments.
 The registry evaluates the associated NixOS configuration to obtain the same
 package set and feature contributions. “Standalone” therefore describes the
 activation boundary, not an independent machine registry.
@@ -291,10 +302,22 @@ ensures the CLI needed for initial activation is available after deploying the
 host, without requiring host-specific package declarations. Choosing which
 flake reference to activate remains an operator concern.
 
-Nix-on-Droid configurations are outside this registry. They may import the same
-exported Home Manager modules directly, but NixOS feature contributions do not
-flow into them unless an explicit Nix-on-Droid composition provides an
-equivalent contract.
+### Nix-on-Droid
+
+A `nixOnDroid` host declares its environment the same way, in `integrated`
+mode, and receives the same assembled module graph: attachment identity, state
+version, explicitly attached modules, and the contributions its Nix-on-Droid
+features make through `userEnvironment.sharedModules`.
+
+Android exposes a single account whose name and home directory are platform
+facts, so such a host attaches exactly one environment. The registry mirrors
+those facts rather than owning them; a divergence surfaces as a definition
+conflict instead of a silently wrong home directory.
+
+Because the platform pins its own Nixpkgs and Home Manager releases, a
+Nix-on-Droid host normally declares `nixpkgs`, `homeManager.flake`, and, when
+the device is too slow to realize its own bootstrap,
+`nixOnDroid.bootstrapSystem`.
 
 ## Extension checklist
 

@@ -1,7 +1,10 @@
 {
   /**
-    Global configurations included automatically into all hosts
+    Global configurations included automatically into all hosts of a class.
+    Each class states the same intent in its own platform vocabulary; neither
+    export is a reusable feature, and hosts never import them explicitly.
   */
+
   flake.modules.nixos.global-config = { pkgs, lib, ... } :
   let
     default_locale = "en_CA.UTF-8";
@@ -43,6 +46,26 @@
         LC_TIME            = lib.mkDefault default_locale;
       };
     };
+
+  };
+
+  flake.modules.nixOnDroid.global-config = { pkgs, ... }:
+  {
+
+    environment = {
+      etcBackupExtension = ".bak";
+      packages = with pkgs; [
+        busybox
+        git
+        neovim
+      ];
+    };
+
+    nix.extraOptions = ''
+      experimental-features = nix-command flakes
+    '';
+
+    nix.nixPath = [ "nixpkgs=${pkgs.path}" ]; # TODO(workaround): nix-on-droid flakes dont expose nixpkgs in NIX_PATH; see [nix-on-droid#499](https://github.com/nix-community/nix-on-droid/issues/499)
 
   };
 }

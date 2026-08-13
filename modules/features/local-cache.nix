@@ -72,7 +72,7 @@ in
       };
     };
 
-  flake.nixOnDroidModules.local-cache =
+  flake.modules.nixOnDroid.local-cache =
     { config, ... }:
     let
       cache = values config;

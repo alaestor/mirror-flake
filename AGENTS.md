@@ -85,6 +85,7 @@ timeout 60s nix eval --raw \
 
 - Export NixOS modules as `flake.modules.nixos.<name>`.
 - Export Home Manager modules as `flake.modules.homeManager.<name>`.
+- Export Nix-on-Droid modules as `flake.modules.nixOnDroid.<name>`.
 - Evaluate flake-parts modules only at the outer flake layer.
 
 Do not cross-import NixOS and Home Manager modules. Deferred module types may hide this mistake until evaluation.
@@ -144,7 +145,7 @@ Nix evaluates the Git-backed flake source, so new untracked files can be invisib
 
 ## Hosts and user environments
 
-`modules/host-plumbing/registry.nix` turns `host.<name>` declarations into `nixosConfigurations.<name>` and, when enabled, deployment or ISO apps. Each NixOS host receives a read-only `hostIdentity` containing `name`, `description`, `primaryUser`, and `stateVersion`. Use it instead of repeating host metadata. The registry also derives the host name, platform, and NixOS/Home Manager state version defaults.
+`modules/host-plumbing/registry.nix` turns `host.<name>` declarations into the configuration output of the host's declared `class`—`nixosConfigurations.<name>` or `nixOnDroidConfigurations.<name>`—and, when enabled, deployment or ISO apps. Every host receives a read-only `hostIdentity` containing `name`, `description`, `primaryUser`, and `stateVersion`. Use it instead of repeating host metadata. The registry also derives the host name, platform, and system/Home Manager state version defaults.
 
 `stateVersion` is compatibility metadata and should NOT be advanced with nixpkgs or home-manager versions.
 
@@ -153,7 +154,7 @@ Home Manager environments are attached at `host.<name>.userEnvironment.<username
 1. Home Manager modules contributed by imported host features.
 2. Explicitly attached reusable and host-user Home Manager modules.
 
-`integrated` mode activates through NixOS; `standalone` mode exposes `homeConfigurations."<user>@<host>"`. Both modes must consume the same module graph. Shared modules must therefore avoid integrated-only arguments such as `osConfig`; use the Home Manager `userEnvironment` identity when host context is needed.
+`integrated` mode activates through the host system; `standalone` mode, available to NixOS hosts only, exposes `homeConfigurations."<user>@<host>"`. Both modes must consume the same module graph. Shared modules must therefore avoid integrated-only arguments such as `osConfig`; use the Home Manager `userEnvironment` identity when host context is needed.
 
 A reusable NixOS feature contributes user configuration through:
 

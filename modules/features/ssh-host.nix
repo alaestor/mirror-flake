@@ -2,7 +2,7 @@
   # ssh-host
 
   Exports `flake.modules.nixos.ssh-host` and
-  `flake.nixOnDroidModules.ssh-host`. Both module classes expose the common
+  `flake.modules.nixOnDroid.ssh-host`. Both module classes expose the common
   `ssh-host` interface; only NixOS additionally exposes `ssh-host.initrd`.
 
   Importing either module enables an SSH server. `allowUsers` selects the
@@ -216,7 +216,7 @@ in
     `ssh-host-stop`; Android does not provide systemd or another reliable
     nix-on-droid service lifecycle.
   */
-  flake.nixOnDroidModules."${module-name}" =
+  flake.modules.nixOnDroid."${module-name}" =
     { config, lib, pkgs, ... }:
     let
       cfg = config.${module-name};

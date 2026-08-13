@@ -147,7 +147,7 @@ files into the public and encrypted paths above, respectively. Plaintext
 signing keys must never enter the repository or Nix store.
 
 `flake.modules.nixos.local-cache` and
-`flake.nixOnDroidModules.local-cache` are enabled on import. They default to
+`flake.modules.nixOnDroid.local-cache` are enabled on import. They default to
 `http://apc.tailnet.0x04.cc:5000` and trust the corresponding first-rotation
 public key. If that public file is absent, they warn and leave the existing
 substituters unchanged. `flake.modules.nixos.serve-nix-cache` is the separate,

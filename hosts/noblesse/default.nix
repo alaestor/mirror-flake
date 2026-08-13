@@ -1,0 +1,4 @@
+{
+  nixOnDroid = [ ./system.nix ];
+  homeManager = [ ];
+}
