@@ -49,7 +49,7 @@
 
         Rust Token Killer reduces CLI context usage. It's always safe to use: if rtk has no filter for a command, it passes through unchanged.
 
-        - When running shell commands, **always prefix with `rtk`**
+        - Always prefix shell commands with rtk, except exact-content reads used to prepare an edit or verify a patch. Those reads must use the raw command to preserve punctuation and whitespace.
         - In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
         - For debugging, use the raw command without an rtk prefix
         - `rtk proxy <cmd>` runs a command without filtering but tracks usage
