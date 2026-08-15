@@ -54,6 +54,14 @@
         - For debugging, use the raw command without an rtk prefix
         - `rtk proxy <cmd>` runs a command without filtering but tracks usage
       '';
+      memoryInstructions = ''
+        # Memory
+
+        The per-project memory index is `MEMORY.md`, a *sibling* of the
+        `memory/` directory (`.../projects/<project>/MEMORY.md`), not inside
+        it (`.../projects/<project>/memory/MEMORY.md`). Check the correct
+        path before concluding memory is missing or unwritable.
+      '';
       skillsRoot = self.data.path "agents/skills";
       collectSkills =
         relativeDirectory:
@@ -179,6 +187,7 @@
             [[ "$tools" == "default" ]] || claude_args+=( --tools "$tools" )
 
             claude_args+=( --append-system-prompt ${lib.escapeShellArg shellInstructions} )
+            claude_args+=( --append-system-prompt ${lib.escapeShellArg memoryInstructions} )
 
             exec ${lib.getExe headroomPackage} wrap claude "''${headroom_args[@]}" -- "''${claude_args[@]}"
           '';
