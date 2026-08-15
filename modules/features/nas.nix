@@ -41,6 +41,14 @@
               "x-systemd.automount"
               "noauto"
               "noatime"
+              # Avoid indefinite hangs on shutdown/suspend if the NAS is
+              # slow or unreachable: fail fast instead of retrying forever,
+              # and auto-unmount when idle so it's rarely mounted at all.
+              "soft"
+              "timeo=30"
+              "retrans=2"
+              "x-systemd.idle-timeout=600"
+              "x-systemd.mount-timeout=15s"
             ]
             ++ lib.optional cfg.${optionName}.readonly "ro";
           };
