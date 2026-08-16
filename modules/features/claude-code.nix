@@ -117,6 +117,20 @@
         "ExitPlanMode"
       ];
       skillTools = [ "Skill" ];
+      # Auto-compaction summarizes for narrative continuity and loses the
+      # details needed to resume work. This guard replaces it: an agent-written
+      # handoff at ~65% of the window, and a hard turn stop at ~92.5% so a
+      # session can never run past the limit trying to produce one. See the
+      # script for the threshold environment variables.
+      contextGuard = pkgs.writers.writePython3Bin "cc-context-guard" {
+        flakeIgnore = [ "E501" ];
+      } (self.data.read "agents/context-guard.py");
+      guardCommand = [
+        {
+          type = "command";
+          command = lib.getExe contextGuard;
+        }
+      ];
       mkClaudeWrapper =
         name: withSerena:
         pkgs.writeShellApplication {
@@ -135,6 +149,7 @@
             permission_mode=""
             tools=${lib.escapeShellArg (lib.concatStringsSep "," defaultTools)}
             skills=0
+            context_limit=200000
             headroom_args=(
               --code-memory ${if withSerena then "serena" else "none"}
               --tool-search true
@@ -156,7 +171,10 @@
                 bypass) permission_mode="bypassPermissions" ;;
                 memory) headroom_args+=( --memory ) ;;
                 graph|code-graph) headroom_args+=( --code-graph ) ;;
-                1m) headroom_args+=( --1m ) ;;
+                1m)
+                  headroom_args+=( --1m )
+                  context_limit=1000000
+                  ;;
                 search|tool-search) headroom_args+=( --tool-search auto ) ;;
                 alltools|all-tools) tools="default" ;;
                 skill|skills) skills=1 ;;
@@ -189,6 +207,15 @@
             claude_args+=( --append-system-prompt ${lib.escapeShellArg shellInstructions} )
             claude_args+=( --append-system-prompt ${lib.escapeShellArg memoryInstructions} )
 
+            # `--autocompact` has no `off`; parking it at the maximum keeps
+            # Claude Code from attempting a proactive compaction the PreCompact
+            # guard would only have to block. The guard stops the turn first.
+            claude_args+=( --autocompact 1M )
+
+            # Hooks inherit this environment; the context guard reads it to
+            # scale its thresholds to the session's actual window.
+            export CC_CONTEXT_LIMIT="$context_limit"
+
             exec ${lib.getExe headroomPackage} wrap claude "''${headroom_args[@]}" -- "''${claude_args[@]}"
           '';
         };
@@ -206,6 +233,22 @@
         settings = {
           includeCoAuthoredBy = lib.mkDefault false;
           permissions.defaultMode = lib.mkDefault "manual";
+          hooks = {
+            # PostToolUse is the only event that fires mid-turn often enough to
+            # catch the ceiling before a long turn overruns it.
+            PostToolUse = [ { hooks = guardCommand; } ];
+            # Covers turns that cross the warning threshold without a tool call.
+            Stop = [ { hooks = guardCommand; } ];
+            # Names any prior handoff so it can be referred to without a path.
+            SessionStart = [ { hooks = guardCommand; } ];
+            # Manual `/compact` stays available; only automatic runs are blocked.
+            PreCompact = [
+              {
+                matcher = "auto";
+                hooks = guardCommand;
+              }
+            ];
+          };
         };
       };
     };
