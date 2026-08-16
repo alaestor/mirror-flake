@@ -57,10 +57,10 @@
       memoryInstructions = ''
         # Memory
 
-        The per-project memory index is `MEMORY.md`, a *sibling* of the
-        `memory/` directory (`.../projects/<project>/MEMORY.md`), not inside
-        it (`.../projects/<project>/memory/MEMORY.md`). Check the correct
-        path before concluding memory is missing or unwritable.
+        The per-project memory index is `MEMORY.md`, *inside* the `memory/`
+        directory (`.../projects/<project>/memory/MEMORY.md`), alongside the
+        memory files it indexes, and its links are relative to that directory.
+        Check that path before concluding memory is missing or unwritable.
       '';
       skillsRoot = self.data.path "agents/skills";
       collectSkills =
