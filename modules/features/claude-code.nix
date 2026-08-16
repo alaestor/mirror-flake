@@ -233,6 +233,9 @@
         settings = {
           includeCoAuthoredBy = lib.mkDefault false;
           permissions.defaultMode = lib.mkDefault "manual";
+          # The away recap spends a background model call to restate a session
+          # we were present for. Equivalent to `CLAUDE_CODE_ENABLE_AWAY_SUMMARY`.
+          awaySummaryEnabled = lib.mkDefault false;
           hooks = {
             # PostToolUse is the only event that fires mid-turn often enough to
             # catch the ceiling before a long turn overruns it.
