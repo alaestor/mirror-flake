@@ -292,7 +292,8 @@
         skills = collectSkills "";
         settings = {
           includeCoAuthoredBy = lib.mkDefault false;
-          permissions.defaultMode = lib.mkDefault "manual";
+          skipDangerousModePermissionPrompt = lib.mkDefault true;
+          permissions.defaultMode = lib.mkDefault "bypassPermissions";
           # The away recap spends a background model call to restate a session
           # we were present for. Equivalent to `CLAUDE_CODE_ENABLE_AWAY_SUMMARY`.
           awaySummaryEnabled = lib.mkDefault false;
