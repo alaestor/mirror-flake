@@ -99,6 +99,32 @@
           printf '\nRecent commits:\n%s\n' "$(git log --oneline -5 2>/dev/null)"
         }
       '';
+
+      # Sessions run under the vendored bubblewrap sandbox by default; `nobox`
+      # opts out. The sandbox clears the environment and builds PATH from its
+      # own tool profile, so everything the prompt promises has to be handed
+      # back explicitly: the tool list through `CLAUDE_SANDBOX_EXTRA_PATH`, and
+      # our two variables through `env` in the sandboxed command itself, since
+      # upstream only forwards host variables named in its config file.
+      sandboxPackage = self.lib.mkClaudeSandbox pkgs;
+
+      # The only paths a session may write. Everything else the host exposes,
+      # `/nix/store` included, arrives through the sandbox's base `--ro-bind /
+      # /` and stays read-only. The sandbox always binds its project directory
+      # read-write, so a session is refused outside these roots rather than
+      # silently widening the writable set to the working directory.
+      sandboxWritableRoots = [
+        "$HOME/Projects"
+        "/mnt/Vault/.dotfiles/flake"
+      ];
+      sandboxToolPath = lib.makeBinPath (
+        cliTools
+        ++ [
+          pkgs.rtk
+          pkgs.tlrc
+        ]
+      );
+
       skillsRoot = self.data.path "agents/skills";
       collectSkills =
         relativeDirectory:
@@ -190,6 +216,11 @@
             tools=${lib.escapeShellArg (lib.concatStringsSep "," defaultTools)}
             skills=0
             context_limit=200000
+            sandbox=1
+            sandbox_profile="default"
+            sandbox_writable=(
+              ${lib.concatMapStringsSep "\n              " (root: ''"${root}"'') sandboxWritableRoots}
+            )
             headroom_args=(
               --code-memory ${if withSerena then "serena" else "none"}
               --tool-search true
@@ -222,10 +253,22 @@
                 mini|mini-prompt) prompt="mini" ;;
                 lean|lean-tools) lean_tools=1 ;;
                 verbose|verbose-tools) lean_tools=0 ;;
+                box|sandbox) sandbox=1 ;;
+                nobox|no-sandbox|host) sandbox=0 ;;
+                box-minimal|sandbox-minimal)
+                  sandbox=1
+                  sandbox_profile="minimal"
+                  ;;
+                box-full|sandbox-full)
+                  sandbox=1
+                  sandbox_profile="full"
+                  ;;
                 --cc-help)
-                  echo "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [--] [claude arguments...]"
+                  echo "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [nobox|box-minimal|box-full] [--] [claude arguments...]"
                   echo "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
                   echo "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
+                  echo "the bubblewrap sandbox is on by default; nobox runs on the host instead"
+                  echo "sandboxed sessions may only write ${lib.concatStringsSep " and " sandboxWritableRoots}"
                   echo "skills adds the Skill tool and its catalogue; /<skill-name> works without it"
                   echo "selectors are recognized in any order before --; later selectors replace earlier ones"
                   exit 0
@@ -276,7 +319,49 @@
             # scale its thresholds to the session's actual window.
             export CC_CONTEXT_LIMIT="$context_limit"
 
-            exec ${lib.getExe headroomPackage} wrap claude "''${headroom_args[@]}" -- "''${claude_args[@]}"
+            session=(
+              ${lib.getExe headroomPackage} wrap claude
+              "''${headroom_args[@]}" -- "''${claude_args[@]}"
+            )
+
+            if (( sandbox )); then
+              # Every writable root is bound in full, so a session can reach
+              # sibling trees it needs; the project directory stays the working
+              # directory so the model opens where the caller stands. Both must
+              # agree: a working directory outside the roots would otherwise be
+              # bound read-write as the project and defeat the restriction.
+              cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
+              project=""
+              sandbox_args=()
+
+              for root in "''${sandbox_writable[@]}"; do
+                [[ -d "$root" ]] || continue
+                root="$(${pkgs.coreutils}/bin/realpath "$root")"
+                sandbox_args+=( --extra-bind "$root" )
+                if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
+                  project="$cwd"
+                fi
+              done
+
+              if [[ -z "$project" ]]; then
+                echo "${name}: refusing to sandbox $cwd — it is outside every writable root:" >&2
+                printf '  %s\n' "''${sandbox_writable[@]}" >&2
+                echo "cd into one of them, or pass 'nobox' to run on the host instead." >&2
+                exit 1
+              fi
+
+              export CLAUDE_SANDBOX_EXTRA_PATH=${lib.escapeShellArg sandboxToolPath}
+              exec ${lib.getExe sandboxPackage} \
+                --profile "$sandbox_profile" \
+                "''${sandbox_args[@]}" \
+                "$project" -- \
+                ${pkgs.coreutils}/bin/env \
+                  CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT="$lean_tools" \
+                  CC_CONTEXT_LIMIT="$context_limit" \
+                  "''${session[@]}"
+            fi
+
+            exec "''${session[@]}"
           '';
         };
     in

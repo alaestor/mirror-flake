@@ -245,7 +245,16 @@ PYEOF
   fi
 
   # Settings files are writable (Claude Code updates permissions etc.)
-  if [[ -f "$HOME/.claude/settings.json" ]]; then
+  # LOCAL DEVIATION: a Home Manager-managed settings.json is a store symlink
+  # that sandbox.sh deliberately leaves alone, so read-only is the expected
+  # outcome here rather than a failure.
+  if [[ -L "$HOME/.claude/settings.json" ]]; then
+    if sandbox_run 'test -r "$HOME/.claude/settings.json"'; then
+      test_pass "~/.claude/settings.json is readable (declaratively managed, read-only by design)"
+    else
+      test_fail "~/.claude/settings.json is NOT readable"
+    fi
+  elif [[ -f "$HOME/.claude/settings.json" ]]; then
     if sandbox_run 'test -w "$HOME/.claude/settings.json"'; then
       test_pass "~/.claude/settings.json is writable"
     else

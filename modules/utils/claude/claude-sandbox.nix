@@ -14,9 +14,19 @@
   the profile is chosen at runtime, so the NixOS module only has to pass flags.
   Importing the NixOS module does not install anything.
 
-  Upstream shell, Python and seccomp sources live unmodified (beyond a license
-  tag) in `data/utils/claude-sandbox/`, alongside the `package.nix` derived
-  from the upstream flake.
+  `flake.lib.mkClaudeSandbox` builds the sandbox for a given `pkgs`, so a Home
+  Manager module can reach it without a NixOS system in between.
+
+  Upstream shell, Python and seccomp sources live in `data/utils/claude-sandbox/`
+  alongside the `package.nix` derived from the upstream flake. They carry a
+  license tag and two changes marked `LOCAL DEVIATION`, both consequences of a
+  declaratively managed `~/.claude`:
+
+  - Settings files that are store symlinks are left in place. Binding a
+    writable copy over one resolves inside the read-only store bind, which
+    aborts the launch.
+  - `~/.claude/projects` is bound read-write instead of overlaid with a tmpfs,
+    so per-project memory and transcripts outlive the sandbox.
 */
 { self, ... }:
 
@@ -91,6 +101,8 @@ let
     };
 in
 {
+  flake.lib.mkClaudeSandbox = mkSandbox;
+
   flake.modules.nixos.claude-sandbox =
     { config, lib, pkgs, ... }:
     let
