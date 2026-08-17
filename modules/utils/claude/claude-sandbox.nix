@@ -10,9 +10,14 @@
   sanitization, optional command filtering and optional egress filtering
   through a userspace network namespace.
 
-  One derivation embeds all three tool profiles (`minimal`, `default`, `full`);
-  the profile is chosen at runtime, so the NixOS module only has to pass flags.
-  Importing the NixOS module does not install anything.
+  The tool list baked into PATH is intentionally minimal — just enough to
+  operate the sandbox itself (a shell and git). Anything project-specific
+  (language toolchains, build tools) belongs to the project's own dev
+  environment, not the sandbox; anything CLI-convenience-specific (ripgrep,
+  jq, fd, ...) is layered on top by the caller via `extraPackages` /
+  `CLAUDE_SANDBOX_EXTRA_PATH` — see `claude-code.nix`, which supplies its own
+  curated set that way. `/nix/store` itself is always fully readable via the
+  base `--ro-bind / /`, regardless of what's on PATH.
 
   `flake.lib.mkClaudeSandbox` builds the sandbox for a given `pkgs`, so a Home
   Manager module can reach it without a NixOS system in between.
@@ -33,6 +38,13 @@
   - gpg-agent's socket is forwarded (mirroring upstream's SSH agent
     forwarding) and `~/.gnupg/{pubring.kbx,trustdb.gpg}` are exposed
     read-only, so `git commit -S` works against a hardware-token-backed key.
+  - `nix` is included in the tool list, with flakes/nix-command and unfree
+    packages force-enabled via `NIX_CONFIG` regardless of the host's
+    `nix.conf`. The sandbox's threat model is limiting filesystem blast
+    radius, not blocking execution — the store is already fully readable via
+    the base `--ro-bind / /`, agents could always run store paths directly,
+    and nix reaches the host's nix-daemon socket the same way, so this just
+    puts the CLI on PATH.
   - The sanitized global gitconfig merges `~/.config/git/config` (XDG) and
     `~/.gitconfig`, since `GIT_CONFIG_GLOBAL` (pinned to the sanitized file)
     makes git skip its normal XDG lookup — identity kept in the XDG file
@@ -43,11 +55,10 @@
 let
   packageFile = self.data.path "utils/claude-sandbox/package.nix";
 
-  # Tool profiles available inside the sandbox. `minimal` is the floor every
-  # profile builds on; `default` adds a C/Python/Node toolchain; `full` adds
-  # the remaining language toolchains and interactive tooling.
-  toolProfiles = pkgs: rec {
-    minimal = with pkgs; [
+  # Tools available on PATH inside the sandbox. Kept minimal; see the module
+  # doc comment above for why project/dev tooling doesn't live here.
+  sandboxTools =
+    pkgs: with pkgs; [
       bashInteractive
       coreutils
       findutils
@@ -55,59 +66,15 @@ let
       gnused
       gawk
       git
-      ripgrep
-      fd
-      jq
       curl
       cacert
+      nix
     ];
-
-    default =
-      minimal
-      ++ (with pkgs; [
-        gcc
-        gnumake
-        cmake
-        python3
-        nodejs
-        tree
-        less
-        diffutils
-        patch
-        gnutar
-        gzip
-        which
-        file
-        procps
-      ]);
-
-    full =
-      default
-      ++ (with pkgs; [
-        clang
-        rustc
-        cargo
-        go
-        ninja
-        pkg-config
-        neovim
-        tmux
-        htop
-        wget
-        openssh
-        docker-client
-      ]);
-  };
 
   mkSandbox =
     pkgs:
-    let
-      profiles = toolProfiles pkgs;
-    in
     pkgs.callPackage packageFile {
-      minimalTools = profiles.minimal;
-      defaultTools = profiles.default;
-      fullTools = profiles.full;
+      tools = sandboxTools pkgs;
     };
 in
 {
@@ -124,7 +91,7 @@ in
       wrapper = pkgs.writeShellApplication {
         name = "claude-sandbox";
         text = ''
-          args=(--profile ${lib.escapeShellArg cfg.profile})
+          args=()
           ${lib.optionalString (!cfg.forwardSSHAgent) "args+=(--no-ssh-agent)"}
           ${lib.concatMapStringsSep "\n          " (
             dir: "args+=(--extra-bind ${lib.escapeShellArg dir})"
@@ -151,17 +118,7 @@ in
           defaultText = lib.literalExpression "wrapper applying the configured options";
           description = ''
             Sandbox package to install. Defaults to a wrapper that applies the
-            configured profile and mounts; override only for a custom build.
-          '';
-        };
-
-        profile = lib.mkOption {
-          type = lib.types.enum [ "minimal" "default" "full" ];
-          default = "default";
-          description = ''
-            Tool profile made available inside the sandbox: `minimal` is basic
-            CLI tooling, `default` adds gcc, make, cmake, python3 and nodejs,
-            `full` adds clang, rust, go and interactive tooling.
+            configured mounts; override only for a custom build.
           '';
         };
 

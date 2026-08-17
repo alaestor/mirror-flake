@@ -6,9 +6,7 @@ set -euo pipefail
 
 # ── Paths injected by Nix at build time ─────────────────────────────
 BWRAP="@BWRAP@"
-TOOL_PATH_MINIMAL="@TOOL_PATH_MINIMAL@"
-TOOL_PATH_DEFAULT="@TOOL_PATH_DEFAULT@"
-TOOL_PATH_FULL="@TOOL_PATH_FULL@"
+TOOL_PATH="@TOOL_PATH@"
 SSL_CERT_FILE="@SSL_CERT_FILE@"
 SANDBOX_BASH="@BASH@"
 LIB_DIR="@LIB_DIR@"
@@ -49,7 +47,6 @@ OPTIONS:
     --no-gpg-agent    Do not forward the gpg-agent socket
     --extra-bind DIR  Additional read-write bind mount (repeatable)
     --extra-ro DIR    Additional read-only bind mount (repeatable)
-    --profile NAME    Tool profile: minimal, default, full (default: default)
     --config FILE     Path to config file (default: ~/.config/claude-sandbox/config.json)
     --no-config       Ignore user config file
     --list-syscalls   List available syscall names for seccomp blocking
@@ -71,7 +68,6 @@ ENVIRONMENT:
     CLAUDE_SANDBOX_VERBOSE=1       Enable verbose output
     CLAUDE_SANDBOX_NO_SECCOMP=1    Allow running without seccomp (not recommended)
     CLAUDE_SANDBOX_EXTRA_PATH=...  Additional PATH entries inside sandbox
-    CLAUDE_SANDBOX_PROFILE=NAME    Tool profile (minimal, default, full)
     CLAUDE_SANDBOX_CONFIG=FILE     Path to config file (overrides default)
     CLAUDE_SANDBOX_NO_EGRESS_FILTER=1  Disable egress filtering
     CLAUDE_SANDBOX_NO_NET_NS=1        Disable network namespace isolation
@@ -108,7 +104,6 @@ RUN_TEST=0
 RUN_SECURITY_TEST=0
 CONFIG_FILE="${CLAUDE_SANDBOX_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/claude-sandbox/config.json}"
 USE_CONFIG=1
-PROFILE="${CLAUDE_SANDBOX_PROFILE:-default}"
 # Egress filtering: enabled by default, disabled by env or --no-egress-filter
 if [[ "${CLAUDE_SANDBOX_NO_EGRESS_FILTER:-0}" == "1" ]]; then
   EGRESS_FILTER=0
@@ -143,12 +138,6 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       EXTRA_RO_BINDS+=("$2"); shift 2 ;;
-    --profile)
-      if [[ $# -lt 2 ]]; then
-        echo "Error: --profile requires a name (minimal, default, full)" >&2
-        exit 1
-      fi
-      PROFILE="$2"; shift 2 ;;
     --config)
       if [[ $# -lt 2 ]]; then
         echo "Error: --config requires a file path argument" >&2
@@ -233,14 +222,6 @@ if [[ "$USE_CONFIG" == "1" && -f "$CONFIG_FILE" ]]; then
     echo "Loading config: $CONFIG_FILE"
   fi
 
-  # Profile override from config (CLI --profile takes precedence)
-  if [[ "$PROFILE" == "default" && "${CLAUDE_SANDBOX_PROFILE:-}" == "" ]]; then
-    cfg_profile="$("$JQ" -r '.profile // empty' "$CONFIG_FILE" 2>/dev/null)"
-    if [[ -n "$cfg_profile" ]]; then
-      PROFILE="$cfg_profile"
-    fi
-  fi
-
   # Nix packages — resolve to store paths and add to PATH
   while IFS= read -r pkg; do
     if [[ -n "$pkg" ]]; then
@@ -261,7 +242,7 @@ if [[ "$USE_CONFIG" == "1" && -f "$CONFIG_FILE" ]]; then
         echo "Warning: could not resolve nix package '${pkg}', skipping" >&2
       fi
     fi
-  done < <("$JQ" -r --arg p "$PROFILE" '.packages[$p] // [] | .[]' "$CONFIG_FILE" 2>/dev/null)
+  done < <("$JQ" -r '.packages // [] | .[]' "$CONFIG_FILE" 2>/dev/null)
 
   # Extra PATH entries (manual paths)
   while IFS= read -r p; do
@@ -707,16 +688,6 @@ else
 fi
 
 # -- Detect Claude Code binary and add to PATH --
-# Select tool profile
-case "$PROFILE" in
-  minimal) TOOL_PATH="$TOOL_PATH_MINIMAL" ;;
-  default) TOOL_PATH="$TOOL_PATH_DEFAULT" ;;
-  full)    TOOL_PATH="$TOOL_PATH_FULL" ;;
-  *)
-    echo "Error: unknown profile '$PROFILE' (use: minimal, default, full)" >&2
-    exit 1
-    ;;
-esac
 SANDBOX_PATH="$TOOL_PATH"
 
 # Prepend command filter directory (must be first in PATH to intercept commands)
@@ -795,6 +766,17 @@ if [[ -n "$GPG_AGENT_SOCK" ]]; then
   [[ -n "${XDG_RUNTIME_DIR:-}" ]] && BWRAP_ARGS+=(--setenv XDG_RUNTIME_DIR "$XDG_RUNTIME_DIR")
 fi
 
+# LOCAL DEVIATION: `nix` (in the sandbox's tool list) needs
+# flakes/nix-command enabled and unfree packages allowed regardless of the
+# host's own nix.conf, since the sandbox's threat model is limiting the
+# filesystem blast radius, not preventing nix invocations — the store is
+# already fully readable via the base ro-bind. Nix still talks to the host
+# nix-daemon socket (bind-mounted along with everything else via `--ro-bind
+# / /`), so builds are cached/shared with the host as normal.
+BWRAP_ARGS+=(--setenv NIX_CONFIG "experimental-features = nix-command flakes
+allow-unfree = true")
+BWRAP_ARGS+=(--setenv NIXPKGS_ALLOW_UNFREE "1")
+
 # Forward ANTHROPIC_API_KEY if set (alternative to OAuth)
 if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
   BWRAP_ARGS+=(--setenv ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY")
@@ -846,7 +828,6 @@ BWRAP_ARGS+=(--chdir "$PROJECT_DIR")
 # ── Verbose output ──────────────────────────────────────────────────
 if [[ "$VERBOSE" == "1" ]]; then
   echo "╭─── claude-sandbox v${VERSION} ───────────────────────────"
-  echo "│ Profile:     $PROFILE"
   echo "│ Project:     $PROJECT_DIR"
   echo "│ Sandbox home: ${SANDBOX_TMPDIR}/home"
   echo "│ WSL2:        $IS_WSL2"

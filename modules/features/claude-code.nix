@@ -217,7 +217,6 @@
             skills=0
             context_limit=200000
             sandbox=1
-            sandbox_profile="default"
             sandbox_writable=(
               ${lib.concatMapStringsSep "\n              " (root: ''"${root}"'') sandboxWritableRoots}
             )
@@ -255,16 +254,8 @@
                 verbose|verbose-tools) lean_tools=0 ;;
                 box|sandbox) sandbox=1 ;;
                 nobox|no-sandbox|host) sandbox=0 ;;
-                box-minimal|sandbox-minimal)
-                  sandbox=1
-                  sandbox_profile="minimal"
-                  ;;
-                box-full|sandbox-full)
-                  sandbox=1
-                  sandbox_profile="full"
-                  ;;
                 --cc-help)
-                  echo "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [nobox|box-minimal|box-full] [--] [claude arguments...]"
+                  echo "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [nobox] [--] [claude arguments...]"
                   echo "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
                   echo "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
                   echo "the bubblewrap sandbox is on by default; nobox runs on the host instead"
@@ -352,7 +343,6 @@
 
               export CLAUDE_SANDBOX_EXTRA_PATH=${lib.escapeShellArg sandboxToolPath}
               exec ${lib.getExe sandboxPackage} \
-                --profile "$sandbox_profile" \
                 "''${sandbox_args[@]}" \
                 "$project" -- \
                 ${pkgs.coreutils}/bin/env \

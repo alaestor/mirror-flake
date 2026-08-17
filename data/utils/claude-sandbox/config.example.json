@@ -1,13 +1,7 @@
 {
   "_license": "MIT  (github:mrquentin/claude-sandbox 2025)",
 
-  "profile": "default",
-
-  "packages": {
-    "minimal": [],
-    "default": ["go", "htop"],
-    "full": ["docker"]
-  },
+  "packages": ["go", "htop"],
 
   "extra_path": [],
 

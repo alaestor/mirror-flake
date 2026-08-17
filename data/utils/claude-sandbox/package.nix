@@ -19,19 +19,15 @@
   python3,
   slirp4netns,
   callPackage,
-  # Tool profiles embedded in the sandbox; selected at runtime by `--profile`.
-  minimalTools,
-  defaultTools,
-  fullTools,
+  # Tools available on PATH inside the sandbox.
+  tools,
   version ? "0.1.0",
 }:
 
 let
   seccompProfile = callPackage ./seccomp.nix { };
 
-  minimalToolPath = lib.makeBinPath minimalTools;
-  defaultToolPath = lib.makeBinPath defaultTools;
-  fullToolPath = lib.makeBinPath fullTools;
+  toolPath = lib.makeBinPath tools;
   sslCertFile = "${cacert}/etc/ssl/certs/ca-bundle.crt";
 in
 stdenvNoCC.mkDerivation {
@@ -69,9 +65,7 @@ stdenvNoCC.mkDerivation {
 
     # All tool references are absolute store paths, never PATH lookups.
     substituteInPlace $out/bin/claude-sandbox \
-      --replace-fail '@TOOL_PATH_MINIMAL@' '${minimalToolPath}' \
-      --replace-fail '@TOOL_PATH_DEFAULT@' '${defaultToolPath}' \
-      --replace-fail '@TOOL_PATH_FULL@' '${fullToolPath}' \
+      --replace-fail '@TOOL_PATH@' '${toolPath}' \
       --replace-fail '@BWRAP@' '${bubblewrap}/bin/bwrap' \
       --replace-fail '@SSL_CERT_FILE@' '${sslCertFile}' \
       --replace-fail '@BASH@' '${bashInteractive}/bin/bash' \
@@ -100,7 +94,7 @@ stdenvNoCC.mkDerivation {
 
     substituteInPlace $out/lib/healthcheck.sh \
       --replace-fail '@BWRAP@' '${bubblewrap}/bin/bwrap' \
-      --replace-fail '@TOOL_PATH@' '${defaultToolPath}' \
+      --replace-fail '@TOOL_PATH@' '${toolPath}' \
       --replace-fail '@SSL_CERT_FILE@' '${sslCertFile}' \
       --replace-fail '@BASH@' '${bashInteractive}/bin/bash' \
       --replace-fail '@GIT@' '${git}/bin/git' \
