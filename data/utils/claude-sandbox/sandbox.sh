@@ -415,7 +415,21 @@ fi
 
 # -- Lifecycle --
 BWRAP_ARGS+=(--die-with-parent)
-BWRAP_ARGS+=(--new-session)
+# Deliberate weakening of posture: `--new-session` calls setsid() on the
+# sandboxed process, detaching it into its own terminal session. That blocks
+# TIOCSTI terminal-injection (a process stuffing keystrokes back into the
+# outer, unsandboxed shell) but also stops the kernel from delivering
+# SIGWINCH to it, since SIGWINCH only goes to the foreground process group of
+# the controlling terminal's session — so window resizes silently stopped
+# reaching claude/node once this was added.
+#
+# The goal of this sandbox is containing accidental damage (writes outside
+# the allowed project paths), not defending against a malicious actor
+# deliberately crafting a TIOCSTI escape. That escape requires an explicit,
+# targeted ioctl call per character; it's not something normal tool output,
+# bugs, or an errant `rm -rf` would ever trigger. Given that threat model,
+# trading away TIOCSTI protection to get working terminal resize is an
+# acceptable weakening. Use proper virtualization for untrusted sources.
 BWRAP_ARGS+=(--hostname "$SANDBOX_HOSTNAME")
 
 # -- Capabilities --
