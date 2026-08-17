@@ -20,7 +20,7 @@ import sys
 import time
 
 DEFAULT_LIMIT = 200_000
-WARN_FRACTION = 0.65
+WARN_FRACTION = 0.80
 CEILING_FRACTION = 0.925
 
 
@@ -195,18 +195,18 @@ def main():
 
     if event == "PostToolUse":
         # Handing control back once the handoff exists is the point of the
-        # warning threshold: the session is left resumable and paused, with
-        # plenty of window left, so the next move is a human decision rather
-        # than the agent spending the remainder of the context on its own.
-        # The session is not over; a new prompt continues it.
+        # warning threshold: the session is left resumable and paused, bet
+        # the amount of window left depends on the threshold set. The user
+        # can technically resume from this, but they ought to be careful.
         if os.path.exists(handoff_path(payload)) and claim(session, "halted"):
             emit(
                 {
                     "continue": False,
                     "stopReason": (
                         f"Handoff written to {handoff_path(payload)} at "
-                        f"{tokens:,}/{limit:,} tokens. Turn stopped. Resume "
-                        "here, or start a fresh session from the handoff."
+                        f"{tokens:,}/{limit:,} tokens. Turn stopped. It's"
+                        "recommended you immediately start a fresh session"
+                        "from the handoff."
                     ),
                 }
             )
