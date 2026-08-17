@@ -62,6 +62,43 @@
         memory files it indexes, and its links are relative to that directory.
         Check that path before concluding memory is missing or unwritable.
       '';
+
+      # `--system-prompt-file` replaces the preamble wholesale: verified against
+      # a capture proxy, it swaps exactly the third `system` block (~9.2k chars)
+      # and leaves the two small unoverridable ones alone. See the verbatim
+      # `data/programs/claude/*-full.md` the mini version was cut down from.
+      # The prompt contains dynamic environment data we inject via our wrapper
+      miniPrompt = self.data.path "programs/claude/claude-instructions-mini.md";
+
+      # Claude Code derives the memory directory from the project root, slugged
+      # by replacing `/` and `.` with `-`; `/mnt/Vault/.dotfiles/flake` becomes
+      # `-mnt-Vault--dotfiles-flake`. Reproduced here because the mini prompt
+      # points at the directory by name and the stock text is gone.
+      environmentBlock = ''
+        cc_environment_block() {
+          local root slug status_text
+          root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
+          slug="''${root//[\/.]/-}"
+
+          printf '# Environment\n'
+          printf ' - Primary working directory: %s\n' "$PWD"
+          printf ' - Is a git repository: %s\n' \
+            "$(git rev-parse --is-inside-work-tree 2>/dev/null || printf 'false')"
+          printf ' - Platform: %s\n' "$(uname -s | tr '[:upper:]' '[:lower:]')"
+          printf ' - Shell: bash\n'
+          printf ' - OS Version: %s %s\n' "$(uname -s)" "$(uname -r)"
+          printf ' - Persistent memory directory: %s\n' \
+            "$HOME/.claude/projects/$slug/memory"
+
+          git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+
+          status_text="$(git status --porcelain 2>/dev/null)"
+          printf '\ngitStatus: snapshot taken at the start of the conversation; it does not update.\n'
+          printf '\nCurrent branch: %s\n' "$(git branch --show-current 2>/dev/null)"
+          printf '\nStatus:\n%s\n' "''${status_text:-(clean)}"
+          printf '\nRecent commits:\n%s\n' "$(git log --oneline -5 2>/dev/null)"
+        }
+      '';
       skillsRoot = self.data.path "agents/skills";
       collectSkills =
         relativeDirectory:
@@ -81,11 +118,9 @@
           else
             collectSkills relativePath
         ) (builtins.readDir directory);
-      # The built-in tool catalogue is the largest single block of the prompt
-      # preamble: measured with `claude -p ok --output-format json`, the full
-      # set costs ~10.8k of an ~18.3k floor. `--tools` replaces it with a
-      # chosen subset, and the skill catalogue only loads alongside the `Skill`
-      # tool, so an entry dropped here removes its documentation too.
+      # The tool catalogue rivals the preamble in size. `--tools` replaces it
+      # with a chosen subset, and the skill catalogue only loads alongside the
+      # `Skill` tool, so an entry dropped here takes its documentation with it.
       #
       # Kept: the four working tools and `WebSearch`, which has no shell
       # equivalent. Dropped: subagent and scheduling tools (`Agent`, `Task*`,
@@ -95,15 +130,17 @@
       # `Skill` is behind the `skills` selector because typing `/<skill-name>`
       # loads a skill whether or not the tool is present; the tool only lets
       # the model reach for one unprompted, and it drags the whole catalogue
-      # (~2.1k, of which ~1.4k is the bundled skills) in with it.
+      # in with it.
+      #
+      # For what any of this costs, ask the binary rather than guessing:
+      # `nix run .#extract-system-prompt-claude -- --report --model sonnet`.
       #
       # Further levers, none used here, all documented at
       # <https://code.claude.com/docs/en/tools> and `/settings`:
-      #   --system-prompt[-file]    replace rather than append the preamble; the analogue of codex `model_instructions_file`
       #   --settings <json|file>    per-invocation settings, like codex `-c`
       #   --setting-sources         restrict to user/project/local settings
       #   --disallowedTools         subtract from the catalogue instead of replacing it; also removes the schema
-      #   --disable-slash-commands  drop every skill, bundled or not (~2k)
+      #   --disable-slash-commands  drop every skill, bundled or not
       defaultTools = [
         "Bash"
         "Read"
@@ -144,9 +181,12 @@
           ]
           ++ cliTools;
           text = ''
+            ${environmentBlock}
             model=""
             effort=""
             permission_mode=""
+            prompt="mini"
+            lean_tools=1
             tools=${lib.escapeShellArg (lib.concatStringsSep "," defaultTools)}
             skills=0
             context_limit=200000
@@ -178,8 +218,14 @@
                 search|tool-search) headroom_args+=( --tool-search auto ) ;;
                 alltools|all-tools) tools="default" ;;
                 skill|skills) skills=1 ;;
+                full|full-prompt) prompt="full" ;;
+                mini|mini-prompt) prompt="mini" ;;
+                lean|lean-tools) lean_tools=1 ;;
+                verbose|verbose-tools) lean_tools=0 ;;
                 --cc-help)
-                  echo "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [memory|graph|1m|search|skills|alltools] [--] [claude arguments...]"
+                  echo "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [--] [claude arguments...]"
+                  echo "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
+                  echo "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
                   echo "skills adds the Skill tool and its catalogue; /<skill-name> works without it"
                   echo "selectors are recognized in any order before --; later selectors replace earlier ones"
                   exit 0
@@ -204,6 +250,11 @@
             fi
             [[ "$tools" == "default" ]] || claude_args+=( --tools "$tools" )
 
+            if [[ "$prompt" != "full" ]]; then
+              claude_args+=( --system-prompt-file ${lib.escapeShellArg (toString miniPrompt)} )
+              claude_args+=( --append-system-prompt "$(cc_environment_block)" )
+            fi
+
             claude_args+=( --append-system-prompt ${lib.escapeShellArg shellInstructions} )
             claude_args+=( --append-system-prompt ${lib.escapeShellArg memoryInstructions} )
 
@@ -211,6 +262,15 @@
             # Claude Code from attempting a proactive compaction the PreCompact
             # guard would only have to block. The guard stops the turn first.
             claude_args+=( --autocompact 1M )
+
+            # Every tool description ships in a terse and a verbose variant,
+            # picked by a gate that only Opus passes: for the default set the
+            # verbose one runs 19,578 chars against 7,774. This variable
+            # overrides the gate for any model, so Sonnet gets the same text
+            # Opus has been running all along. Always set explicitly, never
+            # inherited, so a stray value in the caller's shell cannot quietly
+            # change what the model reads. `verbose` restores the stock gate.
+            export CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT="$lean_tools"
 
             # Hooks inherit this environment; the context guard reads it to
             # scale its thresholds to the session's actual window.
