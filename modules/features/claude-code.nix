@@ -284,13 +284,15 @@
             fi
             [[ "$tools" == "default" ]] || claude_args+=( --tools "$tools" )
 
+            # `--append-system-prompt` does not accumulate across repeated
+            # flags — only the last one takes effect — so every appended
+            # block has to be concatenated into a single call.
+            append_prompt=${lib.escapeShellArg (shellInstructions + "\n\n" + memoryInstructions)}
             if [[ "$prompt" != "full" ]]; then
               claude_args+=( --system-prompt-file ${lib.escapeShellArg (toString miniPrompt)} )
-              claude_args+=( --append-system-prompt "$(cc_environment_block)" )
+              append_prompt="$(cc_environment_block)"$'\n\n'"$append_prompt"
             fi
-
-            claude_args+=( --append-system-prompt ${lib.escapeShellArg shellInstructions} )
-            claude_args+=( --append-system-prompt ${lib.escapeShellArg memoryInstructions} )
+            claude_args+=( --append-system-prompt "$append_prompt" )
 
             # `--autocompact` has no `off`; parking it at the maximum keeps
             # Claude Code from attempting a proactive compaction the PreCompact
