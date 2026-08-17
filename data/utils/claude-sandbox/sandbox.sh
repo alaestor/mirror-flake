@@ -305,14 +305,6 @@ cleanup() {
     wait "$EGRESS_PROXY_PID" 2>/dev/null || true
   fi
   if [[ -d "$SANDBOX_TMPDIR" ]]; then
-    # Scrub any credential files that may have leaked into the tmpdir
-    local cred_file="${SANDBOX_TMPDIR}/home/.claude/.credentials.json"
-    if [[ -f "$cred_file" ]]; then
-      local cred_size
-      cred_size="$("${COREUTILS}/bin/stat" -c%s "$cred_file" 2>/dev/null || echo 4096)"
-      dd if=/dev/urandom of="$cred_file" bs=1 count="$cred_size" conv=notrunc 2>/dev/null || true
-      "${COREUTILS}/bin/sync" "$cred_file" 2>/dev/null || true
-    fi
     rm -rf "$SANDBOX_TMPDIR"
   fi
 }
@@ -320,16 +312,9 @@ trap cleanup EXIT INT TERM HUP
 
 "${COREUTILS}/bin/mkdir" -p "${SANDBOX_TMPDIR}/home"
 
-# Copy files that Claude Code needs to write to at runtime
-if [[ -f "$HOME/.claude.json" ]]; then
-  cp "$HOME/.claude.json" "${SANDBOX_TMPDIR}/home/.claude.json"
-fi
-"${COREUTILS}/bin/mkdir" -p "${SANDBOX_TMPDIR}/home/.claude"
-for settings_file in settings.json settings.local.json keybindings.json; do
-  if [[ -f "$HOME/.claude/${settings_file}" ]]; then
-    cp "$HOME/.claude/${settings_file}" "${SANDBOX_TMPDIR}/home/.claude/${settings_file}"
-  fi
-done
+# Note: ~/.claude (including .credentials.json) and ~/.claude.json are no
+# longer copied into the tmpdir here — they're bind-mounted directly from
+# the host, writable, further down. See the "Claude config" section below.
 
 # Sanitize gitconfig (global + XDG)
 source "${LIB_DIR}/sanitize-git.sh"
@@ -514,53 +499,31 @@ BWRAP_ARGS+=(--bind "${SANDBOX_TMPDIR}/home" "/home/${SANDBOX_NAME}")
 # Must come AFTER --tmpfs /home so it overlays on top when project is under /home
 BWRAP_ARGS+=(--bind "$PROJECT_DIR" "$PROJECT_DIR")
 
-# LOCAL DEVIATION: upstream overlays every writable ~/.claude subdirectory with
-# a tmpfs, which discards `projects` at exit — and that is where the persistent
-# per-project memory directories and session transcripts live. `projects` is
-# therefore bound read-write to the host; everything else stays ephemeral.
-CLAUDE_PERSISTENT_DIRS=(projects)
-CLAUDE_EPHEMERAL_DIRS=(debug todos statsig shell-snapshots file-history cache backups plugins session-env)
-
-# -- Filesystem: Claude config (READ-ONLY base from host) --
-# Mount the entire ~/.claude so skills, agents, hooks, CLAUDE.md, MCP config etc. are available
+# LOCAL DEVIATION: upstream overlays every writable ~/.claude subdirectory
+# with a tmpfs and copies mutable files (settings, credentials) into a
+# scratch tmpdir that gets bind-mounted over them — isolating the sandbox
+# from host state, but at the cost of any state Claude Code itself mutates
+# at runtime (most importantly OAuth credentials: a refresh performed inside
+# the sandbox rotates the refresh token server-side, but the new token pair
+# only ever lands in the ephemeral copy, never the host file — the host's
+# copy of the *now-invalidated* refresh token is stranded, breaking auth
+# everywhere until a fresh host-side login). ~/.claude is bound read-write
+# directly instead: it's the same trust boundary as running claude
+# unsandboxed with respect to its own config/state, which is what the
+# copy-then-bind dance was trying (imperfectly) to avoid, but the ephemeral
+# copy bought no real security here — it was never used to isolate anything
+# but Claude's own files — while breaking auth-state continuity. Home
+# Manager-managed settings files (settings.json etc.) are symlinks into the
+# read-only /nix/store; they remain readable-but-unwritable through the
+# bind, identical to the host.
 if [[ -d "$HOME/.claude" ]]; then
-  # Ensure writable subdirs exist on the host before the ro-bind so bwrap has a
-  # mount point for the overlays below (bwrap cannot mkdir inside a ro-bind).
-  for writable_dir in "${CLAUDE_PERSISTENT_DIRS[@]}" "${CLAUDE_EPHEMERAL_DIRS[@]}"; do
-    "${COREUTILS}/bin/mkdir" -p "$HOME/.claude/${writable_dir}"
-  done
-  BWRAP_ARGS+=(--ro-bind "$HOME/.claude" "/home/${SANDBOX_NAME}/.claude")
+  BWRAP_ARGS+=(--bind "$HOME/.claude" "/home/${SANDBOX_NAME}/.claude")
 fi
 
-# -- Filesystem: persistent Claude subdirs (read-write bind on top of ro-bind) --
-# Memory and transcripts must outlive the sandbox, so these reach the host.
-for writable_dir in "${CLAUDE_PERSISTENT_DIRS[@]}"; do
-  if [[ -d "$HOME/.claude/${writable_dir}" ]]; then
-    BWRAP_ARGS+=(--bind "$HOME/.claude/${writable_dir}" "/home/${SANDBOX_NAME}/.claude/${writable_dir}")
-  fi
-done
-
-# -- Filesystem: writable Claude subdirs (overlay tmpfs on top of ro-bind) --
-# Claude Code needs to write to these directories at runtime
-for writable_dir in "${CLAUDE_EPHEMERAL_DIRS[@]}"; do
-  BWRAP_ARGS+=(--tmpfs "/home/${SANDBOX_NAME}/.claude/${writable_dir}")
-done
-
-# Copy writable settings into the sandbox (Claude Code updates permissions etc.)
-# These must come after the ro-bind so they overlay on top
-for settings_file in settings.json settings.local.json keybindings.json; do
-  # LOCAL DEVIATION: a Home Manager-managed settings file is a symlink into
-  # /nix/store, so the bind destination resolves inside the read-only store
-  # bind and bwrap dies with "Can't create file". The symlink survives the
-  # ro-bind and still resolves through the store, so the file stays readable —
-  # it just cannot be written, which is already true on the host.
-  if [[ -L "$HOME/.claude/${settings_file}" ]]; then
-    continue
-  fi
-  if [[ -f "$HOME/.claude/${settings_file}" ]]; then
-    BWRAP_ARGS+=(--bind "${SANDBOX_TMPDIR}/home/.claude/${settings_file}" "/home/${SANDBOX_NAME}/.claude/${settings_file}")
-  fi
-done
+# -- Filesystem: ~/.claude.json (READ-WRITE from host) --
+if [[ -f "$HOME/.claude.json" ]]; then
+  BWRAP_ARGS+=(--bind "$HOME/.claude.json" "/home/${SANDBOX_NAME}/.claude.json")
+fi
 
 # -- Filesystem: sanitized XDG git config --
 # If the user has an XDG git config, mount the sanitized copy

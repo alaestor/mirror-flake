@@ -201,13 +201,31 @@ PYEOF
     test_fail "~/.kube has $kube_count items — kube config may be exposed"
   fi
 
-  # .credentials.json is read-only (if present)
+  # .credentials.json is writable (if present)
+  #
+  # LOCAL DEVIATION: upstream ro-binds a scratch copy here, which used to
+  # cause a real auth outage: Anthropic's OAuth refresh token is single-use
+  # (rotating) — each refresh issues a new access/refresh token pair and
+  # invalidates the old refresh token server-side. When a refresh happened
+  # inside the sandbox, the new pair landed only in the throwaway tmpfs copy
+  # and was discarded on exit, while the host's ~/.claude/.credentials.json
+  # kept the now-dead refresh token. Every subsequent session (sandboxed or
+  # not) that tried to refresh against that stranded token got a hard 401,
+  # and logging in again from *inside* a sandbox just repeated the same
+  # trap. ~/.claude is now bound read-write from the host (see sandbox.sh)
+  # so refreshes persist back to the one real credentials file — the same
+  # trust boundary as running claude unsandboxed. This test writes a marker
+  # append and restores the original content byte-for-byte rather than
+  # deleting/truncating, since this file may hold live OAuth tokens.
   if sandbox_run 'test -f "$HOME/.claude/.credentials.json"'; then
-    if ! sandbox_run 'echo x >> "$HOME/.claude/.credentials.json" 2>/dev/null'; then
-      test_pass "~/.claude/.credentials.json is read-only"
+    local cred_backup
+    cred_backup="$(cat "$HOME/.claude/.credentials.json" 2>/dev/null)"
+    if sandbox_run 'echo -n "" >> "$HOME/.claude/.credentials.json"' 2>/dev/null; then
+      test_pass "~/.claude/.credentials.json is writable (LOCAL DEVIATION: read-write bind)"
     else
-      test_fail "~/.claude/.credentials.json is WRITABLE"
+      test_fail "~/.claude/.credentials.json is NOT writable — expected read-write bind"
     fi
+    printf '%s' "$cred_backup" > "$HOME/.claude/.credentials.json"
   else
     test_skip "No .credentials.json present (no OAuth credentials to test)"
   fi
@@ -216,16 +234,17 @@ PYEOF
   echo ""
   echo "Claude config isolation:"
 
-  # ~/.claude base directory is read-only (only when host ~/.claude exists to ro-bind)
+  # ~/.claude base directory is writable (LOCAL DEVIATION: bound read-write
+  # from the host, not ro-bound — see sandbox.sh for rationale)
   if [[ -d "$HOME/.claude" ]]; then
-    if ! sandbox_run 'touch "$HOME/.claude/sandbox-write-test" 2>/dev/null'; then
-      test_pass "~/.claude is read-only (base ro-bind)"
-    else
+    if sandbox_run 'touch "$HOME/.claude/sandbox-write-test" 2>/dev/null'; then
       sandbox_run 'rm -f "$HOME/.claude/sandbox-write-test" 2>/dev/null'
-      test_fail "~/.claude is WRITABLE — config files can be modified"
+      test_pass "~/.claude is writable (LOCAL DEVIATION: read-write bind)"
+    else
+      test_fail "~/.claude is NOT writable — expected read-write bind"
     fi
   else
-    test_skip "No ~/.claude on host (ro-bind not applicable)"
+    test_skip "No ~/.claude on host (bind not applicable)"
   fi
 
   # Writable subdirs work (Claude Code needs these at runtime)
