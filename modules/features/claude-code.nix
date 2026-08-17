@@ -53,20 +53,17 @@
 
         ## RTK Rules
 
-        Rust Token Killer reduces CLI context usage. It's always safe to use: if rtk has no filter for a command, it passes through unchanged.
+        Rust Token Killer reduces CLI context usage in a similar way. It's always safe to use: if rtk has no filter for a command, it passes through unchanged.
 
-        - Always prefix shell commands with rtk, except exact-content reads used to prepare an edit or verify a patch. Those reads must use the raw command to preserve punctuation and whitespace.
+        - Always prefix shell commands with rtk, except exact-content reads used to prepare an edit, verify a patch, or when debugging. Those reads must use the raw command to preserve punctuation and whitespace.
         - In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
-        - For debugging, use the raw command without an rtk prefix
         - `rtk proxy <cmd>` runs a command without filtering but tracks usage
       '';
+
       memoryInstructions = ''
         # Memory
 
-        The per-project memory index is `MEMORY.md`, *inside* the `memory/`
-        directory (`.../projects/<project>/memory/MEMORY.md`), alongside the
-        memory files it indexes, and its links are relative to that directory.
-        Check that path before concluding memory is missing or unwritable.
+        Per-project memory index is `.../projects/<project>/memory/MEMORY.md`, along-side the memory files it indexes; its links are relative to that directory.
       '';
 
       # `--system-prompt-file` replaces the preamble wholesale: verified against
