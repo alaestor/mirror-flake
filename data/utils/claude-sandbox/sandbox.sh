@@ -19,6 +19,7 @@ GNUGREP="@GNUGREP@"
 PYTHON3="@PYTHON3@"
 JQ="@JQ@"
 SLIRP4NETNS="@SLIRP4NETNS@"
+GPGCONF="@GPGCONF@"
 
 # ── Defaults ────────────────────────────────────────────────────────
 SANDBOX_NAME="claude-sandbox"
@@ -45,6 +46,7 @@ OPTIONS:
     --test            Run health checks
     --dry-run         Print bwrap command without executing
     --no-ssh-agent    Do not forward SSH_AUTH_SOCK
+    --no-gpg-agent    Do not forward the gpg-agent socket
     --extra-bind DIR  Additional read-write bind mount (repeatable)
     --extra-ro DIR    Additional read-only bind mount (repeatable)
     --profile NAME    Tool profile: minimal, default, full (default: default)
@@ -65,6 +67,7 @@ EXAMPLES:
 
 ENVIRONMENT:
     CLAUDE_SANDBOX_SSH_AGENT=0     Disable SSH agent forwarding
+    CLAUDE_SANDBOX_GPG_AGENT=0     Disable gpg-agent forwarding
     CLAUDE_SANDBOX_VERBOSE=1       Enable verbose output
     CLAUDE_SANDBOX_NO_SECCOMP=1    Allow running without seccomp (not recommended)
     CLAUDE_SANDBOX_EXTRA_PATH=...  Additional PATH entries inside sandbox
@@ -97,6 +100,7 @@ COMMAND=()
 EXTRA_BINDS=()
 EXTRA_RO_BINDS=()
 FORWARD_SSH=1
+FORWARD_GPG=1
 DRY_RUN=0
 VERBOSE="${CLAUDE_SANDBOX_VERBOSE:-0}"
 YOLO_MODE=0
@@ -124,6 +128,7 @@ while [[ $# -gt 0 ]]; do
     --test|test)   RUN_TEST=1; shift ;;
     --dry-run)     DRY_RUN=1; shift ;;
     --no-ssh-agent) FORWARD_SSH=0; shift ;;
+    --no-gpg-agent) FORWARD_GPG=0; shift ;;
     --no-egress-filter) EGRESS_FILTER=0; shift ;;
     --no-network-isolation) NETWORK_ISOLATION=0; shift ;;
     --extra-bind)
@@ -178,6 +183,11 @@ done
 # Override SSH forwarding from env
 if [[ "${CLAUDE_SANDBOX_SSH_AGENT:-}" == "0" ]]; then
   FORWARD_SSH=0
+fi
+
+# Override GPG agent forwarding from env
+if [[ "${CLAUDE_SANDBOX_GPG_AGENT:-}" == "0" ]]; then
+  FORWARD_GPG=0
 fi
 
 # ── Health check mode ───────────────────────────────────────────────
@@ -359,6 +369,21 @@ if [[ "$EGRESS_FILTER" == "1" ]] && { [[ ${#CFG_EGRESS_WHITELIST[@]} -gt 0 ]] ||
 fi
 
 
+# ── Resolve gpg-agent socket (for forwarding into the sandbox) ─────
+# Mirrors SSH_AUTH_SOCK forwarding: the host's gpg-agent (which may be
+# backed by a hardware token such as a YubiKey) is reachable only through
+# its socket. `gpgconf` computes that socket's path deterministically from
+# GNUPGHOME/XDG_RUNTIME_DIR, so the lookup must happen on the host side,
+# before namespaces are set up. Only XDG_RUNTIME_DIR is forwarded below —
+# see the --setenv site for why GNUPGHOME is deliberately not.
+GPG_AGENT_SOCK=""
+if [[ "$FORWARD_GPG" == "1" && -x "$GPGCONF" ]]; then
+  GPG_AGENT_SOCK="$("$GPGCONF" --list-dirs agent-socket 2>/dev/null || true)"
+  if [[ -n "$GPG_AGENT_SOCK" && ! -S "$GPG_AGENT_SOCK" ]]; then
+    GPG_AGENT_SOCK=""
+  fi
+fi
+
 # ── Build bwrap arguments ──────────────────────────────────────────
 BWRAP_ARGS=()
 
@@ -538,6 +563,22 @@ BWRAP_ARGS+=(--tmpfs "/home/${SANDBOX_NAME}/.gnupg")
 BWRAP_ARGS+=(--tmpfs "/home/${SANDBOX_NAME}/.aws")
 BWRAP_ARGS+=(--tmpfs "/home/${SANDBOX_NAME}/.kube")
 
+# LOCAL DEVIATION: upstream masks ~/.gnupg unconditionally, which also
+# breaks `git commit -S` against a hardware-token-backed key — gpg-agent's
+# socket is unreachable and its keyring is empty, so gpg fails "No secret
+# key" instead of prompting the token. With a hardware token ~/.gnupg holds
+# only public keys, ownertrust and a key *stub* referencing the token —
+# never usable secret material — so exposing these two files read-only (on
+# top of the tmpfs mask above) lets `gpg`/`git commit -S` pick the right
+# key without exposing anything the tmpfs mask is meant to protect against.
+if [[ "$FORWARD_GPG" == "1" ]]; then
+  for gnupg_file in pubring.kbx trustdb.gpg; do
+    if [[ -f "$HOME/.gnupg/${gnupg_file}" ]]; then
+      BWRAP_ARGS+=(--ro-bind "$HOME/.gnupg/${gnupg_file}" "/home/${SANDBOX_NAME}/.gnupg/${gnupg_file}")
+    fi
+  done
+fi
+
 # -- WSL2: block Windows interop escape --
 if [[ "$IS_WSL2" == "1" ]]; then
   # Mask individual Windows drive mounts (e.g. /mnt/c, /mnt/d, ...)
@@ -600,6 +641,17 @@ fi
 # Use --no-ssh-agent if you want to block SSH agent access entirely.
 if [[ "$FORWARD_SSH" == "1" && -n "${SSH_AUTH_SOCK:-}" && -S "${SSH_AUTH_SOCK}" ]]; then
   BWRAP_ARGS+=(--ro-bind "$SSH_AUTH_SOCK" "$SSH_AUTH_SOCK")
+fi
+
+# LOCAL DEVIATION: upstream only forwards SSH_AUTH_SOCK; gpg-agent forwarding
+# (this block, its GPG_AGENT_SOCK resolution above, and the pubring/trustdb
+# ro-binds above) is added so `git commit -S` works against a hardware
+# token. Same rationale as SSH agent forwarding: the socket is bind-mounted
+# at the identical host path so `gpgconf`'s deterministic path computation
+# (based on GNUPGHOME/XDG_RUNTIME_DIR, forwarded further down) resolves to
+# the same socket inside the sandbox. Use --no-gpg-agent to block it.
+if [[ -n "$GPG_AGENT_SOCK" ]]; then
+  BWRAP_ARGS+=(--ro-bind "$GPG_AGENT_SOCK" "$GPG_AGENT_SOCK")
 fi
 
 # -- Seccomp profile --
@@ -730,6 +782,19 @@ if [[ "$FORWARD_SSH" == "1" && -n "${SSH_AUTH_SOCK:-}" && -S "${SSH_AUTH_SOCK}" 
   BWRAP_ARGS+=(--setenv SSH_AUTH_SOCK "$SSH_AUTH_SOCK")
 fi
 
+# Forward gpg-agent socket env, so gpgconf recomputes the same socket path
+# inside the sandbox as it resolved on the host above. GNUPGHOME is
+# deliberately *not* forwarded: the sandbox's $HOME differs from the host's
+# (/home/${SANDBOX_NAME} vs the real $HOME), so a forwarded host GNUPGHOME
+# would no longer equal $HOME/.gnupg inside the sandbox. gpgconf then treats
+# it as a non-default homedir and derives a hashed per-homedir socket path
+# instead of the plain one actually bind-mounted above, breaking lookup.
+# Leaving GNUPGHOME unset lets gpgconf fall back to $HOME/.gnupg, which
+# matches the ro-bind target set up above.
+if [[ -n "$GPG_AGENT_SOCK" ]]; then
+  [[ -n "${XDG_RUNTIME_DIR:-}" ]] && BWRAP_ARGS+=(--setenv XDG_RUNTIME_DIR "$XDG_RUNTIME_DIR")
+fi
+
 # Forward ANTHROPIC_API_KEY if set (alternative to OAuth)
 if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
   BWRAP_ARGS+=(--setenv ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY")
@@ -789,6 +854,7 @@ if [[ "$VERBOSE" == "1" ]]; then
   echo "│ PID NS:      $HAS_PID_NS"
   echo "│ FUSE:        $HAS_FUSE"
   echo "│ SSH agent:   $FORWARD_SSH"
+  echo "│ GPG agent:   $([[ -n "$GPG_AGENT_SOCK" ]] && echo 1 || echo 0)"
   echo "│ Network NS:  $NET_NS_ACTIVE"
   if [[ "$USE_CONFIG" == "1" && -f "$CONFIG_FILE" ]]; then
     echo "│ Config:      $CONFIG_FILE"
@@ -819,6 +885,9 @@ if [[ "$VERBOSE" == "1" ]]; then
   fi
   if [[ "$FORWARD_SSH" == "1" && -n "${SSH_AUTH_SOCK:-}" ]]; then
     echo "│ ⚠ SSH agent: socket is fully functional inside sandbox"
+  fi
+  if [[ -n "$GPG_AGENT_SOCK" ]]; then
+    echo "│ ⚠ GPG agent: socket is fully functional inside sandbox"
   fi
   echo "╰──────────────────────────────────────────────────────────"
 fi

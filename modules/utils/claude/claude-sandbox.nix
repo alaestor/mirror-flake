@@ -19,14 +19,24 @@
 
   Upstream shell, Python and seccomp sources live in `data/utils/claude-sandbox/`
   alongside the `package.nix` derived from the upstream flake. They carry a
-  license tag and two changes marked `LOCAL DEVIATION`, both consequences of a
-  declaratively managed `~/.claude`:
+  license tag and changes marked `LOCAL DEVIATION`:
 
-  - Settings files that are store symlinks are left in place. Binding a
-    writable copy over one resolves inside the read-only store bind, which
-    aborts the launch.
-  - `~/.claude/projects` is bound read-write instead of overlaid with a tmpfs,
-    so per-project memory and transcripts outlive the sandbox.
+  - `~/.claude` (and `~/.claude.json`) is bound read-write directly from the
+    host instead of upstream's ro-bind-plus-scratch-copy — the copy approach
+    silently broke OAuth: a token refresh inside the sandbox rotates the
+    refresh token server-side, but the new pair only ever landed in the
+    throwaway copy, stranding the host's now-invalid refresh token and
+    breaking auth everywhere until a fresh host-side login. This has the
+    same trust boundary as running claude unsandboxed. Settings files that
+    are store symlinks (Home Manager-managed) stay readable-but-unwritable
+    through the bind, same as on the host.
+  - gpg-agent's socket is forwarded (mirroring upstream's SSH agent
+    forwarding) and `~/.gnupg/{pubring.kbx,trustdb.gpg}` are exposed
+    read-only, so `git commit -S` works against a hardware-token-backed key.
+  - The sanitized global gitconfig merges `~/.config/git/config` (XDG) and
+    `~/.gitconfig`, since `GIT_CONFIG_GLOBAL` (pinned to the sanitized file)
+    makes git skip its normal XDG lookup — identity kept in the XDG file
+    would otherwise silently vanish inside the sandbox.
 */
 { self, ... }:
 

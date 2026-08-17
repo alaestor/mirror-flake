@@ -12,6 +12,7 @@
   coreutils,
   curl,
   gnugrep,
+  gnupg,
   gnused,
   git,
   jq,
@@ -81,7 +82,8 @@ stdenvNoCC.mkDerivation {
       --replace-fail '@GNUGREP@' '${gnugrep}' \
       --replace-fail '@PYTHON3@' '${python3}/bin/python3' \
       --replace-fail '@JQ@' '${jq}/bin/jq' \
-      --replace-fail '@SLIRP4NETNS@' '${slirp4netns}/bin/slirp4netns'
+      --replace-fail '@SLIRP4NETNS@' '${slirp4netns}/bin/slirp4netns' \
+      --replace-fail '@GPGCONF@' '${gnupg}/bin/gpgconf'
 
     substituteInPlace $out/lib/detect.sh \
       --replace-fail '@BWRAP@' '${bubblewrap}/bin/bwrap' \

@@ -59,27 +59,39 @@ sanitize_gitconfig() {
   local src_gitconfig="${src_home}/.gitconfig"
   local dst_gitconfig="${dst_home}/.gitconfig"
 
-  if [[ ! -f "$src_gitconfig" ]]; then
-    # No gitconfig to sanitize; create a minimal one
+  # sandbox.sh pins GIT_CONFIG_GLOBAL to this one file, which makes git skip
+  # its normal global lookup chain entirely — including ~/.config/git/config
+  # (XDG). Real-world setups (this one included) keep user.name/user.email
+  # there rather than in ~/.gitconfig, so sanitizing the XDG file into its
+  # own untouched-by-git path silently dropped identity out of the sandbox.
+  # Merge both sanitized sources into the single file GIT_CONFIG_GLOBAL
+  # points to, XDG first then ~/.gitconfig, matching git's real precedence
+  # (XDG config < global ~/.gitconfig, last key wins on conflict).
+  local xdg_config_home="${XDG_CONFIG_HOME:-${src_home}/.config}"
+  local xdg_git_config="${xdg_config_home}/git/config"
+
+  : > "$dst_gitconfig"
+  if [[ -f "$xdg_git_config" ]]; then
+    _sanitize_single_gitconfig "$xdg_git_config" "$dst_gitconfig.xdg"
+    cat "$dst_gitconfig.xdg" >> "$dst_gitconfig" 2>/dev/null
+    rm -f "$dst_gitconfig.xdg"
+  fi
+  if [[ -f "$src_gitconfig" ]]; then
+    _sanitize_single_gitconfig "$src_gitconfig" "$dst_gitconfig.local"
+    cat "$dst_gitconfig.local" >> "$dst_gitconfig" 2>/dev/null
+    rm -f "$dst_gitconfig.local"
+  fi
+
+  # fall back to minimal config if nothing came through.
+  if [[ ! -s "$dst_gitconfig" ]] || ! "$GREP" -q '\S' "$dst_gitconfig" 2>/dev/null; then
     cat > "$dst_gitconfig" <<'GITCFG'
 [core]
 	autocrlf = input
 GITCFG
-  else
-    _sanitize_single_gitconfig "$src_gitconfig" "$dst_gitconfig"
-    # If the result is empty or only whitespace, create a minimal config
-    if [[ ! -s "$dst_gitconfig" ]] || ! "$GREP" -q '\S' "$dst_gitconfig" 2>/dev/null; then
-      cat > "$dst_gitconfig" <<'GITCFG'
-[core]
-	autocrlf = input
-GITCFG
-    fi
   fi
 
-  # Also sanitize XDG git config (~/.config/git/config) — git reads this
-  # in addition to ~/.gitconfig and it can contain the same dangerous directives
-  local xdg_config_home="${XDG_CONFIG_HOME:-${src_home}/.config}"
-  local xdg_git_config="${xdg_config_home}/git/config"
+  # Also drop a sanitized copy at the XDG path for tools that read it
+  # directly rather than through GIT_CONFIG_GLOBAL.
   if [[ -f "$xdg_git_config" ]]; then
     local dst_xdg_dir="${dst_home}/.config/git"
     mkdir -p "$dst_xdg_dir"

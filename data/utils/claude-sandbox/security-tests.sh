@@ -174,13 +174,16 @@ PYEOF
     test_fail "~/.ssh has $ssh_count items — SSH keys may be exposed"
   fi
 
-  # .gnupg is empty
-  local gnupg_count
-  gnupg_count="$(sandbox_output 'ls -A "$HOME/.gnupg" 2>/dev/null | wc -l' | tr -d '[:space:]')"
-  if [[ "$gnupg_count" == "0" ]]; then
-    test_pass "~/.gnupg is empty (masked by tmpfs)"
+  # LOCAL DEVIATION: upstream expects .gnupg fully empty. Local sandbox.sh
+  # additionally ro-binds only pubring.kbx/trustdb.gpg (public keyring +
+  # ownertrust, no secret material) so `git commit -S` works against a
+  # hardware-token-backed key. Assert nothing besides those two files leaked.
+  local gnupg_extra
+  gnupg_extra="$(sandbox_output 'ls -A "$HOME/.gnupg" 2>/dev/null | grep -vE "^(pubring\.kbx|trustdb\.gpg)$" | wc -l' | tr -d '[:space:]')"
+  if [[ "$gnupg_extra" == "0" ]]; then
+    test_pass "~/.gnupg exposes only pubring.kbx/trustdb.gpg (masked by tmpfs otherwise)"
   else
-    test_fail "~/.gnupg has $gnupg_count items — GPG keys may be exposed"
+    test_fail "~/.gnupg has $gnupg_extra unexpected item(s) — GPG secrets may be exposed"
   fi
 
   # .aws is empty
