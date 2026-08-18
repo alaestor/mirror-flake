@@ -78,6 +78,14 @@
     };
     url = "github:nix-community/impermanence";
   };
+  microvm = {
+    inputs = {
+      nixpkgs = {
+        follows = "nixpkgs";
+      };
+    };
+    url = "github:microvm-nix/microvm.nix";
+  };
   nix-on-droid = {
     inputs = {
       home-manager = {
