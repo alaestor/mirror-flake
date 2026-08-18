@@ -152,11 +152,38 @@
           command = lib.getExe contextGuard;
         }
       ];
+      # Case arms handed to `agents.mkSelectorLoop`; `--cc-help`/`--`/catch-all
+      # are the loop's own job, not the harness's — see selector-loop.nix.
+      claudeCaseArms = ''
+            haiku|sonnet|opus) model="$1" ;;
+            lo|low) effort="low" ;;
+            med|medium) effort="medium" ;;
+            hi|high) effort="high" ;;
+            max) effort="max" ;;
+            user|manual) permission_mode="manual" ;;
+            edits|acceptEdits) permission_mode="acceptEdits" ;;
+            auto) permission_mode="auto" ;;
+            plan) permission_mode="plan" ;;
+            bypass) permission_mode="bypassPermissions" ;;
+            memory) headroom_args+=( --memory ) ;;
+            graph|code-graph) headroom_args+=( --code-graph ) ;;
+            1m)
+              headroom_args+=( --1m )
+              context_limit=1000000
+              ;;
+            search|tool-search) headroom_args+=( --tool-search auto ) ;;
+            alltools|all-tools) tools="default" ;;
+            skill|skills) skills=1 ;;
+            full|full-prompt) prompt="full" ;;
+            mini|mini-prompt) prompt="mini" ;;
+            lean|lean-tools) lean_tools=1 ;;
+            verbose|verbose-tools) lean_tools=0 ;;
+      '';
+
       mkClaudeWrapper =
         name: withSerena:
-        pkgs.writeShellApplication {
+        agents.mkHarnessWrappers pkgs {
           inherit name;
-          excludeShellChecks = [ "SC2016" ];
           runtimeInputs = [
             claudePackage
             headroomPackage
@@ -164,7 +191,11 @@
             pkgs.tlrc
           ]
           ++ cliTools;
-          text = ''
+          # `box`/`nobox` are gone: `cc-native` never sandboxes at all, and
+          # running it directly *is* the bypass — see selector-loop.nix and
+          # the handoff on Phase 3's redesign. This is an intentional
+          # behavior change from the pre-split wrapper.
+          nativeText = ''
             ${environmentBlock}
             model=""
             effort=""
@@ -174,10 +205,6 @@
             tools=${lib.escapeShellArg (lib.concatStringsSep "," defaultTools)}
             skills=0
             context_limit=200000
-            sandbox=1
-            sandbox_writable=(
-              ${lib.concatMapStringsSep "\n              " (root: ''"${root}"'') sandboxWritableRoots}
-            )
             headroom_args=(
               --code-memory ${if withSerena then "serena" else "none"}
               --tool-search true
@@ -185,52 +212,19 @@
             )
             claude_args=()
 
-            while (( $# )); do
-              case "$1" in
-                haiku|sonnet|opus) model="$1" ;;
-                lo|low) effort="low" ;;
-                med|medium) effort="medium" ;;
-                hi|high) effort="high" ;;
-                max) effort="max" ;;
-                user|manual) permission_mode="manual" ;;
-                edits|acceptEdits) permission_mode="acceptEdits" ;;
-                auto) permission_mode="auto" ;;
-                plan) permission_mode="plan" ;;
-                bypass) permission_mode="bypassPermissions" ;;
-                memory) headroom_args+=( --memory ) ;;
-                graph|code-graph) headroom_args+=( --code-graph ) ;;
-                1m)
-                  headroom_args+=( --1m )
-                  context_limit=1000000
-                  ;;
-                search|tool-search) headroom_args+=( --tool-search auto ) ;;
-                alltools|all-tools) tools="default" ;;
-                skill|skills) skills=1 ;;
-                full|full-prompt) prompt="full" ;;
-                mini|mini-prompt) prompt="mini" ;;
-                lean|lean-tools) lean_tools=1 ;;
-                verbose|verbose-tools) lean_tools=0 ;;
-                box|sandbox) sandbox=1 ;;
-                nobox|no-sandbox|host) sandbox=0 ;;
-                --cc-help)
-                  echo "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [nobox] [--] [claude arguments...]"
-                  echo "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
-                  echo "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
-                  echo "the bubblewrap sandbox is on by default; nobox runs on the host instead"
-                  echo "sandboxed sessions may only write ${lib.concatStringsSep " and " sandboxWritableRoots}"
-                  echo "skills adds the Skill tool and its catalogue; /<skill-name> works without it"
-                  echo "selectors are recognized in any order before --; later selectors replace earlier ones"
-                  exit 0
-                  ;;
-                --)
-                  shift
-                  claude_args+=( "$@" )
-                  break
-                  ;;
-                *) claude_args+=( "$1" ) ;;
-              esac
-              shift
-            done
+            ${agents.mkSelectorLoop {
+              caseArms = claudeCaseArms;
+              helpFlag = "--cc-help";
+              helpLines = [
+                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [--] [claude arguments...]"
+                "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
+                "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
+                "${name} sandboxes sessions with bubblewrap by default; run ${name}-native directly to bypass it entirely"
+                "sandboxed sessions may only write ${lib.concatStringsSep " and " sandboxWritableRoots}"
+                "skills adds the Skill tool and its catalogue; /<skill-name> works without it"
+              ];
+              argsVar = "claude_args";
+            }}
 
             [[ -z "$model" ]] || claude_args+=( --model "$model" )
             [[ -z "$effort" ]] || claude_args+=( --effort "$effort" )
@@ -275,50 +269,67 @@
               "''${headroom_args[@]}" -- "''${claude_args[@]}"
             )
 
-            if (( sandbox )); then
-              # Every writable root is bound in full, so a session can reach
-              # sibling trees it needs; the project directory stays the working
-              # directory so the model opens where the caller stands. Both must
-              # agree: a working directory outside the roots would otherwise be
-              # bound read-write as the project and defeat the restriction.
-              cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
-              project=""
-              sandbox_args=()
-
-              for root in "''${sandbox_writable[@]}"; do
-                [[ -d "$root" ]] || continue
-                root="$(${pkgs.coreutils}/bin/realpath "$root")"
-                sandbox_args+=( --extra-bind "$root" )
-                if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
-                  project="$cwd"
-                fi
-              done
-
-              if [[ -z "$project" ]]; then
-                echo "${name}: refusing to sandbox $cwd — it is outside every writable root:" >&2
-                printf '  %s\n' "''${sandbox_writable[@]}" >&2
-                echo "cd into one of them, or pass 'nobox' to run on the host instead." >&2
-                exit 1
-              fi
-
-              export CLAUDE_SANDBOX_EXTRA_PATH=${lib.escapeShellArg sandboxToolPath}
-              exec ${lib.getExe sandboxPackage} \
-                "''${sandbox_args[@]}" \
-                "$project" -- \
-                ${pkgs.coreutils}/bin/env \
-                  CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT="$lean_tools" \
-                  CC_CONTEXT_LIMIT="$context_limit" \
-                  "''${session[@]}"
-            fi
-
             exec "''${session[@]}"
           '';
+
+          # `cc`/`ccs` sandbox `cc-native`/`ccs-native` unconditionally —
+          # there is no runtime opt-out selector any more; running the
+          # `-native` package directly is the only bypass. `--cc-help` is
+          # special-cased ahead of the sandbox check so it works from any
+          # directory, matching the pre-split wrapper's behavior (it used to
+          # exit before ever reaching the sandbox's cwd restriction).
+          sandbox = native: ''
+            case "''${1:-}" in
+              --cc-help)
+                exec ${lib.getExe native} "$@"
+                ;;
+            esac
+
+            # Every writable root is bound in full, so a session can reach
+            # sibling trees it needs; the project directory stays the working
+            # directory so the model opens where the caller stands. Both must
+            # agree: a working directory outside the roots would otherwise be
+            # bound read-write as the project and defeat the restriction.
+            cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
+            project=""
+            sandbox_args=()
+            sandbox_writable=(
+              ${lib.concatMapStringsSep "\n              " (root: ''"${root}"'') sandboxWritableRoots}
+            )
+
+            for root in "''${sandbox_writable[@]}"; do
+              [[ -d "$root" ]] || continue
+              root="$(${pkgs.coreutils}/bin/realpath "$root")"
+              sandbox_args+=( --extra-bind "$root" )
+              if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
+                project="$cwd"
+              fi
+            done
+
+            if [[ -z "$project" ]]; then
+              echo "${name}: refusing to sandbox $cwd — it is outside every writable root:" >&2
+              printf '  %s\n' "''${sandbox_writable[@]}" >&2
+              echo "cd into one of them, or run ${name}-native to bypass the sandbox instead." >&2
+              exit 1
+            fi
+
+            export CLAUDE_SANDBOX_EXTRA_PATH=${lib.escapeShellArg sandboxToolPath}
+            exec ${lib.getExe sandboxPackage} \
+              "''${sandbox_args[@]}" \
+              "$project" -- \
+              ${lib.getExe native} "$@"
+          '';
         };
+
+      ccWrappers = mkClaudeWrapper "cc" false;
+      ccsWrappers = mkClaudeWrapper "ccs" true;
     in
     {
       home.packages = [
-        (mkClaudeWrapper "cc" false)
-        (mkClaudeWrapper "ccs" true)
+        ccWrappers.native
+        ccWrappers.wrapped
+        ccsWrappers.native
+        ccsWrappers.wrapped
       ];
 
       agents.promptPreview.claude.plain = resolvedPrompt;

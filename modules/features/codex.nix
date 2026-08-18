@@ -125,45 +125,47 @@
           codex_args+=( -c ${lib.escapeShellArg value} )
         '') values;
 
+      # Case arms handed to `agents.mkSelectorLoop`; `--cx-help`/`--`/catch-all
+      # are the loop's own job, not the harness's — see selector-loop.nix.
+      codexCaseArms = ''
+            luna) model="gpt-5.6-luna" ;;
+            terra) model="gpt-5.6-terra" ;;
+            sol) model="gpt-5.6-sol" ;;
+            lo|low) effort="low" ;;
+            med|medium) effort="medium" ;;
+            hi|high) effort="high" ;;
+            xhi|xhigh) effort="xhigh" ;;
+            full) instruction_file=${lib.escapeShellArg (toString instructionFiles.full)} ;;
+            small) instruction_file=${lib.escapeShellArg (toString instructionFiles.small)} ;;
+            user) reviewer="user" ;;
+            auto) reviewer="auto_review" ;;
+      '';
+
       mkCodexWrapper =
         name: withSerena:
-        pkgs.writeShellApplication {
+        # Codex has no sandbox today, so `wrapped` is a plain alias that
+        # execs `<name>-native`; `sandbox` stays unset (`null`) rather than
+        # inventing an isolation step that doesn't exist yet — a later phase
+        # may give it one, at which point this gains a `sandbox` function
+        # the same way `claude-code.nix` has one.
+        agents.mkHarnessWrappers pkgs {
           inherit name;
           runtimeInputs = cliBase ++ cliTools ++ [ pkgs.systemd ];
-          text = ''
+          nativeText = ''
             model=""
             effort=""
             instruction_file=${lib.escapeShellArg (if cfg.modelInstructionsFile == null then "" else toString cfg.modelInstructionsFile)}
             reviewer=""
             passthrough=()
 
-            while (( $# > 0 )); do
-              case "$1" in
-                luna) model="gpt-5.6-luna" ;;
-                terra) model="gpt-5.6-terra" ;;
-                sol) model="gpt-5.6-sol" ;;
-                lo|low) effort="low" ;;
-                med|medium) effort="medium" ;;
-                hi|high) effort="high" ;;
-                xhi|xhigh) effort="xhigh" ;;
-                full) instruction_file=${lib.escapeShellArg (toString instructionFiles.full)} ;;
-                small) instruction_file=${lib.escapeShellArg (toString instructionFiles.small)} ;;
-                user) reviewer="user" ;;
-                auto) reviewer="auto_review" ;;
-                --cx-help)
-                  echo "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small] [user|auto] [--] [codex arguments...]"
-                  echo "selectors are recognized in any order before --; later selectors replace earlier ones"
-                  exit 0
-                  ;;
-                --)
-                  shift
-                  passthrough+=( "$@" )
-                  break
-                  ;;
-                *) passthrough+=( "$1" ) ;;
-              esac
-              shift
-            done
+            ${agents.mkSelectorLoop {
+              caseArms = codexCaseArms;
+              helpFlag = "--cx-help";
+              helpLines = [
+                "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small] [user|auto] [--] [codex arguments...]"
+              ];
+              argsVar = "passthrough";
+            }}
 
             if ! systemctl --user --quiet is-active headroom-proxy.service; then
               systemctl --user start headroom-proxy.service
@@ -229,10 +231,17 @@
       config = {
         services.headroom-proxy.enable = lib.mkDefault true;
 
-        home.packages = [
-          (mkCodexWrapper "cx" false)
-          (mkCodexWrapper "cxs" true)
-        ];
+        home.packages =
+          let
+            cxWrappers = mkCodexWrapper "cx" false;
+            cxsWrappers = mkCodexWrapper "cxs" true;
+          in
+          [
+            cxWrappers.native
+            cxWrappers.wrapped
+            cxsWrappers.native
+            cxsWrappers.wrapped
+          ];
         home.file.".serena-cxs/serena_config.yml" = {
           force = true;
           source = serenaConfig;
