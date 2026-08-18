@@ -8,6 +8,7 @@
       ...
     }:
     let
+      agents = self.lib.agents;
       cfg = config.codex;
       proxy = config.services.headroom-proxy;
       codexPackage = config.programs.codex.package;
@@ -23,73 +24,18 @@
         tlrc
       ];
 
-      cliTools = with pkgs; [
-        ripgrep
-        jq
-        yq-go
-        fd
-        fzf
-        sd
-        eza
-        grex
-        difftastic
-        xh
-        doggo
-        bat
-        tree
-        taplo
-        pandoc
-        shellcheck
-        hyperfine
-        tokei
-        procs
-        dust
-      ];
+      cliTools = agents.tools pkgs;
 
-      cliToolsList = lib.concatMapStringsSep "\n" (tool: "- `${builtins.baseNameOf (lib.getExe tool)}`") cliTools;
-
-      preprompt = ''
-        # Shell
-
-        Your environment is equipped with the following tools:
-
-        ${cliToolsList}
-
-        Run `tldr <program>` to see usage examples.
-
-        ## RTK Rules
-
-        Rust Token Killer reduces CLI context usage. It's always safe to use: if rtk has no filter for a command, it passes through unchanged.
-
-        - Always prefix shell commands with rtk, except exact-content reads used to prepare an edit or verify a patch. Those reads must use the raw command to preserve punctuation and whitespace.
-        - In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
-        - For debugging, use the raw command without an rtk prefix
-        - `rtk proxy <cmd>` runs a command without filtering but tracks usage
-      '';
+      # Codex previously ran its own, slightly drifted RTK prose and lacked
+      # the headroom-shaping paragraph entirely; both now come from the
+      # shared fragments verbatim (claude-code.nix's wording), which is the
+      # one intentional behaviour change in this move — see the implementation
+      # guide, Phase 1.
+      preprompt = agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
 
       serena = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
 
-      serenaInstructions = ''
-        # Serena — Symbol-First Code Navigation
-
-        Serena's MCP tools expose the project's code symbol graph backed by a
-        language server. Prefer these tools over reading whole files: return only
-        the code you need, cutting context usage sharply. Read a file end-to-end
-        only when the symbol view is insufficient (non-code files, or when you
-        need surrounding glue).
-
-        ## Preferred workflow
-
-        - `get_symbols_overview(<file>)` — list a file's top-level symbols before opening it.
-        - `find_symbol(<name>)` — fetch a symbol's definition/body instead of reading the file.
-        - `find_referencing_symbols(<name>)` — find call sites/usages instead of grepping.
-        - `find_declaration(<name>)` — jump to where a symbol is defined.
-
-        ## Rule
-
-        Reach for a symbol tool first; fall back to reading the whole file only when
-        the symbol view does not answer the question.
-      '';
+      serenaInstructions = agents.fragments.serena;
       bashLanguageServerWithShellcheck = pkgs.writeShellApplication {
         name = "bash-language-server-with-shellcheck";
         runtimeInputs = [ pkgs.nodejs ];
@@ -241,27 +187,6 @@
       ) [ "model_instructions_file" ];
       defaultSettings = lib.mapAttrsRecursive (_: lib.mkDefault) referenceSettings;
       skillsRoot = self.data.path "agents/skills";
-      collectSkills =
-        relativeDirectory:
-        let
-          directory = "${skillsRoot}${lib.optionalString (relativeDirectory != "") "/${relativeDirectory}"}";
-        in
-        lib.concatMapAttrs (
-          entryName: entryType:
-          let
-            relativePath =
-              if relativeDirectory == "" then entryName else "${relativeDirectory}/${entryName}";
-            entryPath = "${skillsRoot}/${relativePath}";
-          in
-          if entryType != "directory" then
-            { }
-          else if builtins.pathExists "${entryPath}/SKILL.md" then
-            {
-              ${builtins.replaceStrings [ "/" ] [ "-" ] relativePath} = entryPath;
-            }
-          else
-            collectSkills relativePath
-        ) (builtins.readDir directory);
     in
     {
       imports = [ inputs.self.modules.homeManager.headroom ];
@@ -290,9 +215,9 @@
 
         programs.codex = {
           enable = lib.mkDefault true;
-          context = self.data.read "agents/AGENTS.md";
+          context = agents.context;
           rules.default = self.data.path "programs/codex/default.rules";
-          skills = collectSkills "";
+          skills = agents.collectSkills skillsRoot;
           settings = lib.mkMerge [
             defaultSettings
             (lib.optionalAttrs (cfg.modelInstructionsFile != null) {

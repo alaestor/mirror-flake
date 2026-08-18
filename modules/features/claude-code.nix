@@ -9,62 +9,13 @@
       ...
     }:
     let
+      agents = self.lib.agents;
       claudePackage = config.programs.claude-code.finalPackage;
       headroomPackage = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.headroom;
-      cliTools = with pkgs; [
-        ripgrep
-        jq
-        yq-go
-        fd
-        fzf
-        sd
-        eza
-        grex
-        difftastic
-        xh
-        doggo
-        bat
-        tree
-        taplo
-        pandoc
-        shellcheck
-        hyperfine
-        tokei
-        procs
-        dust
-      ];
-      cliToolsList = lib.concatMapStringsSep "\n" (
-        tool: "- `${builtins.baseNameOf (lib.getExe tool)}`"
-      ) cliTools;
-      shellInstructions = ''
-        # Shell
+      cliTools = agents.tools pkgs;
+      shellInstructions = agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
 
-        Your shell environment is equipped with the following tools:
-
-        ${cliToolsList}
-
-        Run `tldr <program>` to see usage examples.
-
-        ## Headroom shaping
-
-        Multi-line Bash output (e.g. `cat` or `git status --porcelain`) may render condensed, indistinguishable from truncated or wrapped output. Don't re-run the command hoping for improved visibility: if a compression marker prefer `headroom_retrieve` with the hash if a compression marker is visible, otherwise you can do a precise read using a raw `nl -ba <file>`
-
-        You don't need to audit every edit you make unless you have reason to suspect it may have silently failed (e.g. a plausibly indistinct edit in large file, or working with complicated syntax/whitespace).
-
-        ## RTK Rules
-
-        Rust Token Killer reduces CLI context usage in a similar way. It's always safe to use: if rtk has no filter for a command, it passes through unchanged.
-
-        - Always prefix shell commands with rtk, except exact-content reads used to prepare an edit, verify a patch, or when debugging. Those reads must use the raw command to preserve punctuation and whitespace.
-        - In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
-        - `rtk proxy <cmd>` runs a command without filtering but tracks usage
-      '';
-
-      memoryInstructions = ''
-        # Memory
-
-        Per-project memory index is `.../projects/<project>/memory/MEMORY.md`, along-side the memory files it indexes; its links are relative to that directory.
-      '';
+      memoryInstructions = agents.fragments.memory;
 
       # `--system-prompt-file` replaces the preamble wholesale: verified against
       # a capture proxy, it swaps exactly the third `system` block (~9.2k chars)
@@ -129,24 +80,6 @@
       );
 
       skillsRoot = self.data.path "agents/skills";
-      collectSkills =
-        relativeDirectory:
-        let
-          directory = "${skillsRoot}${lib.optionalString (relativeDirectory != "") "/${relativeDirectory}"}";
-        in
-        lib.concatMapAttrs (
-          entryName: entryType:
-          let
-            relativePath = if relativeDirectory == "" then entryName else "${relativeDirectory}/${entryName}";
-            entryPath = "${skillsRoot}/${relativePath}";
-          in
-          if entryType != "directory" then
-            { }
-          else if builtins.pathExists "${entryPath}/SKILL.md" then
-            { ${builtins.replaceStrings [ "/" ] [ "-" ] relativePath} = entryPath; }
-          else
-            collectSkills relativePath
-        ) (builtins.readDir directory);
       # The tool catalogue rivals the preamble in size. `--tools` replaces it
       # with a chosen subset, and the skill catalogue only loads alongside the
       # `Skill` tool, so an entry dropped here takes its documentation with it.
@@ -368,8 +301,8 @@
 
       programs.claude-code = {
         enable = lib.mkDefault true;
-        context = self.data.read "agents/AGENTS.md";
-        skills = collectSkills "";
+        context = agents.context;
+        skills = agents.collectSkills skillsRoot;
         settings = {
           includeCoAuthoredBy = lib.mkDefault false;
           skipDangerousModePermissionPrompt = lib.mkDefault true;
