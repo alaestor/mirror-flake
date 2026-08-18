@@ -103,6 +103,7 @@
         claude-code
         codex
         zed
+        agents-prompt-preview
       ];
 
       home.packages = [

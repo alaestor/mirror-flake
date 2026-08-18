@@ -19,6 +19,13 @@
   - `collectSkills` — recursively scans a skills root for `SKILL.md`
     directories, keyed by their path with `/` flattened to `-`.
   - `context` — the shared `AGENTS.md` context text.
+  - `mkPrompt` — resolves a `(harness, model, variant)` prompt into the three
+    depths a harness can inject at (`system`, `preamble`, `context`), from a
+    layered `common -> byHarness -> byVariant -> byModel` declaration. See
+    its doc comment below for the layer shape. `system` is a `path` (or
+    `null`); `preamble` and `context` are single strings — never a list of
+    flags — because `--append-system-prompt`-style options do not
+    accumulate across repeated invocations.
 */
 { lib, self, ... }:
 let
@@ -141,6 +148,81 @@ let
     go "";
 
   context = self.data.read "agents/AGENTS.md";
+
+  # Resolves the text/path a harness injects at each of its three depths
+  # (`system`, `preamble`, `context`) for one `(harness, model, variant)`
+  # combination. `layers` is:
+  #
+  #   {
+  #     common    = <ops>;                 # applies to every combination
+  #     byHarness.<name>  = <ops>;         # applies when harness == <name>
+  #     byVariant.<name>  = <ops>;         # applies when variant == <name>
+  #     byModel.<name>    = <ops>;         # applies when model == <name>
+  #   }
+  #
+  # `<ops>` is an attrset keyed by depth. For `system` the value is either a
+  # `path` (replaces) or `{ replace = path; }`; later layers win. For
+  # `preamble` / `context` the value is `{ add = [ ... ]; }`,
+  # `{ drop = [ ... ]; }` (removes matching items already accumulated), or
+  # `{ replace = [ ... ]; }` (discards everything accumulated so far); `add`
+  # is shorthand for a plain list. Layers apply in order, later wins for
+  # `system`; for `preamble`/`context` the accumulated list is joined with
+  # `"\n\n"` at the end — never handed back as a list of flags.
+  mkPrompt =
+    {
+      pkgs ? null,
+      harness,
+      model,
+      variant,
+      layers,
+    }:
+    let
+      ops = [
+        (layers.common or { })
+        (layers.byHarness.${harness} or { })
+        (layers.byVariant.${variant} or { })
+        (layers.byModel.${model} or { })
+      ];
+
+      resolveSystem = lib.foldl' (
+        acc: op:
+        if !(op ? system) then
+          acc
+        else if op.system == null then
+          null
+        else if (builtins.isAttrs op.system) && (op.system ? replace) then
+          op.system.replace
+        else
+          op.system
+      ) null ops;
+
+      resolveText =
+        depth:
+        lib.foldl' (
+          acc: op:
+          let
+            dop = op.${depth} or null;
+          in
+          if dop == null then
+            acc
+          else if builtins.isList dop then
+            acc ++ dop
+          else if dop ? replace then
+            dop.replace
+          else
+            let
+              added = dop.add or [ ];
+              dropped = dop.drop or [ ];
+              kept = lib.filter (item: !(builtins.elem item dropped)) acc;
+            in
+            kept ++ added
+        ) [ ] ops;
+    in
+    {
+      system = resolveSystem;
+      preamble = lib.concatStringsSep "\n\n" (resolveText "preamble");
+      context = lib.concatStringsSep "\n\n" (resolveText "context");
+    };
 in
 {
   flake.lib.agents = {
@@ -150,6 +232,7 @@ in
       fragments
       collectSkills
       context
+      mkPrompt
       ;
   };
 }

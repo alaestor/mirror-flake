@@ -24,6 +24,28 @@
       # The prompt contains dynamic environment data we inject via our wrapper
       miniPrompt = self.data.path "programs/claude/claude-instructions-mini.md";
 
+      # Nothing here varies by model or variant today (`withSerena` only
+      # changes headroom_args, not prompt text) — `byVariant`/`byModel` stay
+      # empty. Kept as layers anyway so a future addition has somewhere to go
+      # without restructuring; see `flake.lib.agents.mkPrompt`.
+      promptLayers = {
+        common = {
+          system = miniPrompt;
+          preamble.add = [
+            shellInstructions
+            memoryInstructions
+          ];
+          context.replace = [ agents.context ];
+        };
+      };
+      resolvedPrompt = agents.mkPrompt {
+        inherit pkgs;
+        harness = "claude";
+        model = "default";
+        variant = "plain";
+        layers = promptLayers;
+      };
+
       # Claude Code derives the memory directory from the project root, slugged
       # by replacing `/` and `.` with `-`; `/mnt/Vault/.dotfiles/flake` becomes
       # `-mnt-Vault--dotfiles-flake`. Reproduced here because the mini prompt
@@ -223,9 +245,9 @@
             # `--append-system-prompt` does not accumulate across repeated
             # flags — only the last one takes effect — so every appended
             # block has to be concatenated into a single call.
-            append_prompt=${lib.escapeShellArg (shellInstructions + "\n\n" + memoryInstructions)}
+            append_prompt=${lib.escapeShellArg resolvedPrompt.preamble}
             if [[ "$prompt" != "full" ]]; then
-              claude_args+=( --system-prompt-file ${lib.escapeShellArg (toString miniPrompt)} )
+              claude_args+=( --system-prompt-file ${lib.escapeShellArg (toString resolvedPrompt.system)} )
               append_prompt="$(cc_environment_block)"$'\n\n'"$append_prompt"
             fi
             claude_args+=( --append-system-prompt "$append_prompt" )
@@ -299,9 +321,11 @@
         (mkClaudeWrapper "ccs" true)
       ];
 
+      agents.promptPreview.claude.plain = resolvedPrompt;
+
       programs.claude-code = {
         enable = lib.mkDefault true;
-        context = agents.context;
+        context = resolvedPrompt.context;
         skills = agents.collectSkills skillsRoot;
         settings = {
           includeCoAuthoredBy = lib.mkDefault false;

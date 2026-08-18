@@ -36,6 +36,31 @@
       serena = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
 
       serenaInstructions = agents.fragments.serena;
+
+      # `variant` is "plain" or "serena", matching `withSerena` in
+      # `mkCodexWrapper` below. Codex has no `system` depth of its own here —
+      # `model_instructions_file` is a separate runtime selector
+      # (full/small/`cfg.modelInstructionsFile`), not part of this layer set.
+      promptLayers = {
+        common = {
+          preamble.add = [ preprompt ];
+          context.replace = [ agents.context ];
+        };
+        byVariant.serena.preamble.add = [ serenaInstructions ];
+      };
+      mkResolvedPrompt =
+        variant:
+        agents.mkPrompt {
+          inherit pkgs;
+          harness = "codex";
+          model = "default";
+          inherit variant;
+          layers = promptLayers;
+        };
+      resolvedPrompts = {
+        plain = mkResolvedPrompt "plain";
+        serena = mkResolvedPrompt "serena";
+      };
       bashLanguageServerWithShellcheck = pkgs.writeShellApplication {
         name = "bash-language-server-with-shellcheck";
         runtimeInputs = [ pkgs.nodejs ];
@@ -76,12 +101,12 @@
       proxyUrl = "http://${proxy.address}:${toString proxy.port}/v1";
       baseOverrides = [
         "openai_base_url=${builtins.toJSON proxyUrl}"
-        "developer_instructions=${builtins.toJSON preprompt}"
+        "developer_instructions=${builtins.toJSON resolvedPrompts.plain.preamble}"
         "mcp_servers.headroom.command=${builtins.toJSON (lib.getExe headroomPackage)}"
         "mcp_servers.headroom.args=${builtins.toJSON [ "mcp" "serve" ]}"
       ];
       serenaOverrides = [
-        "developer_instructions=${builtins.toJSON (preprompt + "\n\n" + serenaInstructions)}"
+        "developer_instructions=${builtins.toJSON resolvedPrompts.serena.preamble}"
         "mcp_servers.serena.startup_timeout_sec=15"
         "mcp_servers.serena.command=${builtins.toJSON (lib.getExe serena)}"
         "mcp_servers.serena.env.SERENA_HOME=${builtins.toJSON serenaHome}"
@@ -213,9 +238,11 @@
           source = serenaConfig;
         };
 
+        agents.promptPreview.codex = resolvedPrompts;
+
         programs.codex = {
           enable = lib.mkDefault true;
-          context = agents.context;
+          context = resolvedPrompts.plain.context;
           rules.default = self.data.path "programs/codex/default.rules";
           skills = agents.collectSkills skillsRoot;
           settings = lib.mkMerge [
