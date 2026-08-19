@@ -31,7 +31,7 @@ remain relative. This keeps moving a component from changing its dependencies.
 | `modules/app-config/` | Experimental package-coupled application configuration exported as wrapper modules. |
 | `modules/preferences/` | Settings and identities that follow a person across hosts. |
 | `modules/inputs/` | Flake inputs and their integration modules. |
-| `modules/utils/` | Shared flake library and maintenance apps. |
+| `modules/utils/` | Shared flake library, mechanism modules, and maintenance apps. |
 | `data/` | Non-module state consumed by Nix: JSON, scripts, text, and value-only Nix files. |
 | `docs/` | Durable onboarding material for architecture, contracts, and contributor expectations. |
 | `docs/research/` | Exploratory notes that may discuss alternatives or volatile implementation state. |

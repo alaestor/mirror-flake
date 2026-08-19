@@ -15,10 +15,18 @@ concrete host consumes them.
 |---|---|
 | Program | One Home Manager program and its reusable, refinable defaults. Importing it enables that program. |
 | App config | A package-coupled configuration exported as a wrapper module, consumed by a thin program adapter. It owns configuration that must travel with the package rather than with a user's Home Manager state. |
+| Mechanism | Shared infrastructure other modules build on, exported from `modules/utils/` as a flake library and, where a module is its delivery vehicle, as a reusable module. It is not a capability a host would name. |
 | Feature | A coherent capability with neutral typed options. It may export NixOS and Home Manager implementations separately. |
 | Aspect | A high-level, composable bundle of features that wires their interoperability or shared policy for a use case. |
 | Serve | A network-hosted feature with an explicit disabled-by-default enable option. |
 | Domain | A high-level ingress aspect for a public domain. It imports a curated serve set, but opens routes and ports only for explicitly enabled services. |
+
+A mechanism is distinguished from a feature by who wants it. A feature is a
+capability a host chooses; a mechanism exists to serve other modules, and a host
+gains it as a consequence of choosing something else. Isolation and sandboxing
+machinery are the usual examples. Keep a mechanism in `modules/utils/` until
+there is host-facing policy worth naming, and promote it to a feature then, not
+in anticipation.
 
 An aspect is the repository term for high-level reusable composition. Do not use
 “profile” or “featureset” for that meaning; retain “profile” only when it is an
@@ -76,6 +84,22 @@ lifecycle. Do not eliminate duplication with unstructured imports.
 Move repeated concrete values to fleet only when every consumer intentionally
 shares one fact and one owner. Similar-looking machine facts with independent
 ownership remain host-local.
+
+## Shared instances
+
+When several modules need one instance of a mechanism rather than one each,
+exactly one module owns that instance. The others contribute to it through
+typed options that merge cleanly, and may raise its enable only as a default so
+a host can still decline it. Two modules declaring the instance is a defect even
+when it evaluates: it is either an outright conflict or an accidental merge, and
+anything that counts or coordinates over the instance becomes meaningless.
+
+Contributions are limited to what merges and what the contributor legitimately
+knows. A module contributes the facts that are its own — the paths it needs, the
+state it keeps. Identity and platform parameters belong to the owner as defaults
+and to the host as policy; a contributor holding an opinion about them is a
+conflict rather than a merge, and it is not a contributor's concern in the first
+place.
 
 ## Composition boundaries
 
