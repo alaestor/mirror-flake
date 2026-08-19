@@ -11,6 +11,8 @@ in
 {
   age.identityPaths = [ config.ssh-host.hostKeyPath ];
 
+  agent-vm.enable = true;
+
   crypto-yubikey.administrativeStubs.enable = true;
 
   serve.nix-cache.enable = true;
@@ -46,7 +48,14 @@ in
       "nix-command"
       "flakes"
     ];
-    allowed-users = [ "@wheel" ];
+    allowed-users = [
+      "@wheel"
+      # The agent VM's nix daemon channel connects as this account. It is
+      # allowed to talk to the daemon and deliberately not trusted by it, so
+      # the guest can build and add store paths but cannot tell the daemon to
+      # trust content from anywhere else. See modules/mechanisms/agents/.
+      config.agent-vm.nixProxyUser
+    ];
   };
 
   nas = {

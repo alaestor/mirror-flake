@@ -1,10 +1,10 @@
 /**
   # flake.lib.agents.mkAgentVm
 
-  Phase 4 of `__reference/microvm/implementation-guide.md`: the VM
+  Phases 4 and 5 of `__reference/microvm/implementation-guide.md`: the VM
   layer. Must never mention `~/.claude`, headroom, or a model name — that's
   the harness layer's job (`libagents.nix`, `selector-loop.nix`). This layer
-  only knows about shares, networking, and the guest's own NixOS
+  only knows about shares, networking, channels, and the guest's own NixOS
   configuration; it must never be handed a harness's prompt text or tool
   list.
 
@@ -14,22 +14,60 @@
   entry — the caller decides how to instantiate it, matching how every other
   module in this flake stays a value rather than wiring itself in).
 
-  **Implemented this phase** (see the guide's Phase 4 acceptance criteria):
-  store share (read-only virtiofs + a tmpfs-backed writable overlay, so the
-  guide's "known failure mode" — overlayfs upper dir on virtiofs/9p — never
-  applies here, since the overlay's upper directory lives on the guest's own
-  root instead of a share), one virtiofs share per `projectRoots` entry
-  mounted at the **identical host path**, SSH reachable via a forwarded port
-  over QEMU user networking, and a guest user whose **name and home path**
-  match `hostUser`.
+  **Shares and identity (Phase 4).** Store share (read-only virtiofs + a
+  tmpfs-backed writable overlay, so the guide's "known failure mode" —
+  overlayfs upper dir on virtiofs/9p — never applies here, since the
+  overlay's upper directory lives on the guest's own root instead of a
+  share), one virtiofs share per `projectRoots` entry mounted at the
+  **identical host path**, SSH reachable via a forwarded port over QEMU user
+  networking, and a guest user whose **name and home path** match `hostUser`.
+
+  **Channels (Phase 5).** `channels` is the seam the harness layer eventually
+  declares through: it says *what capability the guest needs*, and this
+  function decides that the capability is a vsock proxy. Each channel is a
+  unix socket in the guest, socket-activated per connection, forwarded to a
+  listener on the host (`vm-host.nix`); the constants both ends share live in
+  `vm-channels.nix`.
+
+  ```nix
+  channels = {
+    nixDaemon.enable = true;
+    gpgAgent = {
+      enable = true;
+      certificates = [ "<armored public key>" ];
+      ultimatelyTrusted = [ "<fingerprint>" ];
+    };
+  };
+  ```
+
+  - `nixDaemon` replaces the guest's own `nix-daemon` with a proxy onto the
+    **host's** daemon, so a build in the guest lands in the host store and is
+    already there when the guest is gone. The guest's local daemon is
+    disabled outright rather than left running on another path: two daemons
+    over one store is how you corrupt a database, and a fallback that
+    silently builds locally would hide a broken channel behind a slow build.
+    `NIX_REMOTE=daemon` is set explicitly because nix's own heuristic
+    ("is the store writable?") sees a read-only `/nix/store` share and a
+    writable overlay and is not worth trusting to guess right.
+  - `gpgAgent` forwards the **restricted** agent socket. The guest gets the
+    public keyring built from the certificates passed in — never copied out
+    of anyone's `$HOME` — so `git commit -S` finds the key, while the private
+    key stays on the host's smartcard and every signature needs whatever the
+    host's agent asks for (a touch, a PIN). `certificates` and
+    `ultimatelyTrusted` are parameters rather than a reach into
+    `self.data.identities` so this layer keeps knowing nothing about who its
+    caller is; the host module supplies the defaults.
+
+  Enabling any channel sets `microvm.vsock.cid` (derived from `name`, so it
+  is stable and unique without a registry), which makes QEMU want
+  `/dev/vhost-vsock` — see `vm-host.nix` for the host-side permissions that
+  need.
 
   **Deliberately unimplemented** (accepted as parameters so later phases
   don't need to change this function's shape, but not wired to anything
-  yet): `stateDirs`, `channels`, `lifecycle` — these are Phases 5/6's job
-  (vsock channels for the nix daemon and gpg-agent, state directory
-  persistence, VM lifecycle management). Don't guess ahead of those phases;
-  see the handoff on Phase 3 for why speculative fields were avoided there
-  too.
+  yet): `stateDirs` and `lifecycle` — Phases 6 and 7. Don't guess ahead of
+  those phases; see the handoff on Phase 3 for why speculative fields were
+  avoided there too.
 
   `uid`, if given, is the host user's numeric uid. The default virtiofs
   `securityModel = "none"` preserves numeric ownership as-is rather than
@@ -40,7 +78,12 @@
   guarantee — acceptable for this phase's "any VM boots, path identity
   holds" bar.
 */
-{ inputs, self, ... }:
+{
+  inputs,
+  self,
+  lib,
+  ...
+}:
 let
   # A guest-unique QEMU MAC, stable per VM name so re-evaluation doesn't
   # reassign it. Locally administered (the `02` prefix), not globally unique
@@ -72,6 +115,149 @@ let
     else
       builtins.substring 0 36 "fs-${builtins.hashString "sha256" root}";
 
+  inherit (self.lib.agents.vmChannels) hostCid ports cidFor;
+
+  # One socket-activated proxy per connection: systemd owns the listening
+  # socket, accepts, and hands the connection to socat on stdin/stdout, which
+  # dials the host. `Accept = true` (one instance per connection) rather than
+  # a single long-lived proxy because both protocols multiplex nothing — a
+  # shared proxy would need to demultiplex streams itself, and a crash would
+  # take every session with it.
+  proxyService = pkgs: description: target: {
+    inherit description;
+    serviceConfig = {
+      ExecStart = "${lib.getExe pkgs.socat} - ${target}";
+      StandardInput = "socket";
+      StandardOutput = "socket";
+      # A proxy that keeps failing is a channel that is down; it should be
+      # visible in `systemctl` rather than restarting behind the user's
+      # back. The socket unit stays up regardless, so the next connection
+      # still gets a fresh attempt.
+      Restart = "no";
+    };
+  };
+
+  # The guest's own nix-daemon is switched off and its socket path taken over
+  # by the proxy, so every nix client in the guest — including ones that
+  # hardcode the path — reaches the host daemon. Mode 0666 matches what
+  # NixOS's own nix-daemon.socket uses: access control is the host daemon's
+  # job (it decides what an untrusted user may ask for), not this socket's.
+  nixDaemonGuest =
+    { pkgs, ... }:
+    {
+      systemd.sockets.nix-daemon.enable = false;
+      systemd.services.nix-daemon.enable = false;
+
+      environment.variables.NIX_REMOTE = "daemon";
+
+      # The channel exists so the guest can run nix; a guest that then has to
+      # be told `--extra-experimental-features nix-command` for every
+      # invocation is a channel with a paper cut stapled to it. These are
+      # client-side settings, not restricted ones, so an untrusted client
+      # setting them changes nothing about the host's trust model.
+      nix.settings.experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
+
+      systemd.sockets.agent-vm-nix-daemon = {
+        description = "Host nix daemon channel (vsock)";
+        wantedBy = [ "sockets.target" ];
+        socketConfig = {
+          ListenStream = "/nix/var/nix/daemon-socket/socket";
+          SocketMode = "0666";
+          Accept = true;
+        };
+      };
+
+      systemd.services."agent-vm-nix-daemon@" =
+        proxyService pkgs "Host nix daemon channel (vsock) connection %i"
+          "VSOCK-CONNECT:${toString hostCid}:${toString ports.nixDaemon}";
+    };
+
+  # Built from the certificates the caller passed, in a throwaway GNUPGHOME,
+  # so what lands in the guest is reproducible from the repository instead of
+  # being whatever state a developer's keyring had accumulated.
+  gpgPublicHome =
+    pkgs: certificates: ultimatelyTrusted:
+    pkgs.runCommand "agent-vm-gnupg-public"
+      {
+        nativeBuildInputs = [ pkgs.gnupg ];
+        certs = pkgs.writeText "agent-vm-certificates.asc" (lib.concatStringsSep "\n" certificates);
+        # Trailing newline is load-bearing: gpg reads ownertrust
+        # line-wise and reports an unterminated final line as "line too
+        # long" rather than as a missing newline.
+        ownertrust = pkgs.writeText "agent-vm-ownertrust" (
+          lib.concatMapStrings (fpr: "${fpr}:6:\n") ultimatelyTrusted
+        );
+      }
+      ''
+        export GNUPGHOME=$(mktemp -d)
+        gpg --batch --quiet --import "$certs"
+        gpg --batch --quiet --import-ownertrust "$ownertrust"
+        # gpg only materializes the trustdb lazily; force it so the guest
+        # gets a complete keyring rather than one that rebuilds (and warns)
+        # on first use.
+        gpg --batch --quiet --check-trustdb
+        mkdir -p "$out"
+        cp "$GNUPGHOME/pubring.kbx" "$GNUPGHOME/trustdb.gpg" "$out/"
+      '';
+
+  # `%t` is the user's runtime directory, which is exactly where `gpgconf
+  # --list-dirs agent-socket` points once that directory exists — so this
+  # lands the proxy at the path gpg looks in, without hardcoding a uid. A
+  # user unit (not a system one) because the path is per-session and vanishes
+  # with the session; a system unit would be racing logind for the directory.
+  #
+  # No gpg-agent runs in the guest: gpg connects to an existing socket before
+  # it tries to spawn one, so the proxy simply wins.
+  gpgAgentGuest =
+    hostUser: certificates: ultimatelyTrusted:
+    { pkgs, ... }:
+    let
+      home = gpgPublicHome pkgs certificates ultimatelyTrusted;
+    in
+    {
+      environment.systemPackages = [ pkgs.gnupg ];
+
+      systemd.user.sockets.agent-vm-gpg-agent = {
+        description = "Host gpg-agent channel (vsock)";
+        wantedBy = [ "sockets.target" ];
+        socketConfig = {
+          ListenStream = "%t/gnupg/S.gpg-agent";
+          SocketMode = "0600";
+          # 0700, not systemd's default 0755, and this is the difference
+          # between the channel working and gpg quietly ignoring it. gnupg
+          # refuses to use a socket directory that is group- or
+          # other-accessible: it falls back to ~/.gnupg silently, so
+          # `gpgconf --list-dirs agent-socket` points somewhere the proxy is
+          # not, gpg finds no agent there, starts a *local* one with an empty
+          # keyring, and signing fails with "No secret key" — which names
+          # neither the socket nor the directory that caused it.
+          DirectoryMode = "0700";
+          Accept = true;
+          # 0600 because gpg refuses an agent socket it considers reachable
+          # by anyone else; RemoveOnStop because a stale socket file left
+          # behind makes gpg hang on connect instead of failing cleanly.
+          RemoveOnStop = true;
+        };
+      };
+
+      systemd.user.services."agent-vm-gpg-agent@" =
+        proxyService pkgs "Host gpg-agent channel (vsock) connection %i"
+          "VSOCK-CONNECT:${toString hostCid}:${toString ports.gpgAgent}";
+
+      # Copied rather than symlinked: gpg rewrites its own keyring and
+      # trustdb (import, trust changes) and dies on a read-only store path.
+      # `C+` re-copies on every boot, so the guest's copy can never drift
+      # into being the source of truth.
+      systemd.tmpfiles.rules = [
+        "d /home/${hostUser}/.gnupg 0700 ${hostUser} users - -"
+        "C+ /home/${hostUser}/.gnupg/pubring.kbx 0600 ${hostUser} users - ${home}/pubring.kbx"
+        "C+ /home/${hostUser}/.gnupg/trustdb.gpg 0600 ${hostUser} users - ${home}/trustdb.gpg"
+      ];
+    };
+
   mkAgentVm =
     {
       name,
@@ -90,14 +276,26 @@ let
       lib,
       ...
     }:
+    let
+      anyChannel = lib.any (c: c.enable or false) (builtins.attrValues channels);
+      useNixDaemon = channels.nixDaemon.enable or false;
+    in
     {
-      imports = [ inputs.microvm.nixosModules.microvm ];
+      imports = [
+        inputs.microvm.nixosModules.microvm
+      ]
+      ++ lib.optional useNixDaemon nixDaemonGuest
+      ++ lib.optional (channels.gpgAgent.enable or false) (
+        gpgAgentGuest hostUser (channels.gpgAgent.certificates or [ ]) (
+          channels.gpgAgent.ultimatelyTrusted or [ ]
+        )
+      );
 
-      # `stateDirs`/`channels`/`lifecycle` are accepted but intentionally
-      # unwired this phase — see the doc comment above. Nix doesn't warn on
-      # unused arguments, so no bookkeeping is needed to "use" them; they
-      # exist purely so Phases 5/6 don't have to change this function's
-      # call signature when they start consuming them.
+      # `stateDirs`/`lifecycle` are accepted but intentionally unwired —
+      # see the doc comment above. Nix doesn't warn on unused arguments, so
+      # no bookkeeping is needed to "use" them; they exist purely so Phases
+      # 6/7 don't have to change this function's call signature when they
+      # start consuming them.
       networking.hostName = name;
       # Matches the guide's other guest examples; bump when a real upgrade
       # path exists.
@@ -106,6 +304,11 @@ let
       microvm = {
         inherit vcpu mem;
         hypervisor = "qemu";
+
+        # Only set when something actually needs it: a CID makes QEMU open
+        # /dev/vhost-vsock, which a channel-less guest has no reason to
+        # require of whoever runs it.
+        vsock.cid = lib.mkIf anyChannel (cidFor name);
         interfaces = [
           {
             type = "user";
@@ -122,18 +325,32 @@ let
           }
         ];
 
-        # The known failure mode in the guide ("upper fs missing required
-        # features") is specifically overlayfs with its upper directory *on*
-        # a virtiofs/9p share. `writableStoreOverlay` lives on the guest's
-        # own (tmpfs) root instead, so the ro-store share stays read-only
-        # and this never hits that path.
-        writableStoreOverlay = "/nix/.rw-store";
+        # With the nix daemon channel, the guest never writes to the store
+        # itself — the host daemon does, on the host side — so the share is
+        # mounted straight at /nix/store with no overlay above it, and
+        # read-only at the virtiofs level so nothing in the guest can scribble
+        # into the host store behind the daemon's back.
+        #
+        # The overlay is not merely unnecessary here, it is actively wrong:
+        # overlayfs documents the behavior of a *lower* layer that changes
+        # underneath it as undefined, and the whole point of the channel is
+        # that the host store gains paths while the guest is running. A build
+        # that succeeds and then cannot be found in /nix/store is exactly the
+        # failure that would produce.
+        #
+        # Without the channel the guest has to be able to build for itself, so
+        # the overlay comes back. Its upper directory lives on the guest's own
+        # (tmpfs) root rather than on a share, which is what keeps the guide's
+        # known failure mode ("upper fs missing required features", overlayfs
+        # with its upper dir on virtiofs/9p) from ever applying.
+        writableStoreOverlay = if useNixDaemon then null else "/nix/.rw-store";
 
         shares = [
           {
             tag = "ro-store";
             source = "/nix/store";
-            mountPoint = "/nix/.ro-store";
+            mountPoint = if useNixDaemon then "/nix/store" else "/nix/.ro-store";
+            readOnly = useNixDaemon;
             proto = "virtiofs";
           }
         ]
@@ -151,6 +368,13 @@ let
         uid = lib.mkIf (uid != null) uid;
         openssh.authorizedKeys.keys = authorizedKeys;
       };
+
+      # ssh from a modern terminal (ghostty, kitty, foot) otherwise lands in a
+      # guest that has never heard of $TERM, and every program that asks
+      # ncurses for a screen size — `systemctl status` above all — prints
+      # "unknown terminal type" and nothing else. The terminfo database is in
+      # the shared host store, so this costs the guest nothing to carry.
+      environment.enableAllTerminfo = true;
 
       services.openssh = {
         enable = true;

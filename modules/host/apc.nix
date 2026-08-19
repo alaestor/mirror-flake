@@ -18,6 +18,7 @@ in
 
     modules =
       (with inputs.self.modules.nixos; [
+        agent-vm
         auto-login
         crypto-yubikey
         hifi-audio
