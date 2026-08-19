@@ -15,7 +15,7 @@ concrete host consumes them.
 |---|---|
 | Program | One Home Manager program and its reusable, refinable defaults. Importing it enables that program. |
 | App config | A package-coupled configuration exported as a wrapper module, consumed by a thin program adapter. It owns configuration that must travel with the package rather than with a user's Home Manager state. |
-| Mechanism | Shared infrastructure other modules build on, exported from `modules/utils/` as a flake library and, where a module is its delivery vehicle, as a reusable module. It is not a capability a host would name. |
+| Mechanism | Shared infrastructure other modules build on, living in `modules/mechanisms/` and exported as a flake library and, where a module is its delivery vehicle, as a reusable module. It is not a capability a host would name. |
 | Feature | A coherent capability with neutral typed options. It may export NixOS and Home Manager implementations separately. |
 | Aspect | A high-level, composable bundle of features that wires their interoperability or shared policy for a use case. |
 | Serve | A network-hosted feature with an explicit disabled-by-default enable option. |
@@ -24,9 +24,16 @@ concrete host consumes them.
 A mechanism is distinguished from a feature by who wants it. A feature is a
 capability a host chooses; a mechanism exists to serve other modules, and a host
 gains it as a consequence of choosing something else. Isolation and sandboxing
-machinery are the usual examples. Keep a mechanism in `modules/utils/` until
-there is host-facing policy worth naming, and promote it to a feature then, not
-in anticipation.
+machinery are the usual examples. Keep a mechanism in `modules/mechanisms/`
+until there is host-facing policy worth naming, and promote it to a feature
+then, not in anticipation.
+
+A mechanism directory owns its whole concern: the library it is built from, the
+reusable modules it exports, and any apps that exist to exercise it. Splitting
+those across trees to sort them by kind separates things that change together.
+General-purpose library code that decorates or builds derivations without being
+infrastructure a module configures is not a mechanism; it stays in
+`modules/utils/`.
 
 An aspect is the repository term for high-level reusable composition. Do not use
 “profile” or “featureset” for that meaning; retain “profile” only when it is an
@@ -84,6 +91,14 @@ lifecycle. Do not eliminate duplication with unstructured imports.
 Move repeated concrete values to fleet only when every consumer intentionally
 shares one fact and one owner. Similar-looking machine facts with independent
 ownership remain host-local.
+
+The same rule governs scope generally, not just duplicated policy. Something
+used by one owner lives with that owner; a second genuine consumer is what
+promotes it to shared ownership one level out. A flake input stays in the module
+that consumes it until more than one does, and then becomes flake-wide in
+`modules/inputs/`; library code shared by two mechanisms is split out into
+`modules/utils/` at that point and not before. Promotion is evidence-driven, so
+that removing the sole consumer also removes what served it.
 
 ## Shared instances
 

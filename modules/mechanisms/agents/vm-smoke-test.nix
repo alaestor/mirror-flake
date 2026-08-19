@@ -12,7 +12,7 @@
   QEMU without the `virtiofsd` daemons every `proto = "virtiofs"` share
   needs, and dies with `Failed to connect to
   'agent-vm-smoke-test-virtiofs-ro-store.sock'`. See
-  `modules/utils/agents/vm-run.nix` for what the wrapper does, why it wants
+  `modules/mechanisms/agents/vm-run.nix` for what the wrapper does, why it wants
   `sudo`, and what `--unprivileged` costs you.
 
   The in-guest acceptance checks themselves live in

@@ -22,6 +22,7 @@ remain relative. This keeps moving a component from changing its dependencies.
 | `modules/host/` | Concrete host declarations and host-only refinements. |
 | `hosts/` | Conventional, private host fragments imported only by their owning declaration. |
 | `modules/features/` | Reusable capabilities with neutral, typed interfaces. |
+| `modules/mechanisms/` | Shared infrastructure other modules build on, each directory or file owning its whole concern. |
 | `modules/aspects/` | High-level, composable bundles of features and their interoperability policy. |
 | `modules/fleet/` | Typed, public, non-secret facts shared by multiple repository consumers. |
 | `modules/serve/services/` | Disabled-by-default hosted-service features exported as `serve-*`. |
@@ -31,7 +32,7 @@ remain relative. This keeps moving a component from changing its dependencies.
 | `modules/app-config/` | Experimental package-coupled application configuration exported as wrapper modules. |
 | `modules/preferences/` | Settings and identities that follow a person across hosts. |
 | `modules/inputs/` | Flake inputs and their integration modules. |
-| `modules/utils/` | Shared flake library, mechanism modules, and maintenance apps. |
+| `modules/utils/` | Shared flake library and maintenance apps. |
 | `data/` | Non-module state consumed by Nix: JSON, scripts, text, and value-only Nix files. |
 | `docs/` | Durable onboarding material for architecture, contracts, and contributor expectations. |
 | `docs/research/` | Exploratory notes that may discuss alternatives or volatile implementation state. |

@@ -6,7 +6,7 @@
   future addition). This is the harness *layer*: it knows about tool lists,
   prompt fragments, skills and `AGENTS.md`. It must never mention vsock,
   virtiofs, systemd units, or anything belonging to the VM layer
-  (`modules/utils/agents/vm.nix`) — see the layering picture in
+  (`modules/mechanisms/agents/vm.nix`) — see the layering picture in
   `__reference/microvm/implementation-guide.md`.
 
   - `tools` / `toolsMarkdown` — the CLI tool set every harness's shell
