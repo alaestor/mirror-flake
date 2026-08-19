@@ -7,10 +7,13 @@ event it is registered for.
 
 Rationale: auto-compaction summarizes for narrative continuity and routinely
 drops the details needed to resume work. This trades that summary for an
-agent-written handoff produced while full context is still loaded, plus a hard
-ceiling so a session can never run past the context limit trying to write one.
+agent-written handoff produced while full context is still loaded, then stops
+the turn once it exists rather than running the session further. One
+threshold, set with enough headroom below the real limit that a handoff
+(small; a few paragraphs) always finishes before the limit is reached even if
+the check landed late.
 
-Thresholds come from the environment so the wrapper can raise them for 1M
+The threshold comes from the environment so the wrapper can raise it for 1M
 sessions; hooks inherit the wrapper's environment.
 """
 
@@ -20,8 +23,7 @@ import sys
 import time
 
 DEFAULT_LIMIT = 200_000
-WARN_FRACTION = 0.80
-CEILING_FRACTION = 0.925
+THRESHOLD_FRACTION = 0.90
 
 
 def state_dir():
@@ -51,8 +53,8 @@ def context_tokens(transcript_path):
     """Total context size from the most recent assistant usage record.
 
     The transcript is written asynchronously and may lag the live conversation
-    by a message or two, so this reads low. The ceiling compensates by sitting
-    below the real limit.
+    by a message or two, so this reads low. The threshold compensates by
+    sitting below the real limit.
     """
     if not transcript_path or not os.path.exists(transcript_path):
         return None
@@ -106,7 +108,7 @@ def handoff_request(payload, tokens, limit):
     return (
         f"Context is at {tokens:,} of {limit:,} tokens "
         f"({tokens / limit:.0%}). Auto-compaction is disabled for this session, "
-        f"and the turn will be stopped outright near the limit.\n\n"
+        f"and the turn stops as soon as the handoff exists.\n\n"
         f"Write a handoff to {handoff_path(payload)} now, before doing "
         "anything else. Cover: the task and its current state, exact "
         "file:line targets, decisions already settled and why, what is still "
@@ -134,7 +136,8 @@ def main():
 
     # Blocking a proactive auto-compact leaves the conversation uncompacted,
     # which is the whole point. A compact triggered by an API context-limit
-    # error fails the request instead, but the ceiling below should fire first.
+    # error fails the request instead, but the threshold below should fire
+    # first.
     if event == "PreCompact":
         emit(
             {
@@ -172,32 +175,16 @@ def main():
         sys.exit(0)
 
     limit = env_int("CC_CONTEXT_LIMIT", DEFAULT_LIMIT)
-    warn = env_int("CC_CONTEXT_WARN", int(limit * WARN_FRACTION))
-    ceiling = env_int("CC_CONTEXT_CEILING", int(limit * CEILING_FRACTION))
+    threshold = env_int("CC_CONTEXT_THRESHOLD", int(limit * THRESHOLD_FRACTION))
 
-    # `continue: false` outranks every event-specific decision field, so this
-    # halts the turn immediately after the tool that crossed the line, rather
-    # than letting the agent start a large handoff it cannot finish.
-    if tokens >= ceiling:
-        emit(
-            {
-                "continue": False,
-                "stopReason": (
-                    f"Context ceiling reached: {tokens:,} of {limit:,} tokens. "
-                    f"Turn stopped. Start a fresh session; see "
-                    f"{handoff_path(payload)} if one was written."
-                ),
-            }
-        )
-
-    if tokens < warn:
+    if tokens < threshold:
         sys.exit(0)
 
     if event == "PostToolUse":
         # Handing control back once the handoff exists is the point of the
-        # warning threshold: the session is left resumable and paused, bet
-        # the amount of window left depends on the threshold set. The user
-        # can technically resume from this, but they ought to be careful.
+        # threshold: the session is left resumable and paused right after the
+        # handoff is written, rather than run further. The user can
+        # technically resume from this, but they ought to be careful.
         if os.path.exists(handoff_path(payload)) and claim(session, "halted"):
             emit(
                 {
@@ -216,7 +203,7 @@ def main():
             {
                 "systemMessage": (
                     f"Context at {tokens:,}/{limit:,} ({tokens / limit:.0%}); "
-                    f"handoff requested, turn stops at {ceiling:,}."
+                    "handoff requested, turn stops once it's written."
                 ),
                 "hookSpecificOutput": {
                     "hookEventName": "PostToolUse",
