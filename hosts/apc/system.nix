@@ -48,6 +48,12 @@ in
     # with "Permission denied (publickey,keyboard-interactive)" no matter
     # how correct everything else is.
     authorizedKeys = [ inputs.self.data.vars.sshClientPublicKeys.apc ];
+    # 10 minutes rather than the module default of 2: `agent-vm-stop` exists
+    # for the case where the guest should come down right away, so the
+    # automatic linger is free to favor "outlives a short gap between
+    # sessions" over "tears down promptly" without costing anything on the
+    # other axis.
+    lifecycle.lingerSeconds = 10 * 60;
   };
 
   crypto-yubikey.administrativeStubs.enable = true;

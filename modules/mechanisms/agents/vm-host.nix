@@ -58,6 +58,14 @@
   by any harness wrapper — that wiring is Phase 8's cutover, not this
   module's.
 
+  `agent-vm-stop` (`mkStopScript`, next to `mkSessionScript`) is the manual
+  counterpart: drops the linger-hold reference immediately rather than
+  waiting out `lifecycle.lingerSeconds`, for a human who knows they are done
+  for a while and would rather not leave the guest idling. It is a pure
+  early-release, not a kill — an active session's own referrer keeps the
+  guest up regardless, exactly as if the automatic linger had simply expired
+  sooner.
+
   The `security.polkit.extraConfig` rule is what lets `hostUser` — an
   unprivileged account — start and stop these specific units at all;
   `systemctl start/stop` on a system unit is refused by default otherwise.
@@ -277,6 +285,26 @@
                    -o UserKnownHostsFile=${knownHosts} \
                    -o StrictHostKeyChecking=yes \
                    ${cfg.hostUser}@localhost -- "$remote_cmd"
+          '';
+        };
+
+      # A manual counterpart to `mkSessionScript`'s automatic linger: drops
+      # the linger-hold reference right away instead of waiting
+      # `lifecycle.lingerSeconds` for the scheduled check to notice no
+      # session scope is active. Only ever *releases* a reference —
+      # `StopWhenUnneeded` on `vmUnit` is what actually stops the guest, and
+      # only once every other referrer (an active session's own `Wants=`) is
+      # also gone, so this is safe to run with a session still attached: it
+      # just no-ops the eventual teardown instead of forcing it. The same
+      # polkit rule that lets `agent-vm-session` stop `lingerHoldUnit`
+      # already covers this.
+      mkStopScript =
+        pkgs:
+        pkgs.writeShellApplication {
+          name = "agent-vm-stop";
+          runtimeInputs = [ pkgs.systemd ];
+          text = ''
+            systemctl stop ${lib.escapeShellArg lingerHoldUnit}
           '';
         };
     in
@@ -570,7 +598,10 @@
               };
             };
 
-            environment.systemPackages = [ (mkSessionScript pkgs) ];
+            environment.systemPackages = [
+              (mkSessionScript pkgs)
+              (mkStopScript pkgs)
+            ];
 
             # Grants exactly what `agent-vm-session` needs and nothing more:
             # starting/stopping the VM unit and the linger-hold reference by
