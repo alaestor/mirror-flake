@@ -154,6 +154,23 @@ nix run .#agent-vm-run -- agent-vm-smoke-test   # boots a throwaway guest
 Booting a guest by its runner alone is not enough: virtiofs shares need their
 daemons started first, which is what `agent-vm-run` exists to do.
 
+**Inspecting the guest's own evaluated config from the host flake.**
+`microvm.vms.<name>` is a `types.submodule` option, so
+`nixosConfigurations.<host>.config.microvm.vms.<name>.config` is the
+submodule's own module-instance wrapper (`config`/`options`/`_module`/...),
+*not* the guest's evaluated NixOS config — that's one `.config` deeper:
+
+```sh
+nix eval .#nixosConfigurations.<host>.config.microvm.vms.<name>.config.config.<path...>
+```
+
+e.g. `...config.config.systemd.services.<unit>.serviceConfig` to check a
+guest-side systemd unit without a real boot. `.evaluatedConfig` looks like
+the obvious accessor and is not it (evaluates to `null` under `nix eval`
+without something forcing it). This is a microvm.nix shape, not something
+this repo controls — vendored, so worth restructuring only if the upstream
+option shape changes.
+
 Prompt resolution has its own read-only window, so a prompt can be inspected
 without spending a session:
 
