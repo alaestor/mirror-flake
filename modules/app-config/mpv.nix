@@ -9,7 +9,12 @@ let
       alpkgs = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system};
       modernx = pkgs.mpvScripts.modernx-zydezu;
       fontsConf = pkgs.makeFontsConf {
-        includes = [ ];
+        # Must include fontconfig's own conf.d: it carries the generic-family
+        # alias rules (45-generic/45-latin/60-latin). Without them "sans-serif"
+        # matches nothing by name and fontconfig falls back to whatever scores
+        # first -- DejaVu Math TeX Gyre -- which is what mpv's default
+        # sub-font=sans-serif was rendering plain-text (SRT) subtitles with.
+        includes = [ "${pkgs.fontconfig.out}/etc/fonts/conf.d" ];
         fontDirectories = [
           "${modernx}/share/fonts"
           "${pkgs.noto-fonts}/share/fonts"
@@ -104,6 +109,13 @@ let
           sub-file-paths-append=eng
           sub-file-paths-append=english
           sub-fix-timing=no
+          # Plain-text (SRT) subs use mpv's default style; name the font
+          # explicitly rather than relying on the "sans-serif" generic alias.
+          # Their size is governed by sub-font-size + sub-scale-by-window (on by
+          # default, so size tracks window height); ASS subs use
+          # sub-ass-scale-with-window instead. Defaults look fine here -- past
+          # "tiny subtitles" were a bad font match, not a scaling problem.
+          sub-font=Noto Sans
           target-colorspace-hint=yes
           target-peak=auto
           target-prim=auto
