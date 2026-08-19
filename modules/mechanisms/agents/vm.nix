@@ -378,6 +378,7 @@ let
           {
             from = "host";
             proto = "tcp";
+            host.address = "127.0.0.1";
             host.port = sshHostPort;
             guest.port = 22;
           }
