@@ -22,6 +22,18 @@ in
   # contribute one either.
   agent-vm = {
     enable = true;
+    # Same two roots `claude-code.nix`'s bubblewrap sandbox has always
+    # allowed (`sandboxWritableRoots`) — Phase 8 (`cc`/`ccs` onto
+    # `agent-vm-session`) needs the guest to be able to see whatever the
+    # caller's `$PWD` is, and unlike bubblewrap's per-invocation bind mounts,
+    # virtiofs shares are fixed at boot, so this has to name the trees up
+    # front rather than pick them dynamically. Deliberately not "wherever
+    # the caller happens to be" — see the Phase 8 handoff for why arbitrary
+    # per-session mounts were ruled out.
+    projectRoots = [
+      "${home}/Projects"
+      "/mnt/Vault/.dotfiles/flake"
+    ];
     stateDirs = agents.stateDirsFor home [
       "claude"
       "codex"

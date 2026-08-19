@@ -235,6 +235,20 @@
               exit 1
             fi
 
+            # ssh does not preserve trailing arguments as separate argv
+            # entries the way `exec` does — it space-joins them verbatim
+            # into one string and hands that to the remote shell, so any
+            # argument containing whitespace (a `claude` prompt, for
+            # instance) silently splits into several. Re-quote each argument
+            # with `printf %q` and join into a single pre-escaped string so
+            # the remote shell reconstructs exactly the argv this script
+            # received, not ssh's naive concatenation of it.
+            remote_cmd=""
+            for arg in "$@"; do
+              printf -v quoted_arg '%q' "$arg"
+              remote_cmd+="$quoted_arg "
+            done
+
             exec systemd-run --scope --collect \
               --unit="${sessionPrefix}$$-''${RANDOM}" \
               --property=Wants=${lib.escapeShellArg vmUnit} \
@@ -242,7 +256,7 @@
               -- ssh -tA -p ${toString cfg.sshHostPort} \
                    -o UserKnownHostsFile=${knownHosts} \
                    -o StrictHostKeyChecking=yes \
-                   ${cfg.hostUser}@localhost -- "$@"
+                   ${cfg.hostUser}@localhost -- "$remote_cmd"
           '';
         };
     in

@@ -90,30 +90,25 @@
         }
       '';
 
-      # Sessions run under the vendored bubblewrap sandbox by default; `nobox`
-      # opts out. The sandbox clears the environment and builds PATH from its
-      # own tool profile, so everything the prompt promises has to be handed
-      # back explicitly: the tool list through `CLAUDE_SANDBOX_EXTRA_PATH`, and
-      # our two variables through `env` in the sandboxed command itself, since
-      # upstream only forwards host variables named in its config file.
-      sandboxPackage = self.lib.mkClaudeSandbox pkgs;
-
-      # The only paths a session may write. Everything else the host exposes,
-      # `/nix/store` included, arrives through the sandbox's base `--ro-bind /
-      # /` and stays read-only. The sandbox always binds its project directory
-      # read-write, so a session is refused outside these roots rather than
-      # silently widening the writable set to the working directory.
+      # Sessions isolate through the agent VM (Phase 8,
+      # `__reference/microvm/implementation-guide.md`) — `sandboxPackage`/
+      # `sandboxToolPath` (the vendored bubblewrap sandbox's own PATH
+      # reconstruction, needed because it clears the environment) are gone
+      # from this file along with the bubblewrap `sandbox` function they only
+      # served; `modules/mechanisms/claude-sandbox.nix` itself stays vendored
+      # (nothing here deletes it — that's a separate, ask-first decision).
+      #
+      # The only paths a session may work in. `agent-vm.projectRoots`
+      # (`hosts/apc/system.nix`) shares exactly these two trees into the
+      # guest — kept as the same list on purpose, so there is one fact
+      # ("what the agent may work on"), not two that can drift apart. Unlike
+      # bubblewrap's per-invocation bind mounts, virtiofs shares are fixed at
+      # guest boot, so a session is refused outside these roots rather than
+      # the list being able to widen itself to wherever `$PWD` happens to be.
       sandboxWritableRoots = [
         "$HOME/Projects"
         "/mnt/Vault/.dotfiles/flake"
       ];
-      sandboxToolPath = lib.makeBinPath (
-        cliTools
-        ++ [
-          pkgs.rtk
-          pkgs.tlrc
-        ]
-      );
 
       skillsRoot = self.data.path "agents/skills";
       # The tool catalogue rivals the preamble in size. `--tools` replaces it
@@ -216,13 +211,14 @@
             # Manager's session variables is a wrapper that breaks over ssh
             # into the agent VM, which is exactly where it matters most.
             #
-            # Resolved against the *runtime* $HOME, not baked in as the
-            # host's absolute path: `cc` execs this same nativeText inside
-            # the bubblewrap sandbox, where $HOME is the sandbox user's
-            # (`/home/claude-sandbox`, not `/home/user`) and the host's
-            # `.claude` is bind-mounted at that sandbox $HOME/.claude — a
-            # baked-in host path pointed nowhere the sandbox could see,
-            # silently presenting as a fresh, logged-out install.
+            # Resolved against the *runtime* $HOME, not baked in as a literal
+            # path: `cc` execs this same `nativeText` over ssh inside the
+            # agent VM guest (Phase 8), whose user shares `hostUser`'s name
+            # and home path (`vm.nix`) — so `$HOME` happens to already agree
+            # with the host today, but staying dynamic is what keeps that
+            # true if it ever doesn't, rather than baking in an assumption
+            # that would silently present as a fresh, logged-out install the
+            # day it stops holding.
             export CLAUDE_CONFIG_DIR="$HOME/.claude"
 
             # Backstop for the eval-time assertion, which cannot see the
@@ -262,8 +258,8 @@
                 "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [--] [claude arguments...]"
                 "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
                 "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
-                "${name} sandboxes sessions with bubblewrap by default; run ${name}-native directly to bypass it entirely"
-                "sandboxed sessions may only write ${lib.concatStringsSep " and " sandboxWritableRoots}"
+                "${name} isolates sessions in the agent VM by default; run ${name}-native directly to bypass it entirely"
+                "VM sessions may only run in ${lib.concatStringsSep " and " sandboxWritableRoots}"
                 "skills adds the Skill tool and its catalogue; /<skill-name> works without it"
               ];
               argsVar = "claude_args";
@@ -321,6 +317,16 @@
           # special-cased ahead of the sandbox check so it works from any
           # directory, matching the pre-split wrapper's behavior (it used to
           # exit before ever reaching the sandbox's cwd restriction).
+          #
+          # Phase 8 (`__reference/microvm/implementation-guide.md`): sessions
+          # now isolate through the agent VM (`agent-vm-session`) instead of
+          # bubblewrap. `agent-vm.projectRoots` (`hosts/apc/system.nix`) is
+          # the guest-side equivalent of `sandboxWritableRoots` below — kept
+          # as the same two paths deliberately, so both lists describe one
+          # fact ("what the agent may work on") rather than drifting apart.
+          # Unlike bubblewrap's per-invocation `--extra-bind`, virtiofs
+          # shares are fixed at guest boot, so there is nothing to bind here
+          # — only a membership check against what was already shared.
           sandbox = native: ''
             case "''${1:-}" in
               --cc-help)
@@ -328,14 +334,8 @@
                 ;;
             esac
 
-            # Every writable root is bound in full, so a session can reach
-            # sibling trees it needs; the project directory stays the working
-            # directory so the model opens where the caller stands. Both must
-            # agree: a working directory outside the roots would otherwise be
-            # bound read-write as the project and defeat the restriction.
             cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
-            project=""
-            sandbox_args=()
+            in_root=0
             sandbox_writable=(
               ${lib.concatMapStringsSep "\n              " (root: ''"${root}"'') sandboxWritableRoots}
             )
@@ -343,23 +343,31 @@
             for root in "''${sandbox_writable[@]}"; do
               [[ -d "$root" ]] || continue
               root="$(${pkgs.coreutils}/bin/realpath "$root")"
-              sandbox_args+=( --extra-bind "$root" )
               if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
-                project="$cwd"
+                in_root=1
+                break
               fi
             done
 
-            if [[ -z "$project" ]]; then
-              echo "${name}: refusing to sandbox $cwd — it is outside every writable root:" >&2
+            if [[ "$in_root" -ne 1 ]]; then
+              echo "${name}: refusing to run $cwd in the agent VM — it is outside every shared root:" >&2
               printf '  %s\n' "''${sandbox_writable[@]}" >&2
-              echo "cd into one of them, or run ${name}-native to bypass the sandbox instead." >&2
+              echo "cd into one of them, or run ${name}-native to bypass the VM instead." >&2
               exit 1
             fi
 
-            export CLAUDE_SANDBOX_EXTRA_PATH=${lib.escapeShellArg sandboxToolPath}
-            exec ${lib.getExe sandboxPackage} \
-              "''${sandbox_args[@]}" \
-              "$project" -- \
+            # `agent-vm-session` lands an ssh session in the guest user's
+            # $HOME, not $PWD — `cd` explicitly before handing off, since the
+            # project tree is shared at the identical host path (`vm-host.nix`
+            # `projectRoots`) and is therefore reachable under the same
+            # `$cwd` inside the guest. `bash -c ... bash "$cwd" <native> "$@"`
+            # rather than a literal `cd "$cwd" &&` string: `agent-vm-session`
+            # re-quotes every argument it receives independently
+            # (`printf %q`), so building the remote command as real argv
+            # entries here — not a hand-assembled string — is what keeps that
+            # quoting correct end to end.
+            exec agent-vm-session -- \
+              bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
               ${lib.getExe native} "$@"
           '';
         };
