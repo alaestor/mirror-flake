@@ -94,6 +94,18 @@
       cfg = config.agent-vm;
       inherit (self.lib.agents.vmChannels) ports;
 
+      # The guest's sshd host key as a deployed secret
+      # (`__reference/review/vm-host-key-age.md`). Named by `cfg.name` with
+      # dashes stripped, matching how `data/identities/ssh-host-vm` and
+      # `secrets/ssh-host-vm` are keyed — kept distinct from `cfg.name`
+      # itself so the file-naming convention (no dashes, matching every
+      # other `ssh_host_ed25519_key_<name>` file in the repository) does not
+      # have to constrain what a guest may be named.
+      guestKeyName = lib.replaceStrings [ "-" ] [ "" ] cfg.name;
+      hostKeySecret = self.secrets.sshHostVm guestKeyName;
+      committedHostPublicKey =
+        self.data.vars.identities.ssh-host-vm.${guestKeyName} or null;
+
       # Mirrors the guest side in `vm.nix`: systemd accepts the connection and
       # socat is only responsible for the other end of it.
       proxyService = description: target: {
@@ -148,11 +160,19 @@
       mkSessionScript =
         pkgs:
         let
-          # Same call, same `name`, as the guest side (`vm.nix`) makes for
-          # its own sshd host key — a pure function of the two, so this
-          # always names the key the guest actually presents without either
-          # side copying it from the other.
-          hostKey = self.lib.agents.mkAgentVmHostKey pkgs cfg.name;
+          # When a deployed host key is configured, `committedHostPublicKey`
+          # (the `data/identities/ssh-host-vm` entry `vm.nix` also pins as
+          # its `microvm.credentialFiles` source) is what the guest actually
+          # presents — see `mkAgentVm`'s `hostKey` argument. Otherwise fall
+          # back to the same generated-key call the guest side makes for
+          # itself (same `pkgs`, same `name`, a pure function of both), so
+          # the two sides always agree without either copying the other's
+          # key material.
+          hostPublicKey =
+            if cfg.hostKey.file != null && committedHostPublicKey != null then
+              lib.removeSuffix "\n" committedHostPublicKey
+            else
+              (self.lib.agents.mkAgentVmHostKey pkgs cfg.name).publicKey;
           # A scratch, single-entry known_hosts pinned to that exact key,
           # not `~/.ssh/known_hosts`: that file is Home Manager–managed
           # (`ssh-client.nix`) and read-only from ssh's point of view, which
@@ -164,7 +184,7 @@
           # write, and no possibility of trusting the *wrong* ephemeral
           # guest that happened to be listening on this port.
           knownHosts = pkgs.writeText "agent-vm-known-hosts-${cfg.name}" ''
-            [localhost]:${toString cfg.sshHostPort} ${hostKey.publicKey}
+            [localhost]:${toString cfg.sshHostPort} ${hostPublicKey}
           '';
         in
         pkgs.writeShellApplication {
@@ -400,6 +420,30 @@
           '';
         };
 
+        hostKey = {
+          file = lib.mkOption {
+            type = lib.types.nullOr lib.types.path;
+            default = if hostKeySecret.exists then hostKeySecret.file else null;
+            defaultText = lib.literalExpression ''
+              self.secrets.sshHostVm "<name-without-dashes>", if present
+            '';
+            description = ''
+              Encrypted sshd host key for the guest
+              (`__reference/review/vm-host-key-age.md`). Absent (a bootstrap
+              checkout with no ciphertext yet) falls back to a generated,
+              non-reproducible, store-resident key with a build warning —
+              never a hard failure, since a fresh checkout has nothing to
+              decrypt.
+            '';
+          };
+
+          runtimePath = lib.mkOption {
+            type = lib.types.nonEmptyStr;
+            default = "/run/agenix/agent-vm-host-key-${cfg.name}";
+            description = "Decrypted runtime path of the guest's sshd host key.";
+          };
+        };
+
         lifecycle = {
           lingerSeconds = lib.mkOption {
             type = lib.types.ints.positive;
@@ -469,7 +513,35 @@
                   sshHostPort
                   channels
                   ;
+                hostKey =
+                  if cfg.hostKey.file != null then
+                    {
+                      path = cfg.hostKey.runtimePath;
+                      publicKey = committedHostPublicKey;
+                    }
+                  else
+                    null;
               };
+            };
+
+            warnings = lib.optional (cfg.hostKey.file == null) ''
+              agent-vm: no encrypted host key for '${cfg.name}'
+              (secrets/ssh-host-vm/ssh_host_ed25519_key_${guestKeyName}.age);
+              falling back to a generated, non-reproducible sshd host key.
+              See __reference/review/vm-host-key-age.md.
+            '';
+
+            age.secrets."agent-vm-host-key-${cfg.name}" = lib.mkIf (cfg.hostKey.file != null) {
+              file = cfg.hostKey.file;
+              path = cfg.hostKey.runtimePath;
+              # Read by qemu itself via `-fw_cfg ...,file=...` (not by the
+              # guest-side ImportCredential unit, which runs inside the VM),
+              # so it must be readable by the *host's* microvm/qemu user —
+              # microvm.nix's declarative runner runs unprivileged as
+              # `microvm:kvm`, not root. See `__reference/review/vm-host-key-age.md`.
+              owner = "microvm";
+              group = "kvm";
+              mode = "0400";
             };
 
             # Phase 7. Instance-specific config for the *particular*
@@ -605,6 +677,17 @@
                   '${cfg.nixProxyUser}', so the guest's nix daemon channel
                   would be refused by the host daemon. Add it to
                   nix.settings.allowed-users (and *not* to trusted-users).
+                '';
+              }
+              {
+                assertion = cfg.hostKey.file == null || committedHostPublicKey != null;
+                message = ''
+                  agent-vm: secrets/ssh-host-vm/ssh_host_ed25519_key_${guestKeyName}.age
+                  exists but data/identities/ssh-host-vm has no '${guestKeyName}'
+                  entry. Deploying the private half with no committed public
+                  half to pin known_hosts against is a mismatch waiting to
+                  happen — add the '.pub' and the identities entry, or
+                  remove the ciphertext.
                 '';
               }
             ];

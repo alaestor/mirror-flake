@@ -29,6 +29,7 @@ make roles interchangeable.
 | Initrd SSH host | Identify pre-boot SSH used for remote unlock | Stable bootstrap state, always distinct from the system host key. |
 | Deployment SSH | Authorize one installation session | Ephemeral; never a secret recipient or persistent identity. |
 | Nix store signing | Authorize store paths produced by a trusted builder | Host-bound signing authority, encrypted for runtime deployment and administrative recovery. |
+| Agent VM host | Identify an agent microVM guest's sshd to the host that runs it | Not a backup: the guest holds no identity of its own and never decrypts its own key. Encrypted for unattended runtime deployment to its expected host(s), like Nix store signing — never admin-only like a system SSH host key. |
 
 SSH host public keys are not login keys. They must never be added to
 administrative or client `authorized_keys` sets.
@@ -61,6 +62,15 @@ Private host-key backups are the bootstrap exception. Encrypting a private host
 key to its matching public key is circular and useless after loss. Host-key
 backups are encrypted to administrative recovery recipients, not to themselves.
 
+Agent VM host keys are not this exception, even though the filename shape
+looks the same as a system SSH host key's. A guest is not an Agenix host and
+never decrypts anything itself, so there is no self-encryption to avoid —
+these follow the ordinary runtime-secret rule instead: administrative
+recipients plus every host expected to deploy the key (normally the one host
+that runs the guest). Encrypting one to administrators only would make the
+guest fail to boot with a working sshd on a host that cannot reach an
+administrative identity unattended.
+
 Removing a recipient from newly encrypted files does not revoke access to old
 ciphertext already possessed by that recipient. Respond to compromise by
 rotating the affected identity and the underlying secrets, then re-encrypting
@@ -89,6 +99,7 @@ owns encrypted paths and public recipient metadata, not decryption:
 self.secrets.path "service/example.age"
 self.secrets.sshClient "example"
 self.secrets.sshHost "example"
+self.secrets.sshHostVm "agentvm"
 self.secrets.nixStoreSigning "cache.example.org-1"
 self.secrets.administrative.sshPrimary
 self.secrets.recipients.administrators
@@ -118,12 +129,19 @@ lives under `secrets/`. SSH names encode both role and normalized host name:
 ```text
 data/identities/ssh-client/id_ed25519_<host>.pub
 data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub
+data/identities/ssh-host-vm/ssh_host_ed25519_key_<guest>.pub
 
 secrets/ssh-client/id_ed25519_<host>.age
 secrets/ssh-host/ssh_host_ed25519_key_<host>.age
+secrets/ssh-host-vm/ssh_host_ed25519_key_<guest>.age
 data/identities/nix-store-signing/<key-name>.nsk.pub
 secrets/nix-store-signing/<key-name>.nsk.age
 ```
+
+`ssh-host-vm` is deliberately a distinct directory from `ssh-host`, not a
+`<guest>` entry inside it, so its different recipient rule (above) cannot be
+silently "corrected" back to admin-only by a future edit that assumes every
+`ssh_host_ed25519_key_*.age` follows the same convention.
 
 Nix store signing key names follow Nix's binary-cache convention: a DNS-like
 authority name and a rotation counter. `apc.tailnet.0x04.cc-1` identifies APC's

@@ -129,4 +129,23 @@ in
   "ssh-host/ssh_host_ed25519_key_apc.age".publicKeys = administrators;
   "ssh-host/ssh_host_ed25519_key_lanser.age".publicKeys = administrators;
   "ssh-host/ssh_host_ed25519_key_noblesse.age".publicKeys = administrators;
+
+  /**
+    ### Agent VM guest host keys
+
+    `secrets/ssh-host-vm/` looks like `ssh-host/` but is not a host-key
+    backup: the agent microVM guest is not an Agenix host and holds no
+    identity of its own, so encrypting a guest's key to *itself* is
+    meaningless. This is a runtime secret that happens to be an SSH host
+    key — decrypted unattended by the host that runs the guest, the same
+    shape as `ssh-client/id_ed25519_apc.age` above — and it deliberately
+    deviates from the host-key-backup admin-only rule for that reason. See
+    `__reference/review/vm-host-key-age.md`.
+
+    `<guest>` is the lowercase guest name from `data/identities/ssh-host-vm`.
+    Nothing should ever encrypt *to* a guest identity; only administrators
+    and the host(s) that run the guest are recipients here.
+  */
+  "ssh-host-vm/ssh_host_ed25519_key_agentvm.age".publicKeys =
+    administrators ++ [ (sshHost "apc") ];
 }

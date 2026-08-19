@@ -66,6 +66,16 @@ let
         description = "The SSH server identity of the named host.";
       };
 
+      sshHostVm = mkOption {
+        type = types.functionTo secretType;
+        description = ''
+          The sshd host key of the named agent microVM guest. Unlike
+          `sshHost`, this is a runtime secret decrypted by the host that runs
+          the guest, not a recovery backup of the guest's own identity — the
+          guest holds no identity of its own.
+        '';
+      };
+
       nixStoreSigning = mkOption {
         type = types.functionTo secretType;
         description = "The Nix store signing key of the named signing authority.";
@@ -150,6 +160,15 @@ in
       in
       describe "ssh-host/${fileName}.age" // {
         inherit fileName host;
+      };
+
+    sshHostVm = guestName:
+      let
+        guest = lib.toLower guestName;
+        fileName = "ssh_host_ed25519_key_${guest}";
+      in
+      describe "ssh-host-vm/${fileName}.age" // {
+        inherit fileName guest;
       };
 
     nixStoreSigning = keyName:

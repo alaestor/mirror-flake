@@ -328,6 +328,18 @@ let
       guestEnvironment ? { },
       channels ? { },
       lifecycle ? { },
+      # `null` (the default) keeps the store-resident, non-reproducible
+      # generated key below — needed for a bootstrap checkout and for
+      # throwaway guests like the smoke test, neither of which has ciphertext
+      # to decrypt. A caller with a deployed secret
+      # (`vm-host.nix`/`self.secrets.sshHostVm`) passes `{ path; publicKey;
+      # }`: `path` is the *runtime* plaintext path on the host (e.g.
+      # `/run/agenix/agent-vm-host-key`, read by QEMU as root at VM start,
+      # never entering the store), `publicKey` is the committed public half
+      # used to pin `known_hosts` on the other side of the same call. This
+      # function stays ignorant of Agenix/secrets entirely — resolving the
+      # secret is `vm-host.nix`'s job, not the VM layer's.
+      hostKey ? null,
     }:
     {
       lib,
@@ -337,7 +349,9 @@ let
     let
       anyChannel = lib.any (c: c.enable or false) (builtins.attrValues channels);
       useNixDaemon = channels.nixDaemon.enable or false;
-      hostKey = mkAgentVmHostKey pkgs name;
+      generatedHostKey = mkAgentVmHostKey pkgs name;
+      useDeployedHostKey = hostKey != null;
+      hostKeyCredentialName = "agent_vm_ssh_host_key";
     in
     {
       imports = [
@@ -444,28 +458,60 @@ let
 
       # A fixed host key rather than whatever the ephemeral (tmpfs) root
       # would otherwise generate fresh on every boot. `agent-vm-session`
-      # (`vm-host.nix`, Phase 7) pins exactly this key in a scratch
-      # known-hosts file, computed by calling the same
-      # `flake.lib.agents.mkAgentVmHostKey` with the same `name`, so the two
-      # sides always agree without either copying the other's key material.
-      # Without this, every reboot is a new identity: ssh either has to
-      # prompt on the first connection after each one, or (worse, and what
-      # actually happened the first time this was tried) fail outright,
-      # because the caller's `~/.ssh/known_hosts` is a Home Manager–managed
-      # file ssh cannot append a TOFU entry to.
+      # (`vm-host.nix`, Phase 7) pins the matching public key — the
+      # committed `data/identities/ssh-host-vm` identity when `hostKey` is
+      # deployed, `generatedHostKey.publicKey` otherwise — in a scratch
+      # known-hosts file, so the two sides always agree without either
+      # copying the other's key material. Without this, every reboot is a
+      # new identity: ssh either has to prompt on the first connection after
+      # each one, or (worse, and what actually happened the first time this
+      # was tried) fail outright, because the caller's `~/.ssh/known_hosts`
+      # is a Home Manager–managed file ssh cannot append a TOFU entry to.
       #
-      # Copied into `/etc/ssh` with `C+` (always overwrite) rather than
-      # pointed at directly, because sshd's own host key handling is far
-      # less forgiving of a world-readable Nix store path's permissions
-      # than the fact that this key has no real secrecy to protect (its
-      # only job is a stable identity behind a host-only port forward) would
-      # suggest — a real `/etc/ssh` file with `0600` sidesteps the question
-      # entirely, at the same cost `gpgAgentGuest` above already pays for
-      # its own copied keyring.
-      systemd.tmpfiles.rules = [
-        "C+ /etc/ssh/ssh_host_ed25519_key 0600 root root - ${hostKey.privateKeyPath}"
-        "C+ /etc/ssh/ssh_host_ed25519_key.pub 0644 root root - ${hostKey.publicKeyPath}"
+      # Two delivery paths, chosen by whether the caller passed `hostKey`:
+      #
+      # - Deployed (`useDeployedHostKey`): the plaintext never enters the
+      #   store. `microvm.credentialFiles` hands QEMU the *host* runtime
+      #   path (`/run/agenix/...`, root-only) at VM start via
+      #   `-fw_cfg name=opt/io.systemd.credentials/...`
+      #   (`vm-host-key-age.md`); the guest's pid 1 receives it as a system
+      #   credential, and this oneshot materializes it before sshd starts.
+      #   `requiredBy` (not just `before`) is what makes this fail *closed*:
+      #   if the credential is missing or the oneshot fails, sshd is pulled
+      #   down with it rather than falling back to a fresh, unpinned key.
+      # - Generated (fallback, no `hostKey`): the old behaviour — a
+      #   store-resident, non-reproducible keypair copied into `/etc/ssh`
+      #   with `C+` (always overwrite) rather than pointed at directly,
+      #   because sshd's own host key handling is far less forgiving of a
+      #   world-readable Nix store path's permissions than the fact that
+      #   this key has no real secrecy to protect (its only job is a stable
+      #   identity behind a host-only port forward) would suggest. Only
+      #   reached by a bootstrap checkout or a throwaway guest (the smoke
+      #   test) with no ciphertext to decrypt.
+      systemd.tmpfiles.rules = lib.optionals (!useDeployedHostKey) [
+        "C+ /etc/ssh/ssh_host_ed25519_key 0600 root root - ${generatedHostKey.privateKeyPath}"
+        "C+ /etc/ssh/ssh_host_ed25519_key.pub 0644 root root - ${generatedHostKey.publicKeyPath}"
       ];
+
+      microvm.credentialFiles = lib.mkIf useDeployedHostKey {
+        ${hostKeyCredentialName} = hostKey.path;
+      };
+
+      systemd.services.agent-vm-host-key = lib.mkIf useDeployedHostKey {
+        description = "Materialize the deployed sshd host key from its systemd credential";
+        before = [ "sshd.service" ];
+        requiredBy = [ "sshd.service" ];
+        unitConfig.ConditionPathExists = "!/etc/ssh/ssh_host_ed25519_key";
+        serviceConfig = {
+          Type = "oneshot";
+          ImportCredential = hostKeyCredentialName;
+        };
+        script = ''
+          install -Dm0600 -o root -g root \
+            "$CREDENTIALS_DIRECTORY/${hostKeyCredentialName}" \
+            /etc/ssh/ssh_host_ed25519_key
+        '';
+      };
 
       services.openssh = {
         enable = true;
