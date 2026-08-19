@@ -43,6 +43,7 @@ let
   tools =
     pkgs: with pkgs; [
       ripgrep
+      git
       jq
       yq-go
       fd
