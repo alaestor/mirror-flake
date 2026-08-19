@@ -144,4 +144,6 @@ is not a signature change at the call site.
 
 For host and Home Manager attachment mechanics, see
 [Hosts and user environments](hosts-and-homes.md). For hosted ingress, see
-[Hosted services and domains](serve.md).
+[Hosted services and domains](serve.md). For the worked example of a mechanism
+that several features share one instance of, see
+[Coding agents and their isolation](agents.md).

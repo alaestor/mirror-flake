@@ -116,6 +116,14 @@ only when every consumer intentionally shares one source of truth.
 
 Use `lib.mkDefault` for policy intended to be refined. Preferences and host-specific refinements usually use ordinary definitions. Module order is not “last definition wins”; use priorities, `lib.mkBefore`, and `lib.mkAfter`. Reserve `lib.mkForce` for deliberate conflict resolution.
 
+### Coding agents and isolation
+
+Read [`docs/agents.md`](docs/agents.md) before changing
+`modules/mechanisms/agents/` or a harness feature under `modules/features/`.
+The VM layer must never name a harness fact, and the harness layer must never
+name a VM concept; exactly one module declares the shared guest, and harnesses
+and hosts contribute to it through typed options.
+
 ### Hosted services and domains
 
 Read `docs/serve.md` before changing `modules/serve/` or a host's serve/domain composition. Service modules behave like opinionated NixOS features, but export as `flake.modules.nixos.serve-<name>` and must expose `serve.<name>.enable = lib.mkEnableOption ...`; importing one must not activate it. Domain modules export as `flake.modules.nixos.domain-<name>`, import their curated service set, and add reverse-proxy routes and public firewall openings only for explicitly enabled services. Shared proxy infrastructure such as `serve-caddy` is imported once by the host. A host may instead import a service directly, in which case the host owns any ingress policy.
