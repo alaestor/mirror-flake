@@ -29,6 +29,13 @@ in
       "serena"
     ];
     guestEnvironment = agents.environmentFor home;
+    # `agent-vm-session` (Phase 7) ssh's from this host into its own guest,
+    # so the identity it needs is apc's own SSH client identity — the same
+    # one `vm-smoke-test.nix` authorizes, and for the same reason. Without
+    # this the guest has zero authorized keys and every login is refused
+    # with "Permission denied (publickey,keyboard-interactive)" no matter
+    # how correct everything else is.
+    authorizedKeys = [ inputs.self.data.vars.sshClientPublicKeys.apc ];
   };
 
   crypto-yubikey.administrativeStubs.enable = true;

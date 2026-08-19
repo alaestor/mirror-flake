@@ -45,6 +45,23 @@
     sees a connection refused. That is the honest failure — a signature needs
     the human at the machine anyway.
 
+  ## Lifecycle (Phase 7)
+
+  The VM starts on demand and stops once nothing needs it. `agent-vm-session`
+  (`environment.systemPackages`) is the one entry point: `agent-vm-session --
+  <command>` starts the guest if it is not already up, waits for its sshd,
+  and runs `<command>` over ssh in a `systemd-run --scope` of its own — see
+  that script's doc comment (next to `mkSessionScript` above) for why a scope
+  needs no explicit release step, what `agent-vm-linger-hold.service` is for,
+  and the two traps in microvm.nix's generated unit (`Restart = "always"`,
+  `StopWhenUnneeded`'s lack of a grace period) that shaped it. Not yet called
+  by any harness wrapper — that wiring is Phase 8's cutover, not this
+  module's.
+
+  The `security.polkit.extraConfig` rule is what lets `hostUser` — an
+  unprivileged account — start and stop these specific units at all;
+  `systemctl start/stop` on a system unit is refused by default otherwise.
+
   ## Why the microvm.nix host module, this early
 
   It generates `microvm@<name>.service` with `microvm-virtiofsd@<name>.service`
@@ -88,6 +105,146 @@
           Restart = "no";
         };
       };
+
+      # `vmUnitName` is the `systemd.services.<name>` attribute (no
+      # `.service` suffix — NixOS appends it); `vmUnit` is the resulting unit
+      # name, used everywhere a unit is *referenced* (`Wants=`, polkit, the
+      # session script) rather than defined.
+      vmUnitName = "microvm@${cfg.name}";
+      vmUnit = "${vmUnitName}.service";
+      lingerHoldUnitName = "agent-vm-linger-hold";
+      lingerHoldUnit = "${lingerHoldUnitName}.service";
+      sessionPrefix = "agent-vm-session-";
+      lingerCheckPrefix = "agent-vm-linger-check-";
+
+      # Phase 7 — reference-counted lifecycle. Two systemd facts drove the
+      # shape, both recorded in `__reference/microvm/next.md` as traps to
+      # check before trusting the naive design:
+      #
+      # 1. microvm.nix's generated `microvm@.service` sets `Restart =
+      #    "always"`. `StopWhenUnneeded` issues an ordinary stop job, which
+      #    that policy would just restart — so the instance override below
+      #    forces `Restart = "no"` first, or the guest would never actually
+      #    go down.
+      # 2. `StopWhenUnneeded` reacts the moment the last referrer becomes
+      #    inactive, with no grace period of its own. A session that exits
+      #    and is immediately followed by another would re-boot the guest
+      #    for no reason. `agent-vm-linger-hold.service` is the fix: a
+      #    second, independent `Wants=`/`After=` referrer that a session
+      #    keeps alive and that only drops itself `lingerSeconds` after a
+      #    check finds no session scope still running — re-checked at
+      #    fire-time, so a new session started inside the window is simply
+      #    seen as still active and the drop is skipped, no cancellation
+      #    bookkeeping required.
+      #
+      # Each session is its own `agent-vm-session-*.scope`, created with
+      # `systemd-run --scope` around the interactive ssh command rather than
+      # any tracking file: a scope's lifetime is its cgroup's, so it goes
+      # away — cleanly, and just as well if the wrapper around it is
+      # SIGKILLed — the instant the ssh process does, with no release call
+      # of ours required to make that true. That is also why this needs no
+      # "release" step at all: acquiring is the only verb, and cleanup falls
+      # out of scope death plus the linger-hold's own periodic check.
+      mkSessionScript =
+        pkgs:
+        let
+          # Same call, same `name`, as the guest side (`vm.nix`) makes for
+          # its own sshd host key — a pure function of the two, so this
+          # always names the key the guest actually presents without either
+          # side copying it from the other.
+          hostKey = self.lib.agents.mkAgentVmHostKey pkgs cfg.name;
+          # A scratch, single-entry known_hosts pinned to that exact key,
+          # not `~/.ssh/known_hosts`: that file is Home Manager–managed
+          # (`ssh-client.nix`) and read-only from ssh's point of view, which
+          # is why the very first run of this script failed with "Failed to
+          # add the host to the list of known hosts" right before failing
+          # auth too. Pinning here means every connection is silently
+          # verified against a key that is only ever regenerated when
+          # `cfg.name` changes, never on a guest reboot — no prompt, no
+          # write, and no possibility of trusting the *wrong* ephemeral
+          # guest that happened to be listening on this port.
+          knownHosts = pkgs.writeText "agent-vm-known-hosts-${cfg.name}" ''
+            [localhost]:${toString cfg.sshHostPort} ${hostKey.publicKey}
+          '';
+        in
+        pkgs.writeShellApplication {
+          name = "agent-vm-session";
+          runtimeInputs = [
+            pkgs.openssh
+            pkgs.systemd
+          ];
+          text = ''
+            if [[ $# -eq 0 ]]; then
+              echo "usage: agent-vm-session -- <command to run inside ${cfg.name}>" >&2
+              exit 2
+            fi
+
+            # The documented usage is `agent-vm-session -- <command>`, but
+            # the `ssh` invocation below already inserts its own `--` before
+            # "$@" as the separator between ssh's own options and the remote
+            # command. Without this, a caller following the documented usage
+            # ends up with two `--`s, and the remote command actually run is
+            # the literal string `-- <command>` rather than `<command>` —
+            # strip one leading `--` here so both `agent-vm-session --
+            # <command>` and `agent-vm-session <command>` do the same thing.
+            if [[ "$1" == "--" ]]; then
+              shift
+            fi
+
+            # Bumping the VM unit and the linger-hold reference is
+            # idempotent — an already-running unit just no-ops the start
+            # job — so nothing here needs to check state first.
+            systemctl start --no-block ${lib.escapeShellArg vmUnit}
+            systemctl start ${lib.escapeShellArg lingerHoldUnit}
+
+            # Scheduled unconditionally on every acquire, not just on
+            # release: the check re-verifies "any session scope still
+            # active" at fire-time regardless of who scheduled it, so a
+            # wrapper that never gets to run a release step (SIGKILLed
+            # mid-session) is still covered by the check the *next*
+            # acquire's own linger scheduled, or — if there is no next
+            # acquire — by this one.
+            systemd-run --on-active=${toString cfg.lifecycle.lingerSeconds} \
+              --unit="${lingerCheckPrefix}$$-''${RANDOM}" --collect \
+              -- ${pkgs.writeShellScript "agent-vm-linger-check" ''
+                systemctl=${lib.getExe' pkgs.systemd "systemctl"}
+                if ! "$systemctl" list-units '${sessionPrefix}*.scope' \
+                    --state=active --no-legend --plain \
+                    | ${lib.getExe pkgs.gnugrep} -q .
+                then
+                  "$systemctl" stop ${lib.escapeShellArg lingerHoldUnit}
+                fi
+              ''} \
+              >/dev/null
+
+            # ssh does not retry a refused connection, and a cold boot can
+            # easily take longer than one attempt — poll instead. No
+            # fallback to a native session on timeout: silently degrading
+            # isolation is the one thing Phase 7 explicitly forbids.
+            ready=0
+            for _ in $(seq 1 60); do
+              if (exec 3<>"/dev/tcp/127.0.0.1/${toString cfg.sshHostPort}") 2>/dev/null; then
+                exec 3<&- 3>&-
+                ready=1
+                break
+              fi
+              sleep 1
+            done
+            if [[ "$ready" -ne 1 ]]; then
+              echo "agent-vm-session: ${cfg.name} did not become reachable on port ${toString cfg.sshHostPort} within 60s" >&2
+              exit 1
+            fi
+
+            exec systemd-run --scope --collect \
+              --unit="${sessionPrefix}$$-''${RANDOM}" \
+              --property=Wants=${lib.escapeShellArg vmUnit} \
+              --property=After=${lib.escapeShellArg vmUnit} \
+              -- ssh -tA -p ${toString cfg.sshHostPort} \
+                   -o UserKnownHostsFile=${knownHosts} \
+                   -o StrictHostKeyChecking=yes \
+                   ${cfg.hostUser}@localhost -- "$@"
+          '';
+        };
     in
     {
       # microvm.nix's host module, not its guest module: this generates
@@ -229,6 +386,20 @@
           '';
         };
 
+        lifecycle = {
+          lingerSeconds = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 120;
+            description = ''
+              How long the guest is kept running after the last agent session
+              exits, so exiting one session and immediately starting another
+              does not re-boot it. Phase 7
+              (`__reference/microvm/implementation-guide.md`). See
+              `agent-vm-session`'s doc comment for the mechanism.
+            '';
+          };
+        };
+
         channels = {
           nixDaemon.enable = lib.mkOption {
             type = lib.types.bool;
@@ -286,6 +457,65 @@
                   ;
               };
             };
+
+            # Phase 7. Instance-specific config for the *particular*
+            # `microvm@<name>.service` this module declares, not the
+            # `microvm@.service` template — NixOS's systemd module merges a
+            # `"unit@instance"` definition as that instance's own drop-in, so
+            # this only ever touches this VM's unit. See `mkSessionScript`'s
+            # doc comment for why both settings are here.
+            systemd.services.${vmUnitName} = {
+              serviceConfig.Restart = lib.mkForce "no";
+              unitConfig.StopWhenUnneeded = true;
+            };
+
+            # A `Wants=`/`After=` referrer of its own, started and dropped by
+            # `agent-vm-session` — never at boot, hence no `wantedBy`.
+            systemd.services.${lingerHoldUnitName} = {
+              description = "Keeps ${cfg.name} up for ${toString cfg.lifecycle.lingerSeconds}s after the last agent session exits";
+              unitConfig = {
+                Wants = vmUnit;
+                After = vmUnit;
+              };
+              serviceConfig = {
+                Type = "oneshot";
+                RemainAfterExit = true;
+                ExecStart = "${pkgs.coreutils}/bin/true";
+              };
+            };
+
+            environment.systemPackages = [ (mkSessionScript pkgs) ];
+
+            # Grants exactly what `agent-vm-session` needs and nothing more:
+            # starting/stopping the VM unit and the linger-hold reference by
+            # their fixed names, and creating the transient session scopes
+            # and linger-check units it names with these prefixes. Anyone
+            # else's unit, and any other verb (restart, kill, ...), falls
+            # through to the default policy — which on a desktop system
+            # means "ask", not "deny", so this rule only ever *widens* what
+            # `hostUser` may do, never narrows it.
+            security.polkit.extraConfig = ''
+              polkit.addRule(function(action, subject) {
+                if (action.id != "org.freedesktop.systemd1.manage-units") {
+                  return;
+                }
+                if (subject.user != ${builtins.toJSON cfg.hostUser}) {
+                  return;
+                }
+                var verb = action.lookup("verb");
+                if (verb != "start" && verb != "stop") {
+                  return;
+                }
+                var unit = action.lookup("unit");
+                if (unit == ${builtins.toJSON vmUnit} || unit == ${builtins.toJSON lingerHoldUnit}) {
+                  return polkit.Result.YES;
+                }
+                if (unit && (unit.indexOf(${builtins.toJSON sessionPrefix}) == 0
+                          || unit.indexOf(${builtins.toJSON lingerCheckPrefix}) == 0)) {
+                  return polkit.Result.YES;
+                }
+              });
+            '';
 
             # virtiofsd refuses to start on a source directory that does not
             # exist, which would take the whole guest down with it — and a

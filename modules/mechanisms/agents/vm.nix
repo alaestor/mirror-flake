@@ -84,10 +84,13 @@
   generation's `settings.json` out of the way on every boot. The host's
   generation is the sole manager; the guest gets packages and wrappers only.
 
-  **Deliberately unimplemented** (accepted as a parameter so Phase 7 doesn't
-  need to change this function's shape, but not wired to anything yet):
-  `lifecycle`. Don't guess ahead of that phase; see the handoff on Phase 3
-  for why speculative fields were avoided there too.
+  **`lifecycle` stays unwired.** Phase 7 turned out to need nothing from the
+  guest side at all: the VM starts and stops as a host-managed systemd unit
+  (`microvm@<name>.service`), refcounted by host-side transient units the
+  guest never hears about — see `vm-host.nix`'s "Lifecycle (Phase 7)"
+  section. The parameter is kept, still accepting and ignoring whatever is
+  passed, so a caller built against the documented signature doesn't break;
+  nothing currently passes it.
 
   `uid`, if given, is the host user's numeric uid. The default virtiofs
   `securityModel = "none"` preserves numeric ownership as-is rather than
@@ -278,6 +281,39 @@ let
       ];
     };
 
+  # A deterministic, reproducible Ed25519 keypair for one VM's sshd host
+  # identity, generated at build time rather than left to sshd's own
+  # first-boot generation. Pure in `pkgs` and `name`: called identically
+  # from this guest's own config (below) and from `vm-host.nix`'s
+  # `agent-vm-session`, so both sides derive the same key without one
+  # copying it from the other. Not a secret in any meaningful sense — its
+  # only job is a stable identity behind a host-only port forward that is
+  # already inside the trust boundary — so living in the world-readable
+  # Nix store costs nothing real.
+  mkAgentVmHostKey =
+    pkgs: name:
+    let
+      dir =
+        pkgs.runCommand "agent-vm-host-key-${name}"
+          {
+            nativeBuildInputs = [ pkgs.openssh ];
+          }
+          ''
+            mkdir -p "$out"
+            ssh-keygen -q -N "" -t ed25519 -C ${lib.escapeShellArg name} \
+              -f "$out/ssh_host_ed25519_key"
+          '';
+    in
+    {
+      privateKeyPath = "${dir}/ssh_host_ed25519_key";
+      publicKeyPath = "${dir}/ssh_host_ed25519_key.pub";
+      # Forces the tiny keygen derivation to build at evaluation time
+      # (import-from-derivation) so the literal key text is available to
+      # embed in a known-hosts file; acceptable for something this small
+      # and this rarely rebuilt (only when `name` changes).
+      publicKey = lib.removeSuffix "\n" (builtins.readFile "${dir}/ssh_host_ed25519_key.pub");
+    };
+
   mkAgentVm =
     {
       name,
@@ -295,11 +331,13 @@ let
     }:
     {
       lib,
+      pkgs,
       ...
     }:
     let
       anyChannel = lib.any (c: c.enable or false) (builtins.attrValues channels);
       useNixDaemon = channels.nixDaemon.enable or false;
+      hostKey = mkAgentVmHostKey pkgs name;
     in
     {
       imports = [
@@ -403,8 +441,39 @@ let
 
       environment.enableAllTerminfo = true;
 
+      # A fixed host key rather than whatever the ephemeral (tmpfs) root
+      # would otherwise generate fresh on every boot. `agent-vm-session`
+      # (`vm-host.nix`, Phase 7) pins exactly this key in a scratch
+      # known-hosts file, computed by calling the same
+      # `flake.lib.agents.mkAgentVmHostKey` with the same `name`, so the two
+      # sides always agree without either copying the other's key material.
+      # Without this, every reboot is a new identity: ssh either has to
+      # prompt on the first connection after each one, or (worse, and what
+      # actually happened the first time this was tried) fail outright,
+      # because the caller's `~/.ssh/known_hosts` is a Home Manager–managed
+      # file ssh cannot append a TOFU entry to.
+      #
+      # Copied into `/etc/ssh` with `C+` (always overwrite) rather than
+      # pointed at directly, because sshd's own host key handling is far
+      # less forgiving of a world-readable Nix store path's permissions
+      # than the fact that this key has no real secrecy to protect (its
+      # only job is a stable identity behind a host-only port forward) would
+      # suggest — a real `/etc/ssh` file with `0600` sidesteps the question
+      # entirely, at the same cost `gpgAgentGuest` above already pays for
+      # its own copied keyring.
+      systemd.tmpfiles.rules = [
+        "C+ /etc/ssh/ssh_host_ed25519_key 0600 root root - ${hostKey.privateKeyPath}"
+        "C+ /etc/ssh/ssh_host_ed25519_key.pub 0644 root root - ${hostKey.publicKeyPath}"
+      ];
+
       services.openssh = {
         enable = true;
+        hostKeys = [
+          {
+            path = "/etc/ssh/ssh_host_ed25519_key";
+            type = "ed25519";
+          }
+        ];
         settings = {
           PasswordAuthentication = false;
           PermitRootLogin = "no";
@@ -414,6 +483,9 @@ let
 in
 {
   flake.lib.agents = {
-    inherit mkAgentVm;
+    inherit
+      mkAgentVm
+      mkAgentVmHostKey
+      ;
   };
 }
