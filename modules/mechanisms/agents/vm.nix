@@ -352,6 +352,29 @@ let
       generatedHostKey = mkAgentVmHostKey pkgs name;
       useDeployedHostKey = hostKey != null;
       hostKeyCredentialName = "agent_vm_ssh_host_key";
+
+      # `stateDirs` shares directories at the identical path, but only the
+      # leaf itself — e.g. `.cache/claude-cli-nodejs` is a share, `.cache`
+      # is not. Virtiofs carries the host's real ownership across for a
+      # share's own mountpoint, but any *intermediate* parent a share nests
+      # under (like `.cache` here) has no share of its own, so nothing but
+      # the systemd-generated mount unit's own mkdir ever creates it — as
+      # root, 0755, before `hostUser`'s session exists. That leaves the
+      # parent owned by root while everything inside it is owned correctly,
+      # and any write directly under it (`nix flake check`'s
+      # `~/.cache/nix`, for one) fails with EACCES. Pre-creating every such
+      # parent, owned by `hostUser`, closes that gap for whatever nests
+      # under home now or in the future, not just `.cache`.
+      home = "/home/${hostUser}";
+      parentsOf =
+        path:
+        let
+          go =
+            p:
+            if p == home || p == "/" || p == "." then [ ] else [ p ] ++ go (builtins.dirOf p);
+        in
+        go (builtins.dirOf path);
+      stateDirParents = lib.unique (lib.concatMap parentsOf stateDirs);
     in
     {
       imports = [
@@ -488,10 +511,12 @@ let
       #   identity behind a host-only port forward) would suggest. Only
       #   reached by a bootstrap checkout or a throwaway guest (the smoke
       #   test) with no ciphertext to decrypt.
-      systemd.tmpfiles.rules = lib.optionals (!useDeployedHostKey) [
-        "C+ /etc/ssh/ssh_host_ed25519_key 0600 root root - ${generatedHostKey.privateKeyPath}"
-        "C+ /etc/ssh/ssh_host_ed25519_key.pub 0644 root root - ${generatedHostKey.publicKeyPath}"
-      ];
+      systemd.tmpfiles.rules =
+        (map (p: "d ${p} 0755 ${hostUser} users - -") stateDirParents)
+        ++ lib.optionals (!useDeployedHostKey) [
+          "C+ /etc/ssh/ssh_host_ed25519_key 0600 root root - ${generatedHostKey.privateKeyPath}"
+          "C+ /etc/ssh/ssh_host_ed25519_key.pub 0644 root root - ${generatedHostKey.publicKeyPath}"
+        ];
 
       microvm.credentialFiles = lib.mkIf useDeployedHostKey {
         ${hostKeyCredentialName} = hostKey.path;
