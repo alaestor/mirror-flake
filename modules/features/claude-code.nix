@@ -111,8 +111,10 @@
       # `sandboxToolPath` (the vendored bubblewrap sandbox's own PATH
       # reconstruction, needed because it clears the environment) are gone
       # from this file along with the bubblewrap `sandbox` function they only
-      # served; `modules/mechanisms/claude-sandbox.nix` itself stays vendored
-      # (nothing here deletes it — that's a separate, ask-first decision).
+      # served; `modules/mechanisms/claude-sandbox.nix` and
+      # `data/utils/claude-sandbox/` are gone too, once dead code kept around
+      # in case Phase 8 didn't work out (`__reference/review/
+      # claude-sandbox-removal.md`).
       #
       # The only paths a session may work in. `agent-vm.projectRoots`
       # (`hosts/apc/system.nix`) shares exactly these two trees into the
