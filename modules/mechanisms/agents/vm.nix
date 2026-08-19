@@ -9,7 +9,8 @@
   list.
 
   `mkAgentVm { name, hostUser, projectRoots, uid ? null, authorizedKeys ? [],
-  vcpu ? 2, mem ? 4096, stateDirs ? [], channels ? {}, lifecycle ? {} }`
+  vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {}, channels ? {},
+  lifecycle ? {} }`
   returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
   entry — the caller decides how to instantiate it, matching how every other
   module in this flake stays a value rather than wiring itself in).
@@ -63,11 +64,30 @@
   `/dev/vhost-vsock` — see `vm-host.nix` for the host-side permissions that
   need.
 
-  **Deliberately unimplemented** (accepted as parameters so later phases
-  don't need to change this function's shape, but not wired to anything
-  yet): `stateDirs` and `lifecycle` — Phases 6 and 7. Don't guess ahead of
-  those phases; see the handoff on Phase 3 for why speculative fields were
-  avoided there too.
+  **State directories (Phase 6).** `stateDirs` is a list of host directories
+  shared read-write at the identical path, exactly like `projectRoots` — the
+  distinction is entirely in who contributes them and why, not in what this
+  function does with them, so they are kept as two lists rather than merged
+  into one. They carry the agent's memory, sessions and credentials across
+  guest restarts.
+
+  This function must never *name* one of those directories: which state a
+  harness keeps, and where, is the harness layer's fact
+  (`flake.lib.agents.stateDirs`). Same for `guestEnvironment`, an opaque
+  attrset of `name = value` pairs written into the guest's
+  `environment.variables`; the host passes `CLAUDE_CONFIG_DIR` through it
+  without this layer learning what claude is.
+
+  The guest runs **no Home Manager**, and that is load-bearing rather than
+  incidental: Home Manager symlinks at file granularity, so a guest
+  generation over the same shared `~/.claude` would rename the host
+  generation's `settings.json` out of the way on every boot. The host's
+  generation is the sole manager; the guest gets packages and wrappers only.
+
+  **Deliberately unimplemented** (accepted as a parameter so Phase 7 doesn't
+  need to change this function's shape, but not wired to anything yet):
+  `lifecycle`. Don't guess ahead of that phase; see the handoff on Phase 3
+  for why speculative fields were avoided there too.
 
   `uid`, if given, is the host user's numeric uid. The default virtiofs
   `securityModel = "none"` preserves numeric ownership as-is rather than
@@ -269,6 +289,7 @@ let
       mem ? 4096,
       sshHostPort ? 2222,
       stateDirs ? [ ],
+      guestEnvironment ? { },
       channels ? { },
       lifecycle ? { },
     }:
@@ -291,11 +312,10 @@ let
         )
       );
 
-      # `stateDirs`/`lifecycle` are accepted but intentionally unwired —
-      # see the doc comment above. Nix doesn't warn on unused arguments, so
-      # no bookkeeping is needed to "use" them; they exist purely so Phases
-      # 6/7 don't have to change this function's call signature when they
-      # start consuming them.
+      # `lifecycle` is accepted but intentionally unwired — see the doc
+      # comment above. Nix doesn't warn on unused arguments, so no
+      # bookkeeping is needed to "use" it; it exists purely so Phase 7
+      # doesn't have to change this function's call signature.
       networking.hostName = name;
       # Matches the guide's other guest examples; bump when a real upgrade
       # path exists.
@@ -359,7 +379,7 @@ let
           source = root;
           mountPoint = root;
           proto = "virtiofs";
-        }) projectRoots;
+        }) (projectRoots ++ stateDirs);
       };
 
       users.users.${hostUser} = {
@@ -374,6 +394,13 @@ let
       # ncurses for a screen size — `systemctl status` above all — prints
       # "unknown terminal type" and nothing else. The terminfo database is in
       # the shared host store, so this costs the guest nothing to carry.
+      # Opaque to this layer by construction: the caller says
+      # `CLAUDE_CONFIG_DIR = ...`, this writes it out, and the VM never
+      # learns which harness cares. `mkDefault` so a guest-side module (a
+      # channel, or a harness wrapper in a later phase) can still override
+      # one without a conflict.
+      environment.variables = lib.mapAttrs (_: lib.mkDefault) guestEnvironment;
+
       environment.enableAllTerminfo = true;
 
       services.openssh = {

@@ -13,8 +13,8 @@
   guest, so a second declaration is either an outright conflict or an
   accidental merge, and anything that refcounts sessions over the instance
   (Phase 7) becomes meaningless. Harnesses contribute the facts that are
-  theirs — `projectRoots` today, state directories in Phase 6 — and may raise
-  `enable` as an `mkDefault`. `hostUser`, `uid`, `vcpu`, `mem` and the vsock
+  theirs — `projectRoots` and `stateDirs` — and may raise `enable` as an
+  `mkDefault`. `hostUser`, `uid`, `vcpu`, `mem` and the vsock
   CID are platform policy: this module's defaults, the host's to override, and
   never a harness's business.
 
@@ -142,6 +142,48 @@
           '';
         };
 
+        stateDirs = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+          example = lib.literalExpression ''
+            self.lib.agents.stateDirsFor "/home/user" [ "claude" "headroom" ]
+          '';
+          description = ''
+            Host directories holding an agent's live state — sessions,
+            memories, caches, credentials — shared into the guest read-write
+            at the identical path, so a session survives the guest being
+            destroyed.
+
+            Another contribution point, and deliberately *not* defaulted to
+            anything: which directories exist is a harness fact
+            (`flake.lib.agents.stateDirs`), and this module is forbidden from
+            naming one. The host wires the two together, because the host is
+            what decides which harnesses are attached in the first place.
+
+            Kept separate from `projectRoots` even though both become the
+            same kind of share: the two answer different questions ("what may
+            the agent work on" versus "what must outlive the guest"), and a
+            single merged list would make it impossible to tell later which
+            was which.
+          '';
+        };
+
+        guestEnvironment = lib.mkOption {
+          type = lib.types.attrsOf lib.types.str;
+          default = { };
+          example = lib.literalExpression ''{ CLAUDE_CONFIG_DIR = "/home/user/.claude"; }'';
+          description = ''
+            Environment variables set in the guest. For values that must be
+            *identical* on both sides — a harness that is told where its
+            config directory is on the host and disagrees inside the guest
+            writes state neither side reads back.
+
+            Opaque strings on purpose: this module passes them through
+            without interpreting them, which is what lets the harness layer
+            own the meaning (`flake.lib.agents.environmentFor`).
+          '';
+        };
+
         authorizedKeys = lib.mkOption {
           type = lib.types.listOf lib.types.nonEmptyStr;
           default = [ ];
@@ -234,6 +276,8 @@
                   hostUser
                   uid
                   projectRoots
+                  stateDirs
+                  guestEnvironment
                   authorizedKeys
                   vcpu
                   mem
@@ -242,6 +286,47 @@
                   ;
               };
             };
+
+            # virtiofsd refuses to start on a source directory that does not
+            # exist, which would take the whole guest down with it — and a
+            # state directory legitimately does not exist until the harness
+            # has been run once. Creating them here makes the VM's shares
+            # well-defined on a fresh machine.
+            #
+            # Ownership is `hostUser`, not root: the share passes uids
+            # through numerically (`securityModel = "none"`), so a root-owned
+            # directory would be root-owned inside the guest too and the
+            # agent could not write to it.
+            #
+            # The mode is `-` (tmpfiles' default, 0755 on creation) rather
+            # than a tightened 0700, because tmpfiles applies a stated mode
+            # to *existing* directories on every boot as well: enabling the
+            # agent VM would then quietly re-chmod the user's live `~/.claude`
+            # and `~/.cache`, which is a policy change this module was not
+            # asked to make. Ownership is the part the share actually needs.
+            #
+            # Intermediate directories get a rule of their own because
+            # systemd-tmpfiles creates a missing parent as root — which is
+            # how sharing `~/.cache/claude-cli-nodejs` on a machine without a
+            # `~/.cache` yet would leave the user unable to write to their
+            # own cache directory.
+            systemd.tmpfiles.rules =
+              let
+                home = "/home/${cfg.hostUser}";
+                ancestors =
+                  directory:
+                  let
+                    parts = lib.splitString "/" (lib.removePrefix "${home}/" directory);
+                  in
+                  lib.imap1 (index: _: "${home}/${lib.concatStringsSep "/" (lib.take index parts)}") (
+                    lib.drop 1 parts
+                  );
+                inside = lib.filter (directory: lib.hasPrefix "${home}/" directory) cfg.stateDirs;
+              in
+              lib.unique (
+                map (directory: "d ${directory} - ${cfg.hostUser} users - -") (lib.concatMap ancestors inside)
+              )
+              ++ map (directory: "d ${directory} - ${cfg.hostUser} users - -") cfg.stateDirs;
 
             boot.kernelModules = [ "vhost_vsock" ];
             services.udev.extraRules = ''

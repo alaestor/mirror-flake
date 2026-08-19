@@ -7,11 +7,29 @@
 }:
 let
   username = config.hostIdentity.primaryUser;
+  home = "/home/${username}";
+  agents = inputs.self.lib.agents;
 in
 {
   age.identityPaths = [ config.ssh-host.hostKeyPath ];
 
-  agent-vm.enable = true;
+  # Which harnesses this host's agent VM carries state for. Named here
+  # rather than in the module because this host is what decides which
+  # harness features are attached in the first place (`modules/host/apc.nix`
+  # attaches `ai-coding` through the workstation environment); the VM module
+  # is forbidden from naming a state directory itself, and a standalone Home
+  # Manager attachment is not evaluated during `nixos-rebuild`, so it cannot
+  # contribute one either.
+  agent-vm = {
+    enable = true;
+    stateDirs = agents.stateDirsFor home [
+      "claude"
+      "codex"
+      "headroom"
+      "serena"
+    ];
+    guestEnvironment = agents.environmentFor home;
+  };
 
   crypto-yubikey.administrativeStubs.enable = true;
 

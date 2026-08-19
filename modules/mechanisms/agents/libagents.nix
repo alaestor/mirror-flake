@@ -19,6 +19,17 @@
   - `collectSkills` — recursively scans a skills root for `SKILL.md`
     directories, keyed by their path with `/` flattened to `-`.
   - `context` — the shared `AGENTS.md` context text.
+  - `stateDirs` / `stateDirsFor` — the `$HOME`-relative directories each
+    harness and component keeps live state in, and a helper that makes them
+    absolute for one home. Declared here because the VM layer is forbidden
+    from naming any of them (`implementation-guide.md` Phase 6) and the
+    harness modules themselves are Home Manager modules, which a NixOS
+    configuration cannot read back — a standalone `userEnvironment`
+    attachment is not evaluated during `nixos-rebuild` at all. A plain table
+    in the harness layer is therefore the only place both sides can agree on.
+  - `environmentFor` — environment variables that must hold the *same* value
+    on the host and inside the guest, for one home directory.
+
   - `mkPrompt` — resolves a `(harness, model, variant)` prompt into the three
     depths a harness can inject at (`system`, `preamble`, `context`), from a
     layered `common -> byHarness -> byVariant -> byModel` declaration. See
@@ -149,6 +160,53 @@ let
 
   context = self.data.read "agents/AGENTS.md";
 
+  # Verified against the live system (`ls ~`) rather than copied from the
+  # guide's table, which the guide itself says to distrust. Paths are
+  # relative to `$HOME`; `stateDirsFor` makes them absolute.
+  #
+  # These are *live state*, not configuration: sessions, memories, caches,
+  # credentials and databases that a harness writes as it runs. The host's
+  # Home Manager generation remains the sole manager of the managed files
+  # interleaved with them — the guest gets the directory shared read-write
+  # and runs no Home Manager of its own, because Home Manager symlinks at
+  # file granularity and two generations over one tree rename each other's
+  # `settings.json` out of the way (`implementation-guide.md` Phase 6,
+  # "the ownership rule").
+  stateDirs = {
+    # `.claude.json` lives at the top of `$HOME` by default and virtiofs
+    # shares directories, not files. `CLAUDE_CONFIG_DIR` (see
+    # `environmentFor`) relocates it into the config directory, so sharing
+    # `.claude` is enough to carry it too.
+    claude = [
+      ".claude"
+      ".cache/claude-cli-nodejs"
+    ];
+    # `.serena-cxs` is codex's own serena instance, pinned there by
+    # `SERENA_HOME` in `modules/features/codex.nix`; it belongs to codex
+    # rather than to the shared serena component below.
+    codex = [
+      ".codex"
+      ".serena-cxs"
+    ];
+    headroom = [ ".headroom" ];
+    # serena's default `SERENA_HOME`, which is what headroom's
+    # `--code-memory serena` (the `ccs` wrapper) ends up using.
+    serena = [ ".serena" ];
+  };
+
+  stateDirsFor =
+    home: names:
+    map (directory: "${home}/${directory}") (lib.concatMap (name: stateDirs.${name}) names);
+
+  # Set on the host *and* in the guest, to the same value, or the two
+  # disagree about where state lives and each writes a config the other
+  # never reads. Consumed by the harness's Home Manager module on the host
+  # and handed to the VM as opaque `name = value` pairs on the guest side,
+  # so the VM layer still never learns what `.claude` is.
+  environmentFor = home: {
+    CLAUDE_CONFIG_DIR = "${home}/.claude";
+  };
+
   # Resolves the text/path a harness injects at each of its three depths
   # (`system`, `preamble`, `context`) for one `(harness, model, variant)`
   # combination. `layers` is:
@@ -233,6 +291,9 @@ in
       collectSkills
       context
       mkPrompt
+      stateDirs
+      stateDirsFor
+      environmentFor
       ;
   };
 }

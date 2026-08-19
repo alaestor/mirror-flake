@@ -716,6 +716,13 @@ fi
 # Clear host env to prevent leaking secrets, then set only what's needed
 BWRAP_ARGS+=(--clearenv)
 BWRAP_ARGS+=(--setenv HOME "/home/${SANDBOX_NAME}")
+# LOCAL DEVIATION: upstream never points claude at a config dir other than
+# $HOME, so it never needed this. The read-write ~/.claude bind above (see
+# that LOCAL DEVIATION note) carries the migrated .claude.json one path
+# below $HOME; without this, claude falls back to its unset-CLAUDE_CONFIG_DIR
+# default of $HOME/.claude.json, finds nothing there, and looks like a
+# fresh, logged-out install despite the credentials being right there.
+BWRAP_ARGS+=(--setenv CLAUDE_CONFIG_DIR "/home/${SANDBOX_NAME}/.claude")
 BWRAP_ARGS+=(--setenv PATH "$SANDBOX_PATH")
 BWRAP_ARGS+=(--setenv SSL_CERT_FILE "$SSL_CERT_FILE")
 BWRAP_ARGS+=(--setenv NODE_EXTRA_CA_CERTS "$SSL_CERT_FILE")

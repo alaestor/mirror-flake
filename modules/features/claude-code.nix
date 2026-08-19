@@ -11,6 +11,20 @@
     let
       agents = self.lib.agents;
       claudePackage = config.programs.claude-code.finalPackage;
+
+      # `CLAUDE_CONFIG_DIR` relocates `~/.claude.json` into `~/.claude`, so
+      # virtiofs (directory-only sharing) can carry it along with the rest of
+      # claude's state. Set here, not just in the wrapper, so a bare `claude`
+      # or an editor extension agrees with the wrappers and the VM guest
+      # (`agent-vm.guestEnvironment`) about where state lives.
+      claudeEnvironment = agents.environmentFor config.home.homeDirectory;
+
+      # The relocation is undocumented and version-dependent (anthropics/
+      # claude-code#3833); an older claude keeps writing `~/.claude.json`
+      # outside every share, so the guest would silently start blank. Fail
+      # the build instead.
+      minimumClaudeVersion = "2.0.42";
+      claudeVersionOk = !lib.versionOlder claudePackage.version minimumClaudeVersion;
       headroomPackage = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.headroom;
       cliTools = agents.tools pkgs;
       shellInstructions = agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
@@ -197,6 +211,35 @@
           # behavior change from the pre-split wrapper.
           nativeText = ''
             ${environmentBlock}
+            # Exported rather than inherited from the session: a wrapper that
+            # only works in a login shell that happened to source Home
+            # Manager's session variables is a wrapper that breaks over ssh
+            # into the agent VM, which is exactly where it matters most.
+            #
+            # Resolved against the *runtime* $HOME, not baked in as the
+            # host's absolute path: `cc` execs this same nativeText inside
+            # the bubblewrap sandbox, where $HOME is the sandbox user's
+            # (`/home/claude-sandbox`, not `/home/user`) and the host's
+            # `.claude` is bind-mounted at that sandbox $HOME/.claude — a
+            # baked-in host path pointed nowhere the sandbox could see,
+            # silently presenting as a fresh, logged-out install.
+            export CLAUDE_CONFIG_DIR="$HOME/.claude"
+
+            # Backstop for the eval-time assertion, which cannot see the
+            # `-74` build suffix the behaviour actually landed in and which
+            # says nothing at all about a claude that arrived some other way
+            # (a `npm -g` install ahead of us on PATH). ~85ms, once per
+            # launch, to not lose a credentials file silently.
+            cc_version="$(claude --version 2>/dev/null | ${pkgs.coreutils}/bin/cut -d' ' -f1)"
+            if [[ -n "$cc_version" ]] \
+              && [[ "$(printf '%s\n' "$cc_version" ${lib.escapeShellArg minimumClaudeVersion} \
+                | ${pkgs.coreutils}/bin/sort -V | ${pkgs.coreutils}/bin/head -n1)" != ${lib.escapeShellArg minimumClaudeVersion} ]]
+            then
+              echo "${name}: claude $cc_version predates CLAUDE_CONFIG_DIR support (need ${minimumClaudeVersion}+);" >&2
+              echo "  ~/.claude.json would not follow the config directory. Refusing to start." >&2
+              exit 1
+            fi
+
             model=""
             effort=""
             permission_mode=""
@@ -325,6 +368,20 @@
       ccsWrappers = mkClaudeWrapper "ccs" true;
     in
     {
+      assertions = [
+        {
+          assertion = claudeVersionOk;
+          message = ''
+            claude-code ${claudePackage.version} predates the version where
+            CLAUDE_CONFIG_DIR relocates ~/.claude.json (v${minimumClaudeVersion}-74). The
+            agent VM shares a single config directory and would silently lose
+            that file. See https://github.com/anthropics/claude-code/issues/3833
+          '';
+        }
+      ];
+
+      home.sessionVariables = claudeEnvironment;
+
       home.packages = [
         ccWrappers.native
         ccWrappers.wrapped
