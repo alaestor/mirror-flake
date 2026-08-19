@@ -6,32 +6,14 @@
   (`modules/host-plumbing/registry.nix`): it isn't a real fleet host, has no
   `hostIdentity`, and is meant to be built and thrown away, not deployed.
 
-  **Running it.** `nix run .#...declaredRunner` on its own is not enough:
-  it only executes the runner's `bin/microvm-run` (QEMU), while every
-  `proto = "virtiofs"` share expects a `virtiofsd` already listening on a
-  *relative* socket path. Without those you get
-  `Failed to connect to 'agent-vm-smoke-test-virtiofs-ro-store.sock'`.
-  The runner's `bin/virtiofsd-run` starts them, but it is a supervisord
-  config with `user=root`, so unprivileged use means invoking each
-  `virtiofsd` command from that config directly (they handle non-root fine,
-  and drop the `--rlimit-nofile` bump). Do it all from one scratch
-  directory, since the socket paths are relative to `$PWD`:
-
-  ```
-  R=$(rtk nix build --no-link --print-out-paths \
-      .#nixosConfigurations.agent-vm-smoke-test.config.microvm.declaredRunner)
-  mkdir -p /tmp/agent-vm && cd /tmp/agent-vm
-  conf=$(grep -o '/nix/store/[^ ]*-supervisord.conf' "$(readlink -f "$R/bin/virtiofsd-run")")
-  grep '^command=' "$conf" | grep virtiofsd | sed 's/^command=//' |
-    while read -r c; do "$c" & done
-  "$R/bin/microvm-run"          # or `sudo "$R/bin/virtiofsd-run" &` instead
-  ssh -p 2222 user@localhost
-  "$R/bin/microvm-shutdown"     # from the same directory, to stop it
-  ```
-
-  Don't launch it with `$PWD` inside the flake: `microvm-run` drops a QMP
-  socket named after the VM next to itself, and a socket in the source tree
-  makes the flake itself unevaluable ("has an unsupported type").
+  **Running it:** `nix run .#agent-vm-run -- agent-vm-smoke-test`, then
+  `ssh -p 2222 user@localhost`. Plain
+  `nix run .#...config.microvm.declaredRunner` is *not* enough — it starts
+  QEMU without the `virtiofsd` daemons every `proto = "virtiofs"` share
+  needs, and dies with `Failed to connect to
+  'agent-vm-smoke-test-virtiofs-ro-store.sock'`. See
+  `modules/utils/agents/vm-run.nix` for what the wrapper does, why it wants
+  `sudo`, and what `--unprivileged` costs you.
 
   The in-guest acceptance checks themselves live in
   `__reference/human-verify.md`.
