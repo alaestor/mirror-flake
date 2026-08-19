@@ -1,7 +1,7 @@
 /**
   # flake.lib.agents.mkAgentVm
 
-  Phase 4 of `__reference/implementation-guide-agent-microvms.md`: the VM
+  Phase 4 of `__reference/microvm/implementation-guide.md`: the VM
   layer. Must never mention `~/.claude`, headroom, or a model name — that's
   the harness layer's job (`libagents.nix`, `selector-loop.nix`). This layer
   only knows about shares, networking, and the guest's own NixOS

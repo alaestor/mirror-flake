@@ -7,7 +7,7 @@
   prompt fragments, skills and `AGENTS.md`. It must never mention vsock,
   virtiofs, systemd units, or anything belonging to the VM layer
   (`modules/utils/agents/vm.nix`) — see the layering picture in
-  `__reference/implementation-guide-agent-microvms.md`.
+  `__reference/microvm/implementation-guide.md`.
 
   - `tools` / `toolsMarkdown` — the CLI tool set every harness's shell
     fragment advertises, and its rendering as a markdown bullet list.

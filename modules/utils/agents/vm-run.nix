@@ -2,8 +2,8 @@
   # `agent-vm-run`
 
   One command for "boot an agent VM on this machine and get a shell", so
-  manual verification (`__reference/human-verify.md`) doesn't start with a
-  five-line shell incantation.
+  manual verification (`__reference/microvm/human-verify.md`) doesn't start
+  with a five-line shell incantation.
 
   `nix run .#nixosConfigurations.<vm>.config.microvm.declaredRunner` is not
   enough on its own: it executes only the runner's `bin/microvm-run` (QEMU),
@@ -34,11 +34,14 @@
   test, not to judge whether the guest is healthy.
 
   This deliberately does not install a systemd unit or a persistent state
-  directory; VM lifecycle management is Phase 6's job in
-  `__reference/implementation-guide-agent-microvms.md`, and guessing ahead of
-  it here would be the "drive-by" kind of change. Everything below is scoped
-  to running one VM interactively, from a directory outside the flake (a QMP
-  socket dropped into the source tree makes the flake itself unevaluable).
+  directory. VM lifecycle management is Phase 7's job in
+  `__reference/microvm/implementation-guide.md`, and it belongs to
+  microvm.nix's own host module (`microvm.vms.<name>`, which generates a
+  `microvm@<name>.service` that already depends on its virtiofsd units) rather
+  than to this wrapper. Once that lands, this stays a dev tool for throwaway
+  guests. Everything below is scoped to running one VM interactively, from a
+  directory outside the flake (a QMP socket dropped into the source tree makes
+  the flake itself unevaluable).
 */
 { ... }:
 {

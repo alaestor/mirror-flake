@@ -24,6 +24,20 @@ An aspect is the repository term for high-level reusable composition. Do not use
 “profile” or “featureset” for that meaning; retain “profile” only when it is an
 upstream application's own term.
 
+### Dependencies between features
+
+A feature may import another feature. That import expresses a prerequisite, and
+it is not a reason to introduce an aspect. Aspects express a domain interest —
+“gaming”, “coding” — and must not be used to describe a dependency
+relationship between modules.
+
+Import a feature from a feature when the importing module is an extension of
+that base, and the base is meaningfully usable on its own or shared by more
+than one consumer. Otherwise write the dependency into the module that needs
+it, and rip it out into shared infrastructure only once a second consumer
+exists. Anticipating that consumer produces a shared module with one caller
+and no evidence about the shape of the seam.
+
 App config is an experimental kind. It lives in `modules/app-config/` and is
 exported through `flake.wrappers` rather than a module class registry, so the
 Home Manager program module for the same application stays a thin adapter over

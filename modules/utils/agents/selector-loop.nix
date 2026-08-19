@@ -1,7 +1,7 @@
 /**
   # flake.lib.agents.{mkSelectorLoop, mkHarnessWrappers}
 
-  Phase 3 of `__reference/implementation-guide-agent-microvms.md`, implemented
+  Phase 3 of `__reference/microvm/implementation-guide.md`, implemented
   per the deviation recorded in `.claude/handoff-472dce40.md`: the guide's
   literal "harness factory" (model/effort as reserved cross-harness words,
   `native` as a selector) was replaced with this narrower design after

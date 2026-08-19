@@ -16,7 +16,7 @@
   `sudo`, and what `--unprivileged` costs you.
 
   The in-guest acceptance checks themselves live in
-  `__reference/human-verify.md`.
+  `__reference/microvm/human-verify.md`.
 */
 { inputs, self, ... }:
 {
