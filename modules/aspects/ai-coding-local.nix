@@ -3,7 +3,7 @@
   flake.modules.homeManager.ai-coding-local =
     { pkgs, ... }:
     let
-      preferredModel = "qwen/qwen3.6-27b";
+      preferredModel = "qwen/qwen3.8-27b";
       preferred = {
         provider = "lmstudio";
         model = preferredModel;
@@ -34,55 +34,20 @@
           }
           {
             provider = "openrouter";
-            model = "minimax/minimax-m3";
-            enable_thinking = true;
-          }
-          {
-            provider = "openrouter";
             model = "deepseek/deepseek-v4-pro";
-            enable_thinking = true;
-          }
-          {
-            provider = "openrouter";
-            model = "x-ai/grok-4.5";
-            enable_thinking = true;
-          }
-          {
-            provider = "openrouter";
-            model = "openai/gpt-5.6-terra";
-            enable_thinking = true;
-          }
-          {
-            provider = "openrouter";
-            model = "openai/gpt-5.6-luna";
-            enable_thinking = true;
-          }
-          {
-            provider = "openrouter";
-            model = "openai/gpt-5.6-sol";
-            enable_thinking = true;
-          }
-          {
-            provider = "openrouter";
-            model = "qwen/qwen3.7-plus";
-            enable_thinking = true;
-          }
-          {
-            provider = "openrouter";
-            model = "qwen/qwen3.5-flash-02-23";
             enable_thinking = true;
           }
         ];
         subs.openai = [
           {
             provider = "openai-subscribed";
-            model = "gpt-5.5";
+            model = "gpt-5.6-sol";
             enable_thinking = true;
             effort = "medium";
           }
           {
             provider = "openai-subscribed";
-            model = "gpt-5.4-mini";
+            model = "gpt-5.6-terra";
             enable_thinking = true;
             effort = "medium";
           }
