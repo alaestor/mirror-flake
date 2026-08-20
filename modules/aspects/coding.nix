@@ -11,6 +11,7 @@
       pgp
       git
       ai-coding
+      ai-coding-local
     ];
   };
 }
