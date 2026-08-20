@@ -15,7 +15,6 @@
       headroomPackage = proxy.package;
 
       instructionFiles = {
-        full = self.data.path "programs/codex/codex-instructions-gpt-5-full.md";
         small = self.data.path "programs/codex/codex-instructions-gpt-5-small.md";
       };
 
@@ -135,7 +134,7 @@
             med|medium) effort="medium" ;;
             hi|high) effort="high" ;;
             xhi|xhigh) effort="xhigh" ;;
-            full) instruction_file=${lib.escapeShellArg (toString instructionFiles.full)} ;;
+            full) instruction_file="" ;;
             small) instruction_file=${lib.escapeShellArg (toString instructionFiles.small)} ;;
             user) reviewer="user" ;;
             auto) reviewer="auto_review" ;;
