@@ -397,6 +397,8 @@
       ccsWrappers = mkClaudeWrapper "ccs" true;
     in
     {
+      imports = [ inputs.self.modules.homeManager.agents-prompt-preview ];
+
       assertions = [
         {
           assertion = claudeVersionOk;

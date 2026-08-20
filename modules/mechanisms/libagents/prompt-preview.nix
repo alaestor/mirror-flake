@@ -13,11 +13,14 @@
   eval`, printing each of the three depths separately.
 
   This module's `homeManager.agents-prompt-preview` output only declares the
-  option; something combining harnesses (`ai-coding.nix`) must still import
-  it explicitly, same as `claude-code`/`codex`/`zed`. Importing it from more
-  than one harness module at once fails at eval time — deferred modules
-  don't dedupe the way plain `imports` entries do — so keep it to one import
-  site per configuration.
+  option; each harness feature module that writes to it
+  (`claude-code.nix`, `codex.nix`) imports it directly, so either one is
+  usable standalone without also pulling in a combining module. The module
+  carries an explicit `key` (its own output attribute path, as in
+  `ssh-known-hosts`) so importing it from more than one harness at once
+  dedupes instead of failing at eval time with "option ... is already
+  declared" — deferred/value-imported modules have no path to dedupe by
+  otherwise.
 
   Usage: `nix run .#agent-prompt-preview -- claude plain` (add a third
   argument to pick a `homeConfigurations` name other than `user@apc`).
@@ -27,6 +30,9 @@
   flake.modules.homeManager.agents-prompt-preview =
     { lib, ... }:
     {
+      # The interface may arrive through more than one harness feature module.
+      key = "flake.modules.homeManager.agents-prompt-preview";
+
       options.agents.promptPreview = lib.mkOption {
         type = lib.types.attrsOf (
           lib.types.attrsOf (

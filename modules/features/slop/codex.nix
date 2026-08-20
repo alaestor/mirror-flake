@@ -215,7 +215,10 @@
       skillsRoot = self.data.path "agents/skills";
     in
     {
-      imports = [ inputs.self.modules.homeManager.headroom ];
+      imports = [
+        inputs.self.modules.homeManager.headroom
+        inputs.self.modules.homeManager.agents-prompt-preview
+      ];
 
       # Calling `codex features list` shows current feature flags.
       # Feature defaults: https://github.com/openai/codex/blob/rust-v0.145.0/codex-rs/features/src/lib.rs
