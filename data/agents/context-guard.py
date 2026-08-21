@@ -141,21 +141,28 @@ def main():
     tokens = context_tokens(payload.get("transcript_path"))
     event = payload.get("hook_event_name")
     session = payload.get("session_id")
+    limit = env_int("CC_CONTEXT_LIMIT", DEFAULT_LIMIT)
 
     # Blocking a proactive auto-compact leaves the conversation uncompacted,
     # which is the whole point. A compact triggered by an API context-limit
     # error fails the request instead, but the threshold below should fire
-    # first.
+    # first. Covers both triggers (`payload["trigger"]` is "auto" or
+    # "manual") — a `/compact` run by hand gets redirected the same as a
+    # proactive one, reusing the same instructions PostToolUse/Stop give once
+    # the threshold is crossed, rather than a bare "write a handoff" nudge
+    # with no path or content guidance.
     if event == "PreCompact":
-        emit(
-            {
-                "decision": "block",
-                "reason": (
-                    "Auto-compaction is disabled for this session. Write or "
-                    "update a handoff instead, then let the session end."
-                ),
-            }
-        )
+        if tokens is not None:
+            reason = (
+                "Auto-compaction is disabled for this session.\n\n"
+                + handoff_request(payload, tokens, limit)
+            )
+        else:
+            reason = (
+                "Auto-compaction is disabled for this session. Write or "
+                "update a handoff instead, then let the session end."
+            )
+        emit({"decision": "block", "reason": reason})
 
     # Announce a prior handoff so the user can refer to it without naming the
     # path. Deliberately not read on sight: a stale handoff is worse than none,
@@ -182,7 +189,6 @@ def main():
     if tokens is None:
         sys.exit(0)
 
-    limit = env_int("CC_CONTEXT_LIMIT", DEFAULT_LIMIT)
     threshold = env_int("CC_CONTEXT_THRESHOLD", int(limit * THRESHOLD_FRACTION))
 
     if tokens < threshold:
