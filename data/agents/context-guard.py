@@ -8,10 +8,18 @@ event it is registered for.
 Rationale: auto-compaction summarizes for narrative continuity and routinely
 drops the details needed to resume work. This trades that summary for an
 agent-written handoff produced while full context is still loaded, then stops
-the turn once it exists rather than running the session further. One
-threshold, set with enough headroom below the real limit that a handoff
-(small; a few paragraphs) always finishes before the limit is reached even if
-the check landed late.
+the turn once it exists rather than running the session further.
+
+Claude Code reserves a fixed fraction of the window (observed ~16.5%,
+regardless of how much of the rest is used) as its own auto-compact buffer —
+that's the point at which it starts nagging about compaction and, eventually,
+attempts one. The threshold here targets just under that reserve, so the
+handoff pre-empts native compaction at the same point Claude Code would have
+acted anyway, rather than racing it with an independent fraction. It also
+keeps the "% until auto-compact" cosmetic countdown meaningful, since it now
+roughly predicts when the handoff fires. A small margin is kept below that
+line since the transcript this reads from lags the live count by a message or
+two.
 
 The threshold comes from the environment so the wrapper can raise it for 1M
 sessions; hooks inherit the wrapper's environment.
@@ -23,7 +31,7 @@ import sys
 import time
 
 DEFAULT_LIMIT = 200_000
-THRESHOLD_FRACTION = 0.90
+THRESHOLD_FRACTION = 0.83
 
 
 def state_dir():

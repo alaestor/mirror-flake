@@ -172,10 +172,11 @@
       ];
       skillTools = [ "Skill" ];
       # Auto-compaction summarizes for narrative continuity and loses the
-      # details needed to resume work. This guard replaces it: an agent-written
-      # handoff at ~65% of the window, and a hard turn stop at ~92.5% so a
-      # session can never run past the limit trying to produce one. See the
-      # script for the threshold environment variables.
+      # details needed to resume work. This guard replaces it: a single
+      # threshold, sitting just under Claude Code's own auto-compact reserve
+      # (~83% of the window), so the agent writes a handoff and the turn
+      # stops right where native compaction would otherwise have kicked in.
+      # See the script for the threshold environment variables.
       contextGuard = pkgs.writers.writePython3Bin "cc-context-guard" {
         flakeIgnore = [ "E501" ];
       } (self.data.read "agents/context-guard.py");
