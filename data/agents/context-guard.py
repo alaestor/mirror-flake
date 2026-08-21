@@ -114,16 +114,20 @@ def latest_handoff(payload):
 
 def handoff_request(payload, tokens, limit):
     return (
-        f"Context is at {tokens:,} of {limit:,} tokens "
-        f"({tokens / limit:.0%}). Auto-compaction is disabled for this session, "
-        f"and the turn stops as soon as the handoff exists.\n\n"
-        f"Write a handoff to {handoff_path(payload)} now, before doing "
-        "anything else. Cover: the task and its current state, exact "
-        "file:line targets, decisions already settled and why, what is still "
-        "open, and what the next agent should do first. Omit concluded "
-        "history and fixed bugs.\n\n"
-        "The turn stops once the file exists, so the handoff is the last "
-        "thing you do. Write it in one pass."
+        f"Context is at {tokens:,} of {limit:,} tokens ({tokens / limit:.0%}). "
+        "Auto-compaction is disabled for this session, and the turn stops as soon as the handoff exists.\n\n"
+        f"Write a handoff to {handoff_path(payload)} now, without doing anything else.\n\n"
+        "You need to think about how best to direct the new session to pick up from where you're leaving off. "
+        "Cover: the task and its current state, decisions already settled and why, what's open, "
+        "and what the next agent should do first. Recommend what files the next session should read "
+        "to prepare for its task; recommend against certain files you think they might try to read but "
+        "that you know aren't relevant and say what they are instead. Mention gotcha's and hickups "
+        "you ran into, but only if you expect they will encounter them in the pending work. "
+        "Omit concluded history and fixed bugs.\n\n"
+        "Try to give good advice. The point of this is to set them up for success by providing high-value, "
+        "high signal-to-noise information by weighting your experiences against future relevancy. "
+        "This isn't a compaction summary: you're give the next _you_ what they need to hit the ground running.\n\n"
+        "The turn stops once the file exists, so the handoff is the last thing you do. Write it in one pass."
     )
 
 
@@ -153,10 +157,7 @@ def main():
     # with no path or content guidance.
     if event == "PreCompact":
         if tokens is not None:
-            reason = (
-                "Auto-compaction is disabled for this session.\n\n"
-                + handoff_request(payload, tokens, limit)
-            )
+            reason = (handoff_request(payload, tokens, limit))
         else:
             reason = (
                 "Auto-compaction is disabled for this session. Write or "
