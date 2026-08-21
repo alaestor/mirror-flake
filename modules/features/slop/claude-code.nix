@@ -42,6 +42,12 @@
       minimumClaudeVersion = "2.0.42";
       claudeVersionOk = !lib.versionOlder claudePackage.version minimumClaudeVersion;
       headroomPackage = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.headroom;
+      serenaPackage = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
+      # Matches `stateDirs.serena` (`libagents.nix`) — serena's own default
+      # `SERENA_HOME` when nothing overrides it. Set explicitly here so this
+      # file states the fact rather than leaning on serena's undocumented
+      # default staying what it is.
+      serenaHome = "${config.home.homeDirectory}/.serena";
       cliTools = agents.tools pkgs;
       shellInstructions = agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
 
@@ -207,6 +213,48 @@
             verbose|verbose-tools) lean_tools=0 ;;
       '';
 
+      # `--mcp-config` + `--strict-mcp-config` (below) replace whatever
+      # `mcpServers` happens to be sitting in the live, auth-bearing
+      # `~/.claude/.claude.json` — that file is runtime state `claude mcp
+      # add` writes to, not something this module manages, and its entries
+      # apply to every session regardless of which wrapper started it (there
+      # is no `cc`/`ccs` distinction once a server lands there). Building the
+      # server list here instead means each wrapper's MCP set is exactly what
+      # `withSerena` says it is, and `lib.getExe` keeps every command pointed
+      # at the flake's *current* package rather than a store path frozen at
+      # whatever version was live when someone last ran `claude mcp add`.
+      mcpServersBase = {
+        headroom = {
+          type = "stdio";
+          command = lib.getExe headroomPackage;
+          args = [
+            "mcp"
+            "serve"
+          ];
+        };
+      };
+      mcpServersSerena = mcpServersBase // {
+        serena = {
+          type = "stdio";
+          command = lib.getExe serenaPackage;
+          args = [
+            "start-mcp-server"
+            "--project-from-cwd"
+            "--context=claude-code"
+            "--open-web-dashboard"
+            "False"
+          ];
+          env = {
+            SERENA_HOME = serenaHome;
+          };
+        };
+      };
+      mkMcpConfig =
+        name: servers:
+        pkgs.writeText "${name}-mcp-config.json" (builtins.toJSON { mcpServers = servers; });
+      mcpConfigPlain = mkMcpConfig "cc" mcpServersBase;
+      mcpConfigSerena = mkMcpConfig "ccs" mcpServersSerena;
+
       mkClaudeWrapper =
         name: withSerena:
         agents.mkHarnessWrappers pkgs {
@@ -305,6 +353,13 @@
               append_prompt="$(cc_environment_block)"$'\n\n'"$append_prompt"
             fi
             claude_args+=( --append-system-prompt "$append_prompt" )
+
+            # Fully replaces whatever `mcpServers` the live `~/.claude/.claude.json`
+            # happens to hold — see `mcpServersBase`/`mcpServersSerena` above.
+            claude_args+=(
+              --strict-mcp-config
+              --mcp-config ${lib.escapeShellArg (toString (if withSerena then mcpConfigSerena else mcpConfigPlain))}
+            )
 
             # `--autocompact` has no `off`; parking it at the maximum keeps
             # Claude Code from attempting a proactive compaction the PreCompact
