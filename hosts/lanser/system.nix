@@ -88,6 +88,7 @@ in
       readonly = true;
     };
     pocket.enable = true;
+    services.enable = true;
   };
 
   serve = {

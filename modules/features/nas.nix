@@ -1,6 +1,6 @@
 /**
-  Provides optional NFS mounts for the Cauldron, Vault, and Pocket NAS shares.
-  Each share can be enabled independently and mounted read-only.
+  Provides optional NFS mounts for the Cauldron, Vault, Pocket, and Services
+  NAS shares. Each share can be enabled independently and mounted read-only.
 */
 {
   flake.modules.nixos.nas =
@@ -9,7 +9,7 @@
       cfg = config.nas;
 
       shareOptions =
-        name:
+        name: device:
         {
           enable = lib.mkEnableOption "the ${name} NAS share";
           readonly = lib.mkOption {
@@ -22,19 +22,25 @@
             default = "/mnt/${name}";
             description = "Local mount point for the ${name} NAS share.";
           };
+          device = lib.mkOption {
+            type = lib.types.str;
+            default = device;
+            description = "Remote NFS export path for the ${name} NAS share.";
+          };
         };
 
       shares = [
         cfg.cauldron
         cfg.vault
         cfg.pocket
+        cfg.services
       ];
 
       mkFileSystem =
-        optionName: shareName:
+        optionName:
         lib.mkIf cfg.${optionName}.enable {
           "${cfg.${optionName}.mountpoint}" = {
-            device = "${cfg.server}:/mnt/${shareName}/Storage";
+            device = cfg.${optionName}.device;
             fsType = "nfs";
             options = [
               "nfsvers=4.2"
@@ -62,9 +68,13 @@
           description = "Hostname or address of the NAS server.";
         };
 
-        cauldron = shareOptions "Cauldron";
-        vault = shareOptions "Vault";
-        pocket = shareOptions "Pocket";
+        cauldron = shareOptions "Cauldron" "${cfg.server}:/mnt/Cauldron/Storage";
+        vault = shareOptions "Vault" "${cfg.server}:/mnt/Vault/Storage";
+        pocket = shareOptions "Pocket" "${cfg.server}:/mnt/Pocket/Storage";
+        # Same underlying export as `vault`, mounted separately (and
+        # writable) so hosts don't need read-write access to all of Vault
+        # just to write into its `services` folder.
+        services = shareOptions "Services" "${cfg.server}:/mnt/Vault/Storage/services";
       };
 
       config = lib.mkIf (lib.any (share: share.enable) shares) {
@@ -77,9 +87,10 @@
         };
 
         fileSystems = lib.mkMerge [
-          (mkFileSystem "cauldron" "Cauldron")
-          (mkFileSystem "vault" "Vault")
-          (mkFileSystem "pocket" "Pocket")
+          (mkFileSystem "cauldron")
+          (mkFileSystem "vault")
+          (mkFileSystem "pocket")
+          (mkFileSystem "services")
         ];
 
         userEnvironment.sharedModules = lib.optional cfg.vault.enable (
