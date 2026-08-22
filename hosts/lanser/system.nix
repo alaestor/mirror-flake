@@ -103,6 +103,10 @@ in
       # headplane (behind serve.headscale) defaults to 3000 too; avoid the
       # clash since this host runs both.
       port = 3001;
+      # Router forwards external 38502 -> this host's real sshd (port 22,
+      # via ssh-host), so git clone URLs advertise the port people can
+      # actually reach from outside the LAN/tailnet.
+      sshPort = 38502;
     };
     headscale = {
       enable = true;

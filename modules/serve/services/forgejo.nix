@@ -36,6 +36,19 @@
           description = "Local Forgejo HTTP listener port.";
         };
 
+        sshPort = lib.mkOption {
+          type = lib.types.port;
+          default = 22;
+          description = ''
+            SSH port advertised in clone URLs. Git-over-SSH is served
+            through the host's existing OpenSSH daemon (always on its
+            real port, e.g. `ssh-host.port`), so only change this when a
+            different *external* port is forwarded to it (e.g. NAT
+            port-forwarding a non-standard public port to the host's
+            internal port 22).
+          '';
+        };
+
         dataRoot = lib.mkOption {
           type = lib.types.str;
           default = if hasServicesMountpoint then "${config.nas.services.mountpoint}/forgejo" else "/mnt/Services/forgejo";
@@ -65,6 +78,7 @@
               HTTP_ADDR = cfg.address;
               HTTP_PORT = cfg.port;
               PROTOCOL = "http";
+              SSH_PORT = cfg.sshPort;
             };
 
             # Forgejo itself only ever speaks plain HTTP to Caddy, but the
