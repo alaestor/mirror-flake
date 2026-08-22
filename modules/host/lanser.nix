@@ -26,6 +26,7 @@ in
         tailnet-client
         serve-caddy
         domain-0x04
+        domain-bokunopi
         domain-remotehost
         serve-torrenting
       ])
