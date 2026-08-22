@@ -199,9 +199,33 @@ let
           inherit (environment) homeDirectory;
         };
       }
+      backupExistingHomeFilesModule
     ]
     ++ featureModules
     ++ environment.modules;
+
+  # Home Manager refuses to overwrite a pre-existing, unmanaged file (e.g.
+  # mimeapps.list, written by some GUI app before Home Manager ever touched
+  # it) unless `HOME_MANAGER_BACKUP_EXT` is set -- normally a per-invocation
+  # CLI flag (`--backup-extension`) for standalone activations, or the
+  # `home-manager.backupFileExtension` NixOS/nix-darwin option for
+  # integrated ones, neither of which apply uniformly across this flake's
+  # mix of integrated/standalone/Nix-on-Droid environments. Export the same
+  # env var directly from an activation script instead, ordered before
+  # `checkLinkTargets` (the collision check itself, which runs before
+  # `writeBoundary`) so it's honored on every activation path without
+  # per-file `force = true` or per-invocation flags. Also set
+  # `HOME_MANAGER_BACKUP_OVERWRITE` so a stale `*.hm-backup` from a
+  # previous activation is replaced rather than accumulating indefinitely
+  # every time the same unmanaged file reappears in the way.
+  backupExistingHomeFilesModule =
+    { lib, ... }:
+    {
+      home.activation.backupExistingFiles = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+        export HOME_MANAGER_BACKUP_EXT="hm-backup"
+        export HOME_MANAGER_BACKUP_OVERWRITE="1"
+      '';
+    };
 
   mkEnvironmentIdentityModule =
     hostName: hostStateVersion: username: environment:
