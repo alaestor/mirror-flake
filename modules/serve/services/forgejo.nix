@@ -158,16 +158,17 @@
           };
         };
 
-        # Git-over-SSH authenticates against the `forgejo` system user
-        # (via the upstream module's AuthorizedKeysCommand hook into the
-        # shared sshd), but `ssh-host.allowUsers` defaults to only the
-        # host's primary user, which rejects `forgejo` at the sshd level
-        # before key lookup ever runs. List types merge additively, so
-        # this only ever adds to whatever's already configured -- except
-        # when a host deliberately sets `ssh-host.allowUsers = null` (no
-        # restriction), in which case this contribution doesn't apply
-        # (list/null can't merge) and should be removed for that host.
-        "ssh-host" = lib.mkIf hasSshHostAllowUsers { allowUsers = [ "forgejo" ]; };
+        # Git-over-SSH authenticates against the `forgejo` system user's
+        # own forced-command authorized_keys (written/managed by Forgejo
+        # itself), but sshd's AllowUsers defaults to only the host's
+        # primary user, which rejects `forgejo` before key lookup ever
+        # runs. Contribute directly to the underlying sshd setting rather
+        # than `ssh-host.allowUsers`: that option's own module also grants
+        # every listed user the full administrative SSH key set with a
+        # *plain, unrestricted* shell -- which would silently bypass
+        # Forgejo's per-account command restriction for anyone holding an
+        # admin key.
+        services.openssh.settings.AllowUsers = lib.mkIf hasSshHostAllowUsers [ "forgejo" ];
       };
     };
 }
