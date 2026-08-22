@@ -108,7 +108,7 @@ in
     };
     jellyfin.enable = true;
     matrix.enable = true;
-    static-site.enable = true;
+    static-site-0x04.enable = true;
     torrenting = {
       enable = true;
       wireguardConfigFile = config.age.secrets.lanser-torrenting-wireguard-config.path;

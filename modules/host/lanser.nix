@@ -25,7 +25,7 @@ in
         server-hardening
         tailnet-client
         serve-caddy
-        domain-0x04cc
+        domain-0x04
         domain-remotehost
         serve-torrenting
       ])

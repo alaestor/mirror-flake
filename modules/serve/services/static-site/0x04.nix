@@ -2,14 +2,14 @@
   Reusable local content root for a static website.
 */
 {
-  flake.modules.nixos.serve-static-site =
+  flake.modules.nixos.serve-static-site-0x04 =
     { config, lib, options, ... }:
     let
       hasVaultMountpoint = lib.hasAttrByPath [ "nas" "vault" "mountpoint" ] options;
     in
     {
-      options.serve.static-site = {
-        enable = lib.mkEnableOption "the local static-site content root";
+      options.serve.static-site-0x04 = {
+        enable = lib.mkEnableOption "the local static-site content root for 0x04.cc";
 
         root = lib.mkOption {
           type = lib.types.str;

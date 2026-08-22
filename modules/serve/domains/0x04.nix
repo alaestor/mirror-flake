@@ -3,13 +3,13 @@
 */
 { inputs, ... }:
 {
-  flake.modules.nixos.domain-0x04cc =
+  flake.modules.nixos.domain-0x04 =
     { config, lib, ... }:
     let
       domain = "0x04.cc";
       matrixDomain = "matrix.${domain}";
 
-      staticSiteEnabled = config.serve.static-site.enable;
+      staticSiteEnabled = config.serve.static-site-0x04.enable;
       matrixEnabled = config.serve.matrix.enable;
       cinnyEnabled = config.serve.cinny.enable;
       headscaleEnabled = config.serve.headscale.enable;
@@ -57,7 +57,7 @@
         serve-headscale
         serve-matrix
         serve-cinny
-        serve-static-site
+        serve-static-site-0x04
         serve-forgejo
       ];
 
@@ -102,7 +102,7 @@
           ''}
           ${lib.optionalString staticSiteEnabled ''
             handle {
-              root * ${config.serve.static-site.root}
+              root * ${config.serve.static-site-0x04.root}
               try_files {path} /index.html
               file_server
             }
