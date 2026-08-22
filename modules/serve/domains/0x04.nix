@@ -155,6 +155,22 @@
       }
       // lib.optionalAttrs forgejoEnabled {
         "${forgejo.domain}".extraConfig = ''
+          handle_path /.cerberus/* {
+            cerberus_endpoint
+          }
+          @challenge {
+            not path /.cerberus/*
+            # Git Smart HTTP (clone/fetch/push) and LFS transfer can't
+            # solve a JS challenge; neither can API/CLI/CI consumers.
+            not path /*/*/info/refs
+            not path /*/*/git-upload-pack
+            not path /*/*/git-receive-pack
+            not path /*/*/info/lfs/**
+            not path /api/v1/**
+          }
+          cerberus @challenge {
+            base_url "/.cerberus"
+          }
           reverse_proxy ${forgejo.address}:${toString forgejo.port}
         '';
       };
