@@ -89,6 +89,14 @@
               REGISTER_EMAIL_CONFIRM = false;
             };
 
+            repository = {
+              # allow creating repos via authenticated `git push`
+              ENABLE_PUSH_CREATE_USER = true;
+              ENABLE_PUSH_CREATE_ORG = true;
+              DEFAULT_PRIVATE = "private";
+              DEFAULT_PUSH_CREATE_PRIVATE = true;
+            };
+
             security = {
               # Be explicit about never using the web installer.
               INSTALL_LOCK = true;
