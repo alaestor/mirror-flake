@@ -91,6 +91,15 @@ Domain modules may set values intrinsic to the public composition, such as a
 protocol's public server name. Concrete storage locations, network topology,
 credentials, and one-machine exceptions remain host-owned.
 
+Name a domain module after the site or property it composes, not its TLD.
+`domain-0x04`, not `domain-0x04cc`. The TLD already lives in the module's
+`domain` value, and a name that bakes it in goes stale the moment a domain
+moves TLDs, or never fit in the first place: `domain-remotehost` serves both
+`remotehost.cc` and `shota.zip`, so there was never one TLD to encode. A
+service module scoped to one domain follows the same rule, e.g.
+`serve-static-site-0x04` for the static site under `domain-0x04`, plain
+`serve-static-site-<name>` again for any other site added later.
+
 ## Shared proxy infrastructure
 
 The reverse proxy is shared infrastructure, not a transitive member of every
