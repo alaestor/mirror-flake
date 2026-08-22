@@ -79,6 +79,7 @@
               HTTP_PORT = cfg.port;
               PROTOCOL = "http";
               SSH_PORT = cfg.sshPort;
+              LANDING_PAGE = "explore";
             };
 
             # Forgejo itself only ever speaks plain HTTP to Caddy, but the
