@@ -97,6 +97,7 @@
             };
 
             repository = {
+              DISABLE_STARS = true;
               # allow creating repos via authenticated `git push`
               ENABLE_PUSH_CREATE_USER = true;
               ENABLE_PUSH_CREATE_ORG = true;
