@@ -10,8 +10,9 @@
   `ssh-client.identityFiles`; an empty list disables identity selection.
   `ssh-client.knownHosts` declares SSH host keys grouped by DNS domain, and
   accepts additive entries from compositions such as `tailnet-client`.
-  Repository-managed common and tailnet host keys are enabled independently
-  through `knowCommonHosts` and `knowTailnetHosts`.
+  Repository-managed common, tailnet, and fleet-wide host keys are enabled
+  independently through `knowCommonHosts`, `knowTailnetHosts`, and
+  `knowFleetHosts`.
 */
 { inputs, self, ... }:
 {
@@ -30,6 +31,12 @@
         type = lib.types.bool;
         default = true;
         description = "Whether tailnet compositions may contribute repository-managed SSH host keys.";
+      };
+
+      knowFleetHosts = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Whether to include the fleet-wide known-hosts appendix (modules/fleet/known-hosts.nix).";
       };
 
       knownHosts = lib.mkOption {
@@ -125,7 +132,10 @@
       };
 
       config = {
-        ssh-client.knownHosts = lib.mkIf cfg.knowCommonHosts defaultKnownHosts;
+        ssh-client.knownHosts = lib.mkMerge [
+          (lib.mkIf cfg.knowCommonHosts defaultKnownHosts)
+          (lib.mkIf cfg.knowFleetHosts self.fleet.knownHosts)
+        ];
 
         home.file.".ssh/known_hosts".text = renderKnownHosts;
 
