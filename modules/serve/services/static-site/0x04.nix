@@ -15,13 +15,13 @@
           type = lib.types.str;
           default =
             if hasVaultMountpoint then
-              "${config.nas.vault.mountpoint}/services/www/0x04"
+              "${config.nas.vault.mountpoint}/services-static/0x04"
             else
-              "/mnt/Vault/services/www/0x04";
+              "/mnt/Vault/services-static/0x04";
           defaultText = lib.literalExpression ''
             if the NAS module is present
-            then "''${config.nas.vault.mountpoint}/services/www/0x04"
-            else "/mnt/Vault/services/www/0x04"
+            then "''${config.nas.vault.mountpoint}/services-static/0x04"
+            else "/mnt/Vault/services-static/0x04"
           '';
           description = "Root directory of the static website.";
         };
