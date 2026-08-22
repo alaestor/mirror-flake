@@ -72,6 +72,21 @@
             session.COOKIE_SECURE = true;
           };
         };
+
+        # dataRoot may live on a lazily-mounted network share (see
+        # `nas.services`). The upstream module's `systemd.tmpfiles.rules`
+        # (which create `stateDir`/`customDir`) run as part of the global
+        # `systemd-tmpfiles-setup.service`, early in boot and before the
+        # network is up, so without an explicit dependency the mount may
+        # not be triggered in time and directory creation silently fails.
+        # `forgejo-secrets.service` then fails hard with a NAMESPACE error
+        # because `customDir` doesn't exist yet. RequiresMountsFor forces
+        # systemd to mount `dataRoot` first wherever it's needed.
+        systemd.services = lib.genAttrs [
+          "systemd-tmpfiles-setup"
+          "forgejo-secrets"
+          "forgejo"
+        ] (_: { unitConfig.RequiresMountsFor = [ cfg.dataRoot ]; });
       };
     };
 }
