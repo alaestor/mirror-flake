@@ -13,6 +13,7 @@
     let
       cfg = config.serve.forgejo;
       hasServicesMountpoint = lib.hasAttrByPath [ "nas" "services" "mountpoint" ] options;
+      hasSshHostAllowUsers = lib.hasAttrByPath [ "ssh-host" "allowUsers" ] options;
     in
     {
       options.serve.forgejo = {
@@ -142,6 +143,17 @@
             bantime = "1h";
           };
         };
+
+        # Git-over-SSH authenticates against the `forgejo` system user
+        # (via the upstream module's AuthorizedKeysCommand hook into the
+        # shared sshd), but `ssh-host.allowUsers` defaults to only the
+        # host's primary user, which rejects `forgejo` at the sshd level
+        # before key lookup ever runs. List types merge additively, so
+        # this only ever adds to whatever's already configured -- except
+        # when a host deliberately sets `ssh-host.allowUsers = null` (no
+        # restriction), in which case this contribution doesn't apply
+        # (list/null can't merge) and should be removed for that host.
+        "ssh-host" = lib.mkIf hasSshHostAllowUsers { allowUsers = [ "forgejo" ]; };
       };
     };
 }
