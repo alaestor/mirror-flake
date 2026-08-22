@@ -103,6 +103,9 @@
               ENABLE_PUSH_CREATE_ORG = true;
               DEFAULT_PRIVATE = "private";
               DEFAULT_PUSH_CREATE_PRIVATE = true;
+              # units enabled by default ("mirror" = created via migration)
+              DEFAULT_REPO_UNITS = "repo.code, repo.releases, repo.issues";
+              DEFAULT_MIRROR_REPO_UNITS = "repo.code, repo.releases";
             };
 
             security = {
