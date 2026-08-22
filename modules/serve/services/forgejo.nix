@@ -87,6 +87,8 @@
               # admin-provisioned only; no self-service sign-up.
               DISABLE_REGISTRATION = true;
               REGISTER_EMAIL_CONFIRM = false;
+              # licenses to surface
+              PREFERRED_LICENSES = "AGPL-3.0, MIT, Apache-2.0";
             };
 
             repository = {
