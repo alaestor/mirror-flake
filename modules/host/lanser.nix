@@ -19,6 +19,7 @@ in
     modules =
       (with inputs.self.modules.nixos; [
         agenix
+        local-cache
         nas
         ssh-host
         server-hardening
