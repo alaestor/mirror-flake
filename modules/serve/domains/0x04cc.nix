@@ -13,8 +13,11 @@
       matrixEnabled = config.serve.matrix.enable;
       cinnyEnabled = config.serve.cinny.enable;
       headscaleEnabled = config.serve.headscale.enable;
+      forgejoEnabled = config.serve.forgejo.enable;
       publicHttpEnabled =
-        staticSiteEnabled || matrixEnabled || cinnyEnabled || headscaleEnabled;
+        staticSiteEnabled || matrixEnabled || cinnyEnabled || headscaleEnabled || forgejoEnabled;
+
+      forgejo = config.serve.forgejo;
 
       matrix = config.serve.matrix;
       matrixVirtualHost =
@@ -55,11 +58,13 @@
         serve-matrix
         serve-cinny
         serve-static-site
+        serve-forgejo
       ];
 
       serve = {
         matrix.serverName = domain;
         cinny.homeserver = domain;
+        forgejo.domain = "git.${domain}";
       };
 
       networking.firewall.allowedTCPPorts =
@@ -146,6 +151,11 @@
           handle {
             reverse_proxy ${headscale.address}:${toString headscale.port}
           }
+        '';
+      }
+      // lib.optionalAttrs forgejoEnabled {
+        "${forgejo.domain}".extraConfig = ''
+          reverse_proxy ${forgejo.address}:${toString forgejo.port}
         '';
       };
     };

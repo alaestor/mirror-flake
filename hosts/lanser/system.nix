@@ -98,6 +98,7 @@ in
     };
     cinny.enable = true;
     filebrowser.enable = true;
+    forgejo.enable = true;
     headscale = {
       enable = true;
       adminAllowedCIDRs = [ # TODO(global): somewhere to define LAN?
