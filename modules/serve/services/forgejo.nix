@@ -7,6 +7,7 @@
   Git-over-SSH is served through the host's existing OpenSSH daemon (the
   upstream module's default), so no extra port needs to be opened either.
 */
+{ self, ... }:
 {
   flake.modules.nixos.serve-forgejo =
     { config, lib, options, ... }:
@@ -14,6 +15,8 @@
       cfg = config.serve.forgejo;
       hasServicesMountpoint = lib.hasAttrByPath [ "nas" "services" "mountpoint" ] options;
       hasSshHostAllowUsers = lib.hasAttrByPath [ "ssh-host" "allowUsers" ] options;
+      hostName = lib.toLower config.hostIdentity.name;
+      hostPublicKey = self.data.vars.sshHostPublicKeys.${hostName} or null;
     in
     {
       options.serve.forgejo = {
@@ -169,6 +172,21 @@
         # Forgejo's per-account command restriction for anyone holding an
         # admin key.
         services.openssh.settings.AllowUsers = lib.mkIf hasSshHostAllowUsers [ "forgejo" ];
+
+        # `~/.ssh/known_hosts` is fully derived (see `ssh-client`), so an
+        # ad-hoc `ssh`/`git` connection can't just append a TOFU entry for
+        # the public alias -- it has to come from here. Publish an
+        # explicit `[domain]:sshPort` alias for this host's own key so
+        # git-over-SSH to `cfg.domain` verifies cleanly for anyone using
+        # the repository-managed known_hosts (fleet members included).
+        userEnvironment.sharedModules = lib.optional (hostPublicKey != null) (
+          { lib, ... }:
+          {
+            config.ssh-client.knownHosts.${cfg.domain} = {
+              "[${cfg.domain}]:${toString cfg.sshPort}" = [ hostPublicKey ];
+            };
+          }
+        );
       };
     };
 }
