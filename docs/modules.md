@@ -36,14 +36,14 @@ infrastructure a module configures is not a mechanism; it stays in
 `modules/utils/`.
 
 An aspect is the repository term for high-level reusable composition. Do not use
-“profile” or “featureset” for that meaning; retain “profile” only when it is an
+"profile" or "featureset" for that meaning; retain "profile" only when it is an
 upstream application's own term.
 
 ### Dependencies between features
 
 A feature may import another feature. That import expresses a prerequisite, and
-it is not a reason to introduce an aspect. Aspects express a domain interest —
-“gaming”, “coding” — and must not be used to describe a dependency
+it is not a reason to introduce an aspect. Aspects express a domain interest,
+such as "gaming" or "coding", and must not be used to describe a dependency
 relationship between modules.
 
 Import a feature from a feature when the importing module is an extension of
@@ -85,8 +85,8 @@ discover shared state.
 
 Repeated policy is an architectural signal. When substantially identical policy
 appears in private host fragments, promote it to the narrowest reusable typed
-module—normally a program, feature, or aspect—when it has shared semantics and
-lifecycle. Do not eliminate duplication with unstructured imports.
+module, normally a program, feature, or aspect, when it has shared semantics
+and lifecycle. Do not eliminate duplication with unstructured imports.
 
 Move repeated concrete values to fleet only when every consumer intentionally
 shares one fact and one owner. Similar-looking machine facts with independent
@@ -110,7 +110,7 @@ when it evaluates: it is either an outright conflict or an accidental merge, and
 anything that counts or coordinates over the instance becomes meaningless.
 
 Contributions are limited to what merges and what the contributor legitimately
-knows. A module contributes the facts that are its own — the paths it needs, the
+knows. A module contributes the facts that are its own: the paths it needs, the
 state it keeps. Identity and platform parameters belong to the owner as defaults
 and to the host as policy; a contributor holding an opinion about them is a
 conflict rather than a merge, and it is not a contributor's concern in the first

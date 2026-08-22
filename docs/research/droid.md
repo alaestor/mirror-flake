@@ -77,7 +77,7 @@ the NixOS implementation.
 
 ## Tailscale feasibility
 
-### Recommended approach: Android application
+### Recommended approach: the Android application
 
 Use the official Tailscale Android application for the tunnel, then connect to
 the droid SSH daemon through the phone's tailnet address on port 8022. Android

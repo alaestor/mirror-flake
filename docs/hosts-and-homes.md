@@ -308,7 +308,7 @@ homeConfigurations."<username>@<host>"
 They activate independently, but are still attached to a registered NixOS host.
 Only NixOS hosts accept standalone attachments.
 The registry evaluates the associated NixOS configuration to obtain the same
-package set and feature contributions. “Standalone” therefore describes the
+package set and feature contributions. "Standalone" therefore describes the
 activation boundary, not an independent machine registry.
 
 When a host has at least one standalone attachment, its NixOS configuration

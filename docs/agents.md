@@ -31,7 +31,7 @@ agents", it gains one as a consequence of attaching a harness
 
 ### The layering rule
 
-The VM layer must never name a harness fact — not a config directory, not a
+The VM layer must never name a harness fact: not a config directory, not a
 model, not a prompt. It receives opaque lists (`projectRoots`, `stateDirs`) and
 opaque `name = value` pairs (`guestEnvironment`), and it is the harness layer's
 job to know what they mean. Conversely the harness library must never mention
@@ -46,8 +46,8 @@ isolation technology is a change to that function and nothing else.
 
 Several harnesses share one guest, so exactly one module declares it
 ([Module ownership](modules.md), §Shared instances). Harnesses and hosts
-contribute the facts that are theirs — the trees to share, the state to
-preserve — and may raise `enable` only as a default. Identity and platform
+contribute the facts that are theirs, the trees to share and the state to
+preserve, and may raise `enable` only as a default. Identity and platform
 parameters (guest name, user, uid, vCPUs, memory, forwarded port) belong to the
 mechanism as defaults and to the host as policy.
 
@@ -65,16 +65,16 @@ wrapper by store path and simply execute it.
 
 Two contribution points, kept separate because they answer different questions:
 
-- `projectRoots` — what the agent may work on. Fixed at guest boot: a session
+- `projectRoots`: what the agent may work on. Fixed at guest boot; a session
   outside them is refused rather than the boundary widening to fit.
-- `stateDirs` — what must outlive the guest: sessions, memories, caches,
+- `stateDirs`: what must outlive the guest: sessions, memories, caches,
   credentials.
 
 Anything not shared is ephemeral. The guest's root filesystem is tmpfs, so a
 home directory, shell history, or configuration file that no share covers is
 gone at shutdown.
 
-**The ownership rule:** the guest runs no Home Manager. Home Manager symlinks at
+The ownership rule: the guest runs no Home Manager. Home Manager symlinks at
 file granularity, so a second generation over a shared directory renames the
 first one's files out of the way. The host's generation is the sole manager of
 managed files; the guest gets packages, wrappers, and live state only.
@@ -100,7 +100,7 @@ channel must be safe to expose to an untrusted guest:
   decrypts but refuses to export a key. Private key material never leaves the
   host, and every operation still requires whatever the host's agent demands.
   Because the socket is per-session, the channel works only while the host user
-  has a session — which is honest, since a signature needs the human anyway.
+  has a session, which is honest, since a signature needs the human anyway.
 
 Ports are host-wide and must not be renumbered once a guest exists in the wild;
 CIDs are per-VM and derived from the guest name so no registry is needed.
@@ -109,7 +109,7 @@ CIDs are per-VM and derived from the guest name so no registry is needed.
 
 The guest does not run at boot. `agent-vm-session` is the single entry point: it
 starts the VM unit if needed, waits for sshd, and runs the requested command
-inside a transient systemd scope. Reference counting falls out of that — a
+inside a transient systemd scope. Reference counting falls out of that: a
 scope's lifetime is its cgroup's, so it ends when the session process does, with
 no release step to be skipped or killed. A linger hold keeps the guest up for a
 grace period so consecutive sessions do not reboot it.
@@ -123,9 +123,9 @@ TOFU entry.
 It is filesystem and process isolation: a separate kernel, a separate process
 tree, and no access to host paths that were not shared.
 
-It is not a network boundary. The guest has ordinary outbound connectivity —
-the agent has to reach its vendor API — so anything reachable from the host's
-network is reachable from a session. Nor is it a credential boundary in the
+It is not a network boundary. The guest has ordinary outbound connectivity
+because the agent has to reach its vendor API, so anything reachable from the
+host's network is reachable from a session. Nor is it a credential boundary in the
 general case: an agent forwarded into the guest can use whatever the forwarded
 sockets can do.
 
@@ -158,7 +158,7 @@ daemons started first, which is what `agent-vm-run` exists to do.
 `microvm.vms.<name>` is a `types.submodule` option, so
 `nixosConfigurations.<host>.config.microvm.vms.<name>.config` is the
 submodule's own module-instance wrapper (`config`/`options`/`_module`/...),
-*not* the guest's evaluated NixOS config — that's one `.config` deeper:
+*not* the guest's evaluated NixOS config; that's one `.config` deeper:
 
 ```sh
 nix eval .#nixosConfigurations.<host>.config.microvm.vms.<name>.config.config.<path...>
@@ -168,8 +168,8 @@ e.g. `...config.config.systemd.services.<unit>.serviceConfig` to check a
 guest-side systemd unit without a real boot. `.evaluatedConfig` looks like
 the obvious accessor and is not it (evaluates to `null` under `nix eval`
 without something forcing it). This is a microvm.nix shape, not something
-this repo controls — vendored, so worth restructuring only if the upstream
-option shape changes.
+this repo controls; it's vendored, so it's worth restructuring only if the
+upstream option shape changes.
 
 Prompt resolution has its own read-only window, so a prompt can be inspected
 without spending a session:

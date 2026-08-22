@@ -1,11 +1,11 @@
-# Cryptographic Identity Protocol
+# Cryptographic identity protocol
 
 `cryptid` is inspired by [Gosin's YubiKey master
 protocol](https://gist.github.com/Gosin/f1a2ea42bec672c842f60b0fa57ab1d1).
 
-CRYPTID builds upon it by adding [age](https://github.com/FiloSottile/age), providing automated workflows and a reproducible environment, and encouraging physical redundancy by use of a cloneable, bootable dual-partition USB.
+CRYPTID builds on it by adding [age](https://github.com/FiloSottile/age), automating the workflows, and using a cloneable, bootable dual-partition USB for physical redundancy.
 
-## Target Audience
+## Target audience
 
 This is a personal workflow and reference for a technically experienced
 individual managing long-lived OpenPGP, SSH, and Age identities. It is not a
@@ -13,34 +13,23 @@ team or enterprise key-management system.
 
 ### Overview
 
-The protocol uses bootable `cryptid` USB drives so recovery media contains both
-the data and the tools needed to use it.
+The protocol uses bootable `cryptid` USB drives so recovery media contains both the data and the tools needed to use it.
 
-- **Dual Partitions:** 
-  - **NixOS ISO bootable system**: an image preconfigured with all the relevant tools to create and manage identities and yubikeys from an airgapped machine; complete with "turn-key" style minimal-interaction scripts and workflows that implicitly test recovery paths.
-  - **BTRFS data persistence:** A data-redundant partition (all files are versioned with datetime file extensions)
-    - **Encrypted Vault:** (veracrypt container)
-      - PGP root private key.
-      - PGP signing private subkey.
-      - PGP encryption private subkey.
-      - emergency ssh "breakglass" private key.
-      - emergency age "breakglass" private key.
-      - YubiKey secrets in a `.env` file.
-    - **Unencrypted Files:** (exposed beside the container `.VAULT` file)
-      - PGP certificates.
-      - PGP root revocation certificate (unencrypted by design).
-      - ssh public keys (`authorized_keys` has both the resident and "breakglass").
-      - age public keys (`recipients.txt` has both the resident and "breakglass").
-      - copies of the resident private stubs (`ssh_sk` / `age_sk`) for convenience.
+Each bootable drive has two partitions:
 
-**Minimum requirements:** 
-- One USB drive (minimum ~2GB)
-- One YubiKey 5 (req: OpenPGP, FIDO, PIV)
+- The NixOS ISO bootable system is an image preconfigured with the tools to create and manage identities and YubiKeys from an air-gapped machine, plus turn-key, minimal-interaction scripts and workflows that implicitly test recovery paths.
+- The BTRFS data-persistence partition is data-redundant (all files are versioned with datetime file extensions) and holds:
+  - an encrypted vault (a veracrypt container) with the PGP root private key, the PGP signing and encryption private subkeys, the emergency SSH and age "breakglass" private keys, and YubiKey secrets in a `.env` file;
+  - unencrypted files, exposed beside the container `.VAULT` file: PGP certificates, the PGP root revocation certificate (unencrypted by design), SSH public keys (`authorized_keys` holds both the resident and breakglass keys), age public keys (`recipients.txt` likewise), and copies of the resident private stubs (`ssh_sk` / `age_sk`) for convenience.
 
-**Recommended requirements:** 
-- One USB drive (minimum ~2GB)
-- One or more redundant USB drives (minimum ~2GB)
-- One or more YubiKey 5 (req: OpenPGP, FIDO, PIV)
+Minimum requirements:
+- One USB drive (2GB or more)
+- One YubiKey 5 (needs OpenPGP, FIDO, PIV)
+
+Recommended:
+- One USB drive (2GB or more)
+- One or more redundant USB drives (2GB or more)
+- One or more YubiKey 5 (needs OpenPGP, FIDO, PIV)
 - One transfer drive (optional, to move public materials)
 
 ### Repository representation
@@ -74,20 +63,20 @@ constructs the Bash and Expect fragments used by the individual protocol
 scripts. The host assembly loads these values through `self.data` and passes
 the storage facts to its storage fragment.
 
-### Features and Layout
+### Features and layout
 
-CRYPTID is designed as a reproducible system for managing cryptographic identities and keys. It leverages NixOS and bash scripts to orchestrate tools like `veracrypt`, `gpg`, `ssh-keygen`, `age`, `age-plugin-yubikey`, and `ykman` into (mostly) automated workflows.
+CRYPTID is a reproducible system for managing cryptographic identities and keys. It uses NixOS and bash scripts to orchestrate tools like `veracrypt`, `gpg`, `ssh-keygen`, `age`, `age-plugin-yubikey`, and `ykman` into mostly automated workflows.
 
-Constructed with a careful balance of usability and security, CRYPTID is a solid cornerstone upon which a comprehensive system can be built. You still need to have a threat model, physical security considerations, disaster response procedures, and application-specific recovery protocols. But for simple needs, it's a strong start that encourages good patterns.
+It balances usability and security well enough to build on, but it is not a complete answer by itself: you still need a threat model, physical security considerations, disaster response procedures, and application-specific recovery protocols. For simple needs, it's a strong start that encourages good patterns.
 
 #### Automation
 
-CRYPTID provides "greater" scripts to automate complex sequences for key generation, extension, and rotation. More granular control can be achieved by using the "lesser" component scripts separately as desired, or only using the underlying tools directly.
+CRYPTID provides "greater" scripts that automate complex sequences for key generation, extension, and rotation. For more granular control, use the "lesser" component scripts separately, or use the underlying tools directly.
 
 See the script definitions under `data/cryptid/scripts/` for specifics, or the in-system `?` help menu.
 
 #### Redundancy
-`cryptid` encourages physical redundancy by making it trivial to clone the entire drive with a single `dd` command. For best results, the clones should be geographically separated before practical usage begins.
+`cryptid` makes physical redundancy trivial: clone the entire drive with a single `dd` command. For best results, separate the clones geographically before you start using them.
 
 #### Maintenance
 
@@ -140,11 +129,11 @@ Distribution is application-specific. Refresh the physical media periodically.
 - Adoption is difficult: the workflow assumes creation of one new identity and
   does not attempt to integrate with broader YubiKey policies.
 
-## Practical Instructions
+## Practical instructions
 
 Create the environment from one or more spare USB drives.
 
-### Create the Environment
+### Create the environment
 
 Create a bootable USB with the necessary tools and partitions, with networking disabled.
 
@@ -162,7 +151,7 @@ nix run nixpkgs#nushell -- -c "lsblk --json | from json | get blockdevices | whe
 > nix run .#mkbootable-cryptid -- /dev/sdX
 > ```
 
-### Use CRYPTID's Automation
+### Use CRYPTID's automation
 
 The scripts are intended only for this particular usecase and provide sensible defaults, but likely won't be suitable for more complex needs. In descending order of complexity and flexibility: you can use the tools directly, use the lesser-scripts as needed to help some but not all operations, or use the greater-scripts to automate entire sequences.
 

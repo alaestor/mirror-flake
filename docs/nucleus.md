@@ -49,7 +49,7 @@ The local flake-parts module exposes `nucleus.inputs`. A consumer declares an in
 }
 ```
 
-Declarations merge through the Nix module system. The initial schema is intentionally narrow: `url`, `flake`, `follows`, and recursive input overrides. Because this isn't intended to be a general-purpose consumable: additional fields should only be implemented when a real dependency requires it.
+Declarations merge through the Nix module system. The initial schema is intentionally narrow: `url`, `flake`, `follows`, and recursive input overrides. This isn't intended to be a general-purpose consumable, so additional fields should only be implemented when a real dependency requires them.
 
 Input ownership follows this repo's ownership convention:
 

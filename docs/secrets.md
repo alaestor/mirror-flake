@@ -29,7 +29,7 @@ make roles interchangeable.
 | Initrd SSH host | Identify pre-boot SSH used for remote unlock | Stable bootstrap state, always distinct from the system host key. |
 | Deployment SSH | Authorize one installation session | Ephemeral; never a secret recipient or persistent identity. |
 | Nix store signing | Authorize store paths produced by a trusted builder | Host-bound signing authority, encrypted for runtime deployment and administrative recovery. |
-| Agent VM host | Identify an agent microVM guest's sshd to the host that runs it | Not a backup: the guest holds no identity of its own and never decrypts its own key. Encrypted for unattended runtime deployment to its expected host(s), like Nix store signing — never admin-only like a system SSH host key. |
+| Agent VM host | Identify an agent microVM guest's sshd to the host that runs it | Not a backup: the guest holds no identity of its own and never decrypts its own key. Encrypted for unattended runtime deployment to its expected host(s), like Nix store signing, never admin-only like a system SSH host key. |
 
 SSH host public keys are not login keys. They must never be added to
 administrative or client `authorized_keys` sets.
@@ -64,7 +64,7 @@ backups are encrypted to administrative recovery recipients, not to themselves.
 
 Agent VM host keys are not this exception, even though the filename shape
 looks the same as a system SSH host key's. A guest is not an Agenix host and
-never decrypts anything itself, so there is no self-encryption to avoid —
+never decrypts anything itself, so there is no self-encryption to avoid;
 these follow the ordinary runtime-secret rule instead: administrative
 recipients plus every host expected to deploy the key (normally the one host
 that runs the guest). Encrypting one to administrators only would make the

@@ -1,6 +1,3 @@
-```
-
-```
 # Research: package-coupled application configuration
 
 > [!NOTE]
@@ -48,8 +45,8 @@ The useful architectural split is:
 | Mutable application state | The application in XDG state/data/cache paths |
 | Credentials, private keys, and tokens | Secret/runtime facilities, never a wrapper or ordinary flake data |
 
-In short: make wrappers a new reusable **artifact layer underneath** the existing
-Home Manager composition model. Keep thin Home Manager adapters for ambient
+Make wrappers a new reusable artifact layer underneath the existing Home
+Manager composition model, and keep thin Home Manager adapters for ambient
 integration. Do not turn every current `programs.*` module into a wrapper, and do
 not make a global overlay replace ordinary Nixpkgs packages with personal ones.
 
@@ -127,9 +124,9 @@ mpv is a particularly clean example. Upstream supports `--config-dir`,
 also distinguishes config from cache and state paths ([mpv manual][mpv-manual]).
 This permits either of two policies:
 
-- **Layered policy:** load normal system/user config and then `--include` the
+- **Layered policy.** Load normal system/user config and then `--include` the
   store-backed configuration. This is friendlier for local experimentation.
-- **Hermetic config policy:** use a store-backed `--config-dir`, ignoring other
+- **Hermetic config policy.** Use a store-backed `--config-dir`, ignoring other
   config directories while leaving cache/state discovery intact. This is more
   reproducible but makes local config overrides deliberately harder.
 
@@ -282,8 +279,8 @@ wrapper type, and package attribute overrides
 
 It is appealing if the goal is only to standardize `makeWrapper` calls. It has
 less program-specific schema and no equally direct documented flake-parts output
-model, so it provides less leverage for the exact mpv migration and for the
-desired option/module interoperability.
+model, so it helps less with the exact mpv migration and with the desired
+option/module interoperability.
 
 ### Local `symlinkJoin` plus `makeWrapper`
 
@@ -424,7 +421,7 @@ Every wrapper must document its precedence contract:
 - Can explicit CLI arguments override wrapper defaults?
 - Where does mutable state go?
 - What happens when the user invokes an auxiliary binary or a desktop entry?
-- Does an application's “edit settings” action fail, edit a mutable overlay, or
+- Does an application's "edit settings" action fail, edit a mutable overlay, or
   clearly report that the managed config is immutable?
 
 ## Security notes
