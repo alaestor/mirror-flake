@@ -70,6 +70,11 @@
           };
 
           settings = {
+            DEFAULT = {
+              APP_NAME = "「EOT」";
+              RUN_MODE = "prod"; # default but make explicit
+            };
+
             server = {
               DOMAIN = cfg.domain;
               ROOT_URL = "https://${cfg.domain}/";
