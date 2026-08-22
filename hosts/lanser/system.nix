@@ -98,7 +98,12 @@ in
     };
     cinny.enable = true;
     filebrowser.enable = true;
-    forgejo.enable = true;
+    forgejo = {
+      enable = true;
+      # headplane (behind serve.headscale) defaults to 3000 too; avoid the
+      # clash since this host runs both.
+      port = 3001;
+    };
     headscale = {
       enable = true;
       adminAllowedCIDRs = [ # TODO(global): somewhere to define LAN?
