@@ -70,6 +70,34 @@
             # public-facing URL is HTTPS (Caddy terminates TLS), so session
             # cookies should still be marked secure.
             session.COOKIE_SECURE = true;
+
+            # This instance is admin-provisioned only (see `forgejo admin
+            # user create`); no self-service sign-up.
+            service = {
+              DISABLE_REGISTRATION = true;
+              REGISTER_EMAIL_CONFIRM = false;
+            };
+
+            # Never re-run/expose the web installer (even though NixOS
+            # already renders app.ini fully). Caddy is the only thing that
+            # can reach Forgejo (loopback), so also trust its
+            # X-Forwarded-For for real client IPs -- needed for accurate
+            # audit/fail2ban-relevant logging.
+            security = {
+              INSTALL_LOCK = true;
+              REVERSE_PROXY_TRUSTED_PROXIES = "127.0.0.1/32";
+              REVERSE_PROXY_LIMIT = 1;
+            };
+
+            # No external OpenID provider is wired up; keep the sign-in
+            # surface limited to local accounts.
+            openid.ENABLE_OPENID_SIGNIN = false;
+
+            # Keep routine housekeeping (repo GC, deleted-repo archive
+            # cleanup, etc.) actually running instead of relying on manual
+            # maintenance.
+            cron.ENABLED = true;
+            "cron.git_gc_repos".ENABLED = true;
           };
         };
 
