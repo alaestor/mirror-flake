@@ -115,6 +115,33 @@
           "forgejo-secrets"
           "forgejo"
         ] (_: { unitConfig.RequiresMountsFor = [ cfg.dataRoot ]; });
+
+        # Forgejo doesn't rate-limit its own login endpoints. It logs
+        # failed authentication attempts to stdout (captured in the
+        # journal, since the default log MODE is console), tagged with
+        # the real client IP now that REVERSE_PROXY_TRUSTED_PROXIES is
+        # configured above. Ban repeat offenders the same way ssh-host
+        # already does for sshd.
+        services.fail2ban.jails.forgejo = {
+          filter = {
+            Definition = {
+              journalmatch = "_SYSTEMD_UNIT=forgejo.service";
+              failregex = ''
+                ^.*Failed authentication attempt for .* from <HOST>$
+                ^.*invalid credentials from <HOST>$
+                ^.*Attempted access of unknown user .* from <HOST>$
+              '';
+              ignoreregex = "";
+            };
+          };
+          settings = {
+            enabled = true;
+            backend = "systemd";
+            maxretry = 10;
+            findtime = "10m";
+            bantime = "1h";
+          };
+        };
       };
     };
 }
