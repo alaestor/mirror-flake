@@ -9,7 +9,7 @@
 */
 {
   flake.modules.nixos.serve-forgejo =
-    { config, lib, options, ... }:
+    { config, lib, options, pkgs, ... }:
     let
       cfg = config.serve.forgejo;
       hasServicesMountpoint = lib.hasAttrByPath [ "nas" "services" "mountpoint" ] options;
@@ -176,6 +176,53 @@
         # Forgejo's per-account command restriction for anyone holding an
         # admin key.
         services.openssh.settings.AllowUsers = lib.mkIf hasSshHostAllowUsers [ "forgejo" ];
+
+        # `dataRoot` (hence `stateDir`, hence the `forgejo` user's home and
+        # its `.ssh/authorized_keys`) lives on the NAS's NFS export.
+        # sshd's StrictModes ownership/permission check doesn't trust what
+        # it sees over NFS -- uid mapping and mode bits round-trip
+        # unreliably through the network filesystem/ZFS ACLs -- so it
+        # refuses a correctly-formed key outright ("bad ownership or
+        # modes for file"). `StrictModes` itself can't be scoped to a
+        # single user through a `Match` block (it's not in sshd_config's
+        # allow-list of Match-able keywords, so this would otherwise
+        # require disabling it host-wide), but `AuthorizedKeysCommand`
+        # is Match-able and, being command-based rather than a
+        # home-relative file read, isn't subject to the StrictModes
+        # ownership check at all. Replace file-based lookup with a
+        # trivial `cat` of the exact same file for this user only.
+        #
+        # sshd also refuses an `AuthorizedKeysCommand` pointed straight
+        # at a Nix store path, since `/nix/store` is group-writable
+        # (needed for the build sandbox) -- "bad ownership or modes for
+        # directory /nix/store". `nixos/modules/security/google_oslogin.nix`
+        # hits the identical problem and works around it the same way:
+        # indirect through an `environment.etc` entry. sshd's path-safety
+        # check only walks the visible `/etc` chain (root-owned, not
+        # group-writable) and the symlink entry itself; it doesn't
+        # resolve through to the store path the symlink ultimately
+        # targets.
+        #
+        # `Match` blocks apply to every directive that follows until the
+        # next `Match`, so this must close back out to `Match all`
+        # immediately -- otherwise directives contributed by other
+        # modules (e.g. `ssh-host`'s PerSourceMaxStartups) could end up
+        # silently scoped to just `forgejo` if they're rendered after
+        # this block, depending on module merge order.
+        environment.etc."ssh/authorized_keys_command_forgejo" = {
+          mode = "0755";
+          text = ''
+            #!/bin/sh
+            exec ${pkgs.coreutils}/bin/cat ${cfg.dataRoot}/state/.ssh/authorized_keys
+          '';
+        };
+
+        services.openssh.extraConfig = lib.mkAfter ''
+          Match User forgejo
+            AuthorizedKeysCommand /etc/ssh/authorized_keys_command_forgejo
+            AuthorizedKeysCommandUser root
+          Match all
+        '';
       };
     };
 }
