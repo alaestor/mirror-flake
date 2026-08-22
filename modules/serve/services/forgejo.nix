@@ -141,11 +141,18 @@
           filter = {
             Definition = {
               journalmatch = "_SYSTEMD_UNIT=forgejo.service";
-              failregex = ''
-                ^.*Failed authentication attempt for .* from <HOST>$
-                ^.*invalid credentials from <HOST>$
-                ^.*Attempted access of unknown user .* from <HOST>$
-              '';
+              # `pkgs.formats.ini`'s generator emits each line of a
+              # multi-line Nix string flush-left, which fail2ban's INI
+              # parser reads as unindented, unrelated lines rather than a
+              # continuation of `failregex` -- hence the "parsing errors"
+              # fail2ban reported. INI continuation lines must be
+              # indented, so build the value with an explicit leading
+              # two-space indent on every line after the first.
+              failregex = lib.concatStringsSep "\n  " [
+                "^.*Failed authentication attempt for .* from <HOST>$"
+                "^.*invalid credentials from <HOST>$"
+                "^.*Attempted access of unknown user .* from <HOST>$"
+              ];
               ignoreregex = "";
             };
           };
