@@ -165,8 +165,8 @@
             not path /*/*/info/refs
             not path /*/*/git-upload-pack
             not path /*/*/git-receive-pack
-            not path /*/*/info/lfs/**
-            not path /api/v1/**
+            not path_regexp ^/[^/]+/[^/]+/info/lfs(/|$)
+            not path_regexp ^/api/v1(/|$)
           }
           cerberus @challenge {
             base_url "/.cerberus"
