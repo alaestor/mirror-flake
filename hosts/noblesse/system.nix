@@ -21,8 +21,12 @@
     ripgrep
   ];
 
+  # `nixremote` rather than `user`: the builder-side account has to be in apc's
+  # `trusted-users` for input-addressed offloading to work at all, and that is
+  # root-equivalent over its store, so it is a dedicated forced-command account
+  # instead of the interactive one. See __reference/remote-build-trust.md.
   nix.extraOptions = lib.mkAfter ''
-    builders = ssh://user@apc.tailnet.0x04.cc aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
+    builders = ssh://nixremote@apc.tailnet.0x04.cc aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
     builders-use-substitutes = true
   '';
 

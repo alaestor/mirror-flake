@@ -9,6 +9,8 @@ let
   username = config.hostIdentity.primaryUser;
   home = "/home/${username}";
   agents = inputs.self.lib.agents;
+  # noblesse offloads its builds here; see __reference/remote-build-trust.md.
+  remoteBuildUser = "nixremote";
 in
 {
   age.identityPaths = [ config.ssh-host.hostKeyPath ];
@@ -98,8 +100,56 @@ in
       # the guest can build and add store paths but cannot tell the daemon to
       # trust content from anywhere else. See modules/mechanisms/agents/.
       config.agent-vm.nixProxyUser
+      # Remote builders must also be allowed to reach the daemon at all;
+      # being trusted does not imply being allowed.
+      remoteBuildUser
+    ];
+    # The remote-build protocol hands the builder a derivation in-band rather
+    # than realising one already in its store, so the daemon cannot re-derive
+    # the output paths and must take the client's word for them. It refuses to
+    # do that for input-addressed derivations (i.e. all of nixpkgs) unless the
+    # account is trusted. This is why the grant exists and why it cannot be
+    # avoided while nixpkgs is input-addressed.
+    #
+    # Trust here is store-poisoning power, hence root-equivalent, hence it goes
+    # to a dedicated non-interactive account rather than `user`: `user` is what
+    # every interactive session and every agent process on this host runs as,
+    # and `sudo` is meant to remain a real gate for them.
+    #
+    # `root` is contributed by the nix module itself and merges with this.
+    trusted-users = [ remoteBuildUser ];
+  };
+
+  # Reached only by noblesse's client key, and only to serve its store: the
+  # forced command means possession of that key buys the store protocol rather
+  # than a shell. Deliberately *not* routed through `ssh-host.authorizedKeys`,
+  # which would attach the administrative key set to this account unrestricted
+  # and hand out an unsudoed shell as a trusted user.
+  #
+  # NOTE(coupling): `builders = ssh://...` on noblesse speaks the legacy store
+  # protocol (`nix-store --serve`). Switching that URL to `ssh-ng://` changes
+  # the wire protocol to `nix-daemon --stdio` and this command must change with
+  # it, or every offloaded build hangs.
+  users.users.${remoteBuildUser} = {
+    isSystemUser = true;
+    group = remoteBuildUser;
+    home = "/var/empty";
+    # sshd executes the forced command through the account's login shell, so
+    # this cannot be `nologin`.
+    shell = pkgs.bashInteractive;
+    description = "Trusted remote-build account for noblesse";
+    openssh.authorizedKeys.keys = [
+      ("command=\"${config.nix.package}/bin/nix-store --serve --write\","
+        + "restrict "
+        + inputs.self.data.vars.sshClientPublicKeys.noblesse)
     ];
   };
+  users.groups.${remoteBuildUser} = { };
+
+  # `ssh-host.allowUsers` drives the module's `AllowUsers`; this merges with it
+  # rather than replacing it, so the account is reachable without joining the
+  # set that receives the administrative keys.
+  services.openssh.settings.AllowUsers = [ remoteBuildUser ];
 
   nas = {
     server = "172.16.0.2"; # TODO(lan): nas ip
