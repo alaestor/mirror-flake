@@ -63,8 +63,12 @@ let
       enabledConfig.authority = "cache.example.test";
     }
     {
-      name = "static-site";
-      module = nixos.serve-static-site;
+      name = "static-site-0x04";
+      module = nixos.serve-static-site-0x04;
+    }
+    {
+      name = "static-site-bokunopi";
+      module = nixos.serve-static-site-bokunopi;
     }
     {
       name = "torrenting";
