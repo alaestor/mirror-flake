@@ -34,6 +34,10 @@
           dataDir = "/var/lib/caddy";
           globalConfig = ''
             default_bind ${cfg.bindAddress}
+            log {
+              output stdout
+              format json
+            }
             cerberus {
               difficulty 12
               max_pending 512
