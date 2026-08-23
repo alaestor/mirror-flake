@@ -527,18 +527,18 @@
         "nmd": "nmd"
       },
       "locked": {
-        "lastModified": 1777987867,
-        "narHash": "sha256-bInx30KAWmdEjKIjXESWfIkW41wDzQXhHJUt3Q2Twe8=",
-        "owner": "alaestor",
-        "repo": "fork-nix-on-droid",
-        "rev": "76c08d529dad383d182eecc0ccf2d48121f48faf",
-        "type": "github"
+        "lastModified": 1787461304,
+        "narHash": "sha256-qQR05bdxsW0eXZjy5kfRbB8wkxMSRfvY4Q75MvZ0Wzk=",
+        "ref": "better-cross-compile-1",
+        "rev": "32359709187c08cdc4648f2305338176d14411cf",
+        "revCount": 468,
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/fork-nix-on-droid.git"
       },
       "original": {
-        "owner": "alaestor",
         "ref": "better-cross-compile-1",
-        "repo": "fork-nix-on-droid",
-        "type": "github"
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/fork-nix-on-droid.git"
       }
     },
     "nix-wrapper-modules": {

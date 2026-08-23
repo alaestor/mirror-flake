@@ -8,7 +8,7 @@
     };
 
     nix-on-droid = {
-      url = "github:alaestor/fork-nix-on-droid/better-cross-compile-1";
+      url = "git+https://git.0x04.cc/alaestor/fork-nix-on-droid.git?ref=better-cross-compile-1";
       inputs.nixpkgs.follows = "android-nixpkgs";
       inputs.home-manager.follows = "android-home-manager";
     };
