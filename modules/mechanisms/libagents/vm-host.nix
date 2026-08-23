@@ -411,16 +411,25 @@
 
         vcpu = lib.mkOption {
           type = lib.types.ints.positive;
-          default = 2;
-          description = "Guest vCPU count. Platform policy, not a harness concern.";
+          default = 8;
+          description = ''
+            Guest vCPU count. Platform policy, not a harness concern. These
+            are threads QEMU schedules onto whatever the host has free, not
+            reserved cores, so this only caps the guest's parallelism.
+          '';
         };
 
         mem = lib.mkOption {
           type = lib.types.ints.positive;
-          default = 4096;
+          default = 24576;
           description = ''
-            Guest memory in MiB. Not 2048: microvm.nix warns that QEMU hangs
-            on exactly 2GB (upstream issue #171).
+            Guest memory in MiB. A ceiling rather than a reservation: the
+            guest balloons pages back to the host when idle, so this is what
+            an agent may spike to (a flake-wide `nix eval` is the usual
+            reason), not what the VM costs while sitting there.
+
+            Not 2048: microvm.nix warns that QEMU hangs on exactly 2GB
+            (upstream issue #171).
           '';
         };
 

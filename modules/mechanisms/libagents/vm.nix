@@ -379,6 +379,7 @@ let
     {
       imports = [
         inputs.microvm.nixosModules.microvm
+        inputs.self.modules.nixos.memory-manager
       ]
       ++ lib.optional useNixDaemon nixDaemonGuest
       ++ lib.optional (channels.gpgAgent.enable or false) (
@@ -396,9 +397,23 @@ let
       # path exists.
       system.stateVersion = lib.trivial.release;
 
+      # An agent's working set is spiky — a `nix eval` over a whole flake can
+      # briefly want several times what the guest is idling at. zram lets that
+      # spike compress instead of becoming an instant kill, and earlyoom picks
+      # the evaluator over whatever else is resident once it can't. No
+      # notifications: nothing in the guest would display them.
+      memory-manager.earlyoom.notifications = false;
+
       microvm = {
         inherit vcpu mem;
         hypervisor = "qemu";
+
+        # Free-page reporting hands pages the guest is no longer using back to
+        # the host, so a generous `mem` ceiling costs the host only what the
+        # guest actually touches. deflate-on-oom keeps the balloon from
+        # holding memory hostage when the guest needs it back in a hurry.
+        balloon = true;
+        deflateOnOOM = true;
 
         # Only set when something actually needs it: a CID makes QEMU open
         # /dev/vhost-vsock, which a channel-less guest has no reason to
