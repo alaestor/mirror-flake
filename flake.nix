@@ -57,7 +57,7 @@
         follows = "unstable-nixpkgs";
       };
     };
-    url = "github:firefox-extensions-declarative/firefox-extensions-declarative";
+    url = "git+https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative";
   };
   flake-parts = {
     inputs = {
@@ -142,7 +142,7 @@
     follows = "nixpkgs";
   };
   vpn-confinement = {
-    url = "github:Maroka-chan/VPN-Confinement";
+    url = "git+https://git.0x04.cc/alaestor/mirror-VPN-Confinement";
   };
 };
 }

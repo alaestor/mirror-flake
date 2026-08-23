@@ -5,7 +5,7 @@
 */
 { inputs, ... }:
 {
-  nucleus.inputs.vpn-confinement.url = "github:Maroka-chan/VPN-Confinement";
+  nucleus.inputs.vpn-confinement.url = "git+https://git.0x04.cc/alaestor/mirror-VPN-Confinement";
 
   flake.modules.nixos.serve-torrenting =
     { config, lib, options, pkgs, ... }:

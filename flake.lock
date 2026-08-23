@@ -203,17 +203,17 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1787063168,
-        "narHash": "sha256-DBtJK9AdvThCPbcuBWQMpJVLDyWPDx5jpo/X1ZIvG2w=",
-        "owner": "firefox-extensions-declarative",
-        "repo": "firefox-extensions-declarative",
-        "rev": "32bfd276c65167d39ba88dca7ad93eba2ccb47bd",
-        "type": "github"
+        "lastModified": 1787440502,
+        "narHash": "sha256-31lfz2HVWpRpCCGkG4mMU3kz2qpAaXAetsJg25/feIY=",
+        "ref": "refs/heads/main",
+        "rev": "1dcb5c3d110f347b71651a2b2b838a108b7a6437",
+        "revCount": 79,
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative"
       },
       "original": {
-        "owner": "firefox-extensions-declarative",
-        "repo": "firefox-extensions-declarative",
-        "type": "github"
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative"
       }
     },
     "flake-file": {
@@ -942,15 +942,15 @@
       "locked": {
         "lastModified": 1785142579,
         "narHash": "sha256-WEPxDMiKt3uGVVu/aorHnIgYYW62mEq2Q+rlN3qH6bg=",
-        "owner": "Maroka-chan",
-        "repo": "VPN-Confinement",
+        "ref": "refs/heads/master",
         "rev": "b3aa71a7edfe6af748c23729d1bdec3b499741ff",
-        "type": "github"
+        "revCount": 77,
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/mirror-VPN-Confinement"
       },
       "original": {
-        "owner": "Maroka-chan",
-        "repo": "VPN-Confinement",
-        "type": "github"
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/mirror-VPN-Confinement"
       }
     }
   },

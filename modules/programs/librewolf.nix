@@ -12,7 +12,7 @@
 { inputs, self, ... }:
 {
   nucleus.inputs.firefox-extensions-declarative = {
-    url = "github:firefox-extensions-declarative/firefox-extensions-declarative";
+    url = "git+https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative";
     inputs.nixpkgs.follows = "unstable-nixpkgs";
   };
 
