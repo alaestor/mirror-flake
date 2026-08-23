@@ -36,8 +36,8 @@
             default_bind ${cfg.bindAddress}
             cerberus {
               difficulty 12
-              max_pending 128
-              access_per_approval 50
+              max_pending 512
+              access_per_approval 200
               block_ttl "1h"
               pending_ttl "10m"
               approval_ttl "168h"
