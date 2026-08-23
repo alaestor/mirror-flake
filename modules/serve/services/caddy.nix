@@ -32,12 +32,14 @@
             hash = "sha256-l5qBSMBn7SQKv0N+KrT2vnTejSgOwY2HsrX6v4jKcm4=";
           };
           dataDir = "/var/lib/caddy";
+          # The nixpkgs module emits its own global `log` block from this
+          # option; declaring another one in globalConfig is a parse error.
+          logFormat = ''
+            output stdout
+            format json
+          '';
           globalConfig = ''
             default_bind ${cfg.bindAddress}
-            log {
-              output stdout
-              format json
-            }
             cerberus {
               difficulty 12
               max_pending 512
