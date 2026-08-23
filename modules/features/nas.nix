@@ -27,6 +27,16 @@
             default = device;
             description = "Remote NFS export path for the ${name} NAS share.";
           };
+          idleTimeoutSec = lib.mkOption {
+            type = lib.types.nullOr lib.types.ints.unsigned;
+            default = 600;
+            description = ''
+              Seconds of inactivity before the automount unmounts the
+              ${name} share. Set to `null` to keep it mounted indefinitely
+              once triggered, e.g. for services that need it available on
+              short notice and can't tolerate remount cycles.
+            '';
+          };
         };
 
       shares = [
@@ -53,10 +63,12 @@
               "soft"
               "timeo=30"
               "retrans=2"
-              "x-systemd.idle-timeout=600"
               "x-systemd.mount-timeout=15s"
             ]
-            ++ lib.optional cfg.${optionName}.readonly "ro";
+            ++ lib.optional cfg.${optionName}.readonly "ro"
+            ++ lib.optional (
+              cfg.${optionName}.idleTimeoutSec != null
+            ) "x-systemd.idle-timeout=${toString cfg.${optionName}.idleTimeoutSec}";
           };
         };
     in

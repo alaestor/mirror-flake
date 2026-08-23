@@ -86,6 +86,11 @@ in
     vault = {
       enable = true;
       readonly = true;
+      # Filebrowser needs this available on demand; a remount cycle every
+      # idle-timeout would just churn without meaningfully reducing risk
+      # (shutdown-hang avoidance already comes from soft/timeo/retrans/
+      # mount-timeout above, independent of idle status).
+      idleTimeoutSec = null;
     };
     pocket.enable = true;
     services.enable = true;
