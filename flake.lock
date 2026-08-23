@@ -69,11 +69,11 @@
         "rev": "12455d10b11907989af41fb4d8fe2c1474895e7a",
         "revCount": 31,
         "type": "git",
-        "url": "https://codeberg.org/alaestor/pkgs.git"
+        "url": "https://git.0x04.cc/alaestor/pkgs.git"
       },
       "original": {
         "type": "git",
-        "url": "https://codeberg.org/alaestor/pkgs.git"
+        "url": "https://git.0x04.cc/alaestor/pkgs.git"
       }
     },
     "android-home-manager": {

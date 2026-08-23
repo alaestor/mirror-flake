@@ -27,7 +27,7 @@
         follows = "nixpkgs";
       };
     };
-    url = "git+https://codeberg.org/alaestor/pkgs.git";
+    url = "git+https://git.0x04.cc/alaestor/pkgs.git";
   };
   android-home-manager = {
     inputs = {
