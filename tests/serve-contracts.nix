@@ -79,13 +79,13 @@ let
 
   serviceAssertions = lib.concatMap harness.serviceCase cases;
 
-  domainDisabled = harness.evaluate [ nixos.domain-0x04cc ];
+  domainDisabled = harness.evaluate [ nixos.domain-0x04 ];
   domainHeadscale = harness.evaluate [
-    nixos.domain-0x04cc
+    nixos.domain-0x04
     { serve.headscale.enable = true; }
   ];
   domainMatrix = harness.evaluate [
-    nixos.domain-0x04cc
+    nixos.domain-0x04
     { serve.matrix.enable = true; }
   ];
 
