@@ -184,10 +184,6 @@ in
   };
 
   services = {
-    earlyoom = {
-      enable = true;
-      enableNotifications = true;
-    };
     ratbagd = {
       enable = true;
       package = pkgs.libratbag;
@@ -198,8 +194,6 @@ in
       browsing = lib.mkForce false;
     };
   };
-
-  systemd.oomd.enable = false; # TODO: oomd + earlyoomkiller module (or just global?)
 
   users.users.${username} = {
     isNormalUser = true;
@@ -223,9 +217,10 @@ in
   };
 
   xdg.portal.enable = true;
-  zramSwap = {
-    enable = true;
-    memoryPercent = 30;
-  };
+
+  # KDE has a notification daemon to actually surface these; the defaults
+  # (zram at 30%, kill below 10% free) are what this host ran before
+  # memory-manager existed.
+  memory-manager.earlyoom.notifications = true;
 
 }

@@ -23,6 +23,7 @@ in
         crypto-yubikey
         hifi-audio
         kde
+        memory-manager
         nas
         printers
         serve-nix-cache
