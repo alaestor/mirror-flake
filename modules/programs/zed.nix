@@ -97,6 +97,13 @@
           autosave.after_delay.milliseconds = lib.mkDefault 2000;
           calls.mute_on_join = lib.mkDefault true;
           theme = lib.mkDefault "Ayu Dark";
+          # Deliberately outside the microVM boundary `docs/agents.md`
+          # describes: that boundary is for agentic harnesses run through
+          # wrappers (`cc`/`ccs`/`cx`/`cxs`), where reducing blast radius is
+          # the point. Zed runs natively on the host with a GUI and a human
+          # driving it, which is a different trust model with its own
+          # mitigations (interactive review, no unattended sessions) rather
+          # than the VM's isolation guarantee.
           session.trust_all_worktrees = lib.mkDefault true;
           telemetry = {
             diagnostics = lib.mkDefault false;

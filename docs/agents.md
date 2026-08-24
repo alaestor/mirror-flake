@@ -129,6 +129,16 @@ host's network is reachable from a session. Nor is it a credential boundary in t
 general case: an agent forwarded into the guest can use whatever the forwarded
 sockets can do.
 
+It also does not cover every agent-adjacent tool on a host, by design. It
+exists for agentic CLI harnesses run through wrappers (`cc`/`ccs`/`cx`/`cxs`),
+where the whole point is reducing blast radius for a process that runs
+unattended. Zed's built-in agent (`modules/programs/zed.nix`'s
+`trust_all_worktrees`, `modules/aspects/ai-coding-local.nix`'s
+`tool_permissions`) runs natively on the host with a GUI and a human present,
+which is a different trust model with its own mitigations (interactive
+review, no unattended sessions) rather than this one. If a host-level tool
+grant like that starts running unattended, it needs this boundary too.
+
 ## Extending
 
 **A new harness.** Build its wrappers through the shared factory, give it a

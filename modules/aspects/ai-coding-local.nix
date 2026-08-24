@@ -80,6 +80,9 @@
           enable_feedback = false;
           show_turn_stats = true;
           thinking_display = "preview";
+          # Host-level, non-microVM write access is intentional here: see
+          # `modules/programs/zed.nix`'s `trust_all_worktrees` comment for why
+          # Zed doesn't share the agent VM's isolation guarantee.
           tool_permissions.tools = {
             delete_path.default = "allow";
             move_path.default = "allow";
