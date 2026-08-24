@@ -2,9 +2,9 @@
   # Repository data boundary
 
   Exposes public, non-secret repository data as `flake.data`. `path`, `read`,
-  `readJSON`, `readLines`, and `readNonEmptyLines` resolve data relative to the
-  flake root so consumers do not depend on their own source location. `vars`
-  provides named normalized views for data shared by multiple modules.
+  and `readJSON` resolve data relative to the flake root so consumers do not
+  depend on their own source location. `vars` provides named normalized views
+  for data shared by multiple modules.
 
   `data/` must never contain credentials or other secret material. Public
   identity metadata belongs here and is separated by operational role:
@@ -14,7 +14,6 @@
   - `identities.ssh-host` contains public SSH server identities.
   - `data/features/ssh-client/known-hosts.nix` constructs declarative public
     SSH known-host entries from domain-specific files.
-  - Nix store signing public keys are resolved by signing authority name.
   - `sshAdminKeys` contains only administrative SSH login identities.
   - `sshClientPublicKeys` contains only per-host SSH client identities.
   - `sshHostPublicKeys` contains only SSH host identities.
@@ -60,11 +59,6 @@ let
         description = "SSH server identities, by host name.";
       };
 
-      nixStoreSigningPublicKey = mkOption {
-        type = types.functionTo types.nonEmptyStr;
-        description = "The Nix store signing public key of the named signing authority.";
-      };
-
       textart = mkOption {
         type = types.attrsOf types.nonEmptyStr;
         description = "Flake-rooted paths of named text-art files.";
@@ -87,16 +81,6 @@ let
       readJSON = mkOption {
         type = types.functionTo types.raw;
         description = "Parsed JSON contents of the `data/`-relative subpath.";
-      };
-
-      readLines = mkOption {
-        type = types.functionTo (types.listOf types.str);
-        description = "Lines of the `data/`-relative subpath.";
-      };
-
-      readNonEmptyLines = mkOption {
-        type = types.functionTo (types.listOf types.nonEmptyStr);
-        description = "Non-empty lines of the `data/`-relative subpath.";
       };
 
       vars = mkOption {
@@ -125,10 +109,6 @@ in
 
     readJSON = subpath: builtins.fromJSON (read subpath);
 
-    readLines = subpath: lib.splitString "\n" (read subpath);
-
-    readNonEmptyLines = subpath: lib.filter (k: k != "") (readLines subpath);
-
     /**
       Common representations of frequently used data files
     */
@@ -151,9 +131,6 @@ in
 
       sshHostPublicKeys =
         lib.mapAttrs (_: value: builtins.head (identityLines value)) identities.ssh-host;
-
-      nixStoreSigningPublicKey = keyName:
-        read "identities/nix-store-signing/${keyName}.nsk.pub";
 
       textart.boykisser = path "textart/boykisser.txt";
     };

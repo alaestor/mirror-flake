@@ -81,7 +81,7 @@ in
     Automates some opinionated configuration for providing remote ssh access. If more granular control is desired, you should avoid using this.
 
     When configuring hosts for pre-boot ssh (`initrd.enable`):
-    - an ED25516 ssh key must be present at `initrd.HostKeyPath` to be passed along by `initrd.secrets`. Don't use your system host key (`HostKeyPath`).
+    - an ED25519 ssh key must be present at `initrd.hostKeyPath` to be passed along by `initrd.secrets`. Don't use your system host key (`hostKeyPath`).
     - the system will probably need to configure `systemd.network`
     - may need to set `boot.initrd.availableKernelModules` for network hardware availability (use `lspci -v | grep -iA8 'network\|ethernet'` for that).
 
@@ -181,7 +181,7 @@ in
           assertion = cfg.hostKeyPath != cfg.initrd.hostKeyPath;
           message = ''
             ${module-name}.initrd.hostKeyPath and ${module-name}.hostKeyPath must be different.
-            The `initrd.HostKeyPath` is be stored unencrypted in the initrd image.
+            The `initrd.hostKeyPath` is stored unencrypted in the initrd image.
             Don't use your system main key for this!
           '';
         }

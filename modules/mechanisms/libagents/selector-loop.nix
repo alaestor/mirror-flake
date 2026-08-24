@@ -1,9 +1,9 @@
 /**
   # flake.lib.agents.{mkSelectorLoop, mkHarnessWrappers}
 
-  Phase 3 of `__reference/microvm/implementation-guide.md`, implemented
-  per the deviation recorded in `.claude/handoff-472dce40.md`: the guide's
-  literal "harness factory" (model/effort as reserved cross-harness words,
+  Implemented per the deviation recorded in `.claude/handoff-472dce40.md`:
+  an earlier design's literal "harness factory" (model/effort as reserved
+  cross-harness words,
   `native` as a selector) was replaced with this narrower design after
   discussion. What genuinely generalizes across `cc`/`ccs`/`cx`/`cxs` turned
   out to be smaller than the guide scoped it: harnesses keep their own

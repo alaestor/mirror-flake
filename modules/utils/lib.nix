@@ -157,7 +157,7 @@ in
     };
 
     /**
-      ## `unit-systems` usage:
+      ## `units` usage:
 
       ```nix
       size-in-kilobytes = self.lib.units.SI.bytes.kB 10;

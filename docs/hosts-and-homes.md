@@ -33,7 +33,7 @@ export modules for another module system:
 | Layer | Owns | Typical location |
 |---|---|---|
 | Flake-parts | Flake inputs, registries, packages, apps, and exported modules | `modules/` |
-| NixOS | Machine services, hardware, users, boot, and system policy | `modules/features/`, `modules/de/`, `modules/host/` |
+| NixOS | Machine services, hardware, users, boot, and system policy | `modules/features/`, `modules/features/de/`, `modules/host/` |
 | Home Manager | User programs and session configuration | `modules/programs/`, `modules/aspects/`, `modules/preferences/` |
 | Nix-on-Droid | Android-hosted Nix environment and device activation | `modules/features/`, `modules/host/` |
 

@@ -2,8 +2,8 @@
   # `flake.modules.nixos.agent-vm`
 
   The host half of the agent VM: it owns the VM declaration and it owns the
-  host-side end of every channel (`__reference/microvm/implementation-guide.md`
-  Phase 5). A mechanism rather than a feature — no host would name "runs a VM
+  host-side end of every channel. A mechanism rather than a feature — no host
+  would name "runs a VM
   manager for coding agents" as a capability it wants; the harnesses want it,
   and this serves them (`docs/modules.md` §"Reusable modules").
 
@@ -102,8 +102,12 @@
       cfg = config.agent-vm;
       inherit (self.lib.agents.vmChannels) ports;
 
-      # The guest's sshd host key as a deployed secret
-      # (`__reference/review/vm-host-key-age.md`). Named by `cfg.name` with
+      # The guest's sshd host key as a deployed secret: a committed public
+      # half plus an agenix-encrypted private half, the same shape
+      # `modules/features/nix-store-signing.nix` uses for a runtime secret
+      # with a public commit — chosen over a store-generated key so the
+      # guest's identity is a stable, reproducible fact rather than whatever
+      # the first build happened to produce. Named by `cfg.name` with
       # dashes stripped, matching how `data/identities/ssh-host-vm` and
       # `secrets/ssh-host-vm` are keyed — kept distinct from `cfg.name`
       # itself so the file-naming convention (no dashes, matching every
@@ -137,9 +141,8 @@
       sessionPrefix = "agent-vm-session-";
       lingerCheckPrefix = "agent-vm-linger-check-";
 
-      # Phase 7 — reference-counted lifecycle. Two systemd facts drove the
-      # shape, both recorded in `__reference/microvm/next.md` as traps to
-      # check before trusting the naive design:
+      # Reference-counted lifecycle. Two systemd facts drove the shape, both
+      # traps to check before trusting the naive design:
       #
       # 1. microvm.nix's generated `microvm@.service` sets `Restart =
       #    "always"`. `StopWhenUnneeded` issues an ordinary stop job, which
@@ -465,8 +468,7 @@
               self.secrets.sshHostVm "<name-without-dashes>", if present
             '';
             description = ''
-              Encrypted sshd host key for the guest
-              (`__reference/review/vm-host-key-age.md`). Absent (a bootstrap
+              Encrypted sshd host key for the guest. Absent (a bootstrap
               checkout with no ciphertext yet) falls back to a generated,
               non-reproducible, store-resident key with a build warning —
               never a hard failure, since a fresh checkout has nothing to
@@ -488,9 +490,8 @@
             description = ''
               How long the guest is kept running after the last agent session
               exits, so exiting one session and immediately starting another
-              does not re-boot it. Phase 7
-              (`__reference/microvm/implementation-guide.md`). See
-              `agent-vm-session`'s doc comment for the mechanism.
+              does not re-boot it. See `agent-vm-session`'s doc comment for
+              the mechanism.
             '';
           };
         };
@@ -565,7 +566,6 @@
               agent-vm: no encrypted host key for '${cfg.name}'
               (secrets/ssh-host-vm/ssh_host_ed25519_key_${guestKeyName}.age);
               falling back to a generated, non-reproducible sshd host key.
-              See __reference/review/vm-host-key-age.md.
             '';
 
             age.secrets."agent-vm-host-key-${cfg.name}" = lib.mkIf (cfg.hostKey.file != null) {
@@ -575,7 +575,7 @@
               # guest-side ImportCredential unit, which runs inside the VM),
               # so it must be readable by the *host's* microvm/qemu user —
               # microvm.nix's declarative runner runs unprivileged as
-              # `microvm:kvm`, not root. See `__reference/review/vm-host-key-age.md`.
+              # `microvm:kvm`, not root.
               owner = "microvm";
               group = "kvm";
               mode = "0400";

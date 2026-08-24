@@ -9,7 +9,7 @@ let
   username = config.hostIdentity.primaryUser;
   home = "/home/${username}";
   agents = inputs.self.lib.agents;
-  # noblesse offloads its builds here; see __reference/remote-build-trust.md.
+  # noblesse offloads its builds here.
   remoteBuildUser = "nixremote";
 in
 {
@@ -98,7 +98,7 @@ in
       # The agent VM's nix daemon channel connects as this account. It is
       # allowed to talk to the daemon and deliberately not trusted by it, so
       # the guest can build and add store paths but cannot tell the daemon to
-      # trust content from anywhere else. See modules/mechanisms/agents/.
+      # trust content from anywhere else. See modules/mechanisms/libagents/.
       config.agent-vm.nixProxyUser
       # Remote builders must also be allowed to reach the daemon at all;
       # being trusted does not imply being allowed.

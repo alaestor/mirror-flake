@@ -25,14 +25,17 @@ remain relative. This keeps moving a component from changing its dependencies.
 | `modules/mechanisms/` | Shared infrastructure other modules build on, each directory or file owning its whole concern. |
 | `modules/aspects/` | High-level, composable bundles of features and their interoperability policy. |
 | `modules/fleet/` | Typed, public, non-secret facts shared by multiple repository consumers. |
+| `modules/serve/` | Parent of `services/` and `domains/`; no modules of its own. |
 | `modules/serve/services/` | Disabled-by-default hosted-service features exported as `serve-*`. |
 | `modules/serve/domains/` | Disabled-by-default public ingress compositions exported as `domain-*`. |
-| `modules/de/` | Desktop features; `kde.nix` is the dual NixOS/Home Manager reference. |
+| `modules/features/de/` | Desktop features; `kde.nix` is the dual NixOS/Home Manager reference. |
 | `modules/programs/` | Opinionated, reusable Home Manager program modules. |
 | `modules/app-config/` | Experimental package-coupled application configuration exported as wrapper modules. |
 | `modules/preferences/` | Settings and identities that follow a person across hosts. |
 | `modules/inputs/` | Flake inputs and their integration modules. |
 | `modules/utils/` | Shared flake library and maintenance apps. |
+| `modules/testing/` | Test harnesses consumed by `tests/`. |
+| `modules/data.nix`, `modules/secrets.nix`, `modules/host-identity.nix`, `modules/dendritic.nix` | Root boundary modules that define `self.data`, `self.secrets`, and the host-identity/dendritic machinery. |
 | `data/` | Non-module state consumed by Nix: JSON, scripts, text, and value-only Nix files. |
 | `docs/` | Durable onboarding material for architecture, contracts, and contributor expectations. |
 | `docs/research/` | Exploratory notes that may discuss alternatives or volatile implementation state. |
@@ -119,7 +122,7 @@ Use `lib.mkDefault` for policy intended to be refined. Preferences and host-spec
 ### Coding agents and isolation
 
 Read [`docs/agents.md`](docs/agents.md) before changing
-`modules/mechanisms/agents/` or a harness feature under `modules/features/`.
+`modules/mechanisms/libagents/` or a harness feature under `modules/features/`.
 The VM layer must never name a harness fact, and the harness layer must never
 name a VM concept; exactly one module declares the shared guest, and harnesses
 and hosts contribute to it through typed options.
@@ -144,7 +147,6 @@ interface when one exists.
 - `self.data.path "..."` returns a store-backed path/string for imports or file consumers.
 - `self.data.read "..."` reads text.
 - `self.data.readJSON "..."` parses JSON.
-- `self.data.readLines "..."` and `readNonEmptyLines` normalize line-oriented files.
 - `self.data.vars` provides named, normalized representations used in several places.
 
 This boundary also avoids a dendritic import trap. A helper `.nix` file placed beside its consumer under `modules/` would itself be discovered by `nucleus` and evaluated as a flake-parts module. Moving the helper outside `modules/` makes direct relative imports awkward and sensitive to relocating the consumer. `self.data` provides a stable flake-root-relative route to those files instead.

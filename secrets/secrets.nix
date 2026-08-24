@@ -139,8 +139,7 @@ in
     meaningless. This is a runtime secret that happens to be an SSH host
     key — decrypted unattended by the host that runs the guest, the same
     shape as `ssh-client/id_ed25519_apc.age` above — and it deliberately
-    deviates from the host-key-backup admin-only rule for that reason. See
-    `__reference/review/vm-host-key-age.md`.
+    deviates from the host-key-backup admin-only rule for that reason.
 
     `<guest>` is the lowercase guest name from `data/identities/ssh-host-vm`.
     Nothing should ever encrypt *to* a guest identity; only administrators

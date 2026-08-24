@@ -12,12 +12,12 @@
   QEMU without the `virtiofsd` daemons every `proto = "virtiofs"` share
   needs, and dies with `Failed to connect to
   'agent-vm-smoke-test-virtiofs-ro-store.sock'`. See
-  `modules/mechanisms/agents/vm-run.nix` for what the wrapper does, why it wants
+  `modules/mechanisms/libagents/vm-run.nix` for what the wrapper does, why it wants
   `sudo`, and what `--unprivileged` costs you.
 
   Phase 5 added the nix-daemon and gpg-agent channels here rather than in a
   second guest. They need `agent-vm.enable = true` on the host (see
-  `modules/mechanisms/agents/vm-host.nix`); without it the guest boots
+  `modules/mechanisms/libagents/vm-host.nix`); without it the guest boots
   normally and both proxies just fail to connect.
 
   Phase 6 added the harness state directories as read-write shares. Those
@@ -26,8 +26,8 @@
   virtiofsd refuses a source directory that does not exist. On a host with
   `agent-vm.enable`, systemd-tmpfiles has already made them.
 
-  The in-guest acceptance checks themselves live in
-  `__reference/microvm/human-verify.md`.
+  The in-guest acceptance checks themselves live in untracked working notes
+  (not part of this repository).
 */
 { inputs, self, ... }:
 {

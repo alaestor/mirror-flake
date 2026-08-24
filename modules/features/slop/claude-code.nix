@@ -112,15 +112,13 @@
         }
       '';
 
-      # Sessions isolate through the agent VM (Phase 8,
-      # `__reference/microvm/implementation-guide.md`) — `sandboxPackage`/
+      # Sessions isolate through the agent VM — `sandboxPackage`/
       # `sandboxToolPath` (the vendored bubblewrap sandbox's own PATH
       # reconstruction, needed because it clears the environment) are gone
       # from this file along with the bubblewrap `sandbox` function they only
       # served; `modules/mechanisms/claude-sandbox.nix` and
-      # `data/utils/claude-sandbox/` are gone too, once dead code kept around
-      # in case Phase 8 didn't work out (`__reference/review/
-      # claude-sandbox-removal.md`).
+      # `data/utils/claude-sandbox/` are gone too, having been kept around
+      # only as a fallback in case the VM migration didn't work out.
       #
       # The only paths a session may work in. `agent-vm.projectRoots`
       # (`hosts/apc/system.nix`) shares exactly these two trees into the
@@ -395,9 +393,8 @@
           # directory, matching the pre-split wrapper's behavior (it used to
           # exit before ever reaching the sandbox's cwd restriction).
           #
-          # Phase 8 (`__reference/microvm/implementation-guide.md`): sessions
-          # now isolate through the agent VM (`agent-vm-session`) instead of
-          # bubblewrap. `agent-vm.projectRoots` (`hosts/apc/system.nix`) is
+          # Sessions isolate through the agent VM (`agent-vm-session`) instead
+          # of bubblewrap. `agent-vm.projectRoots` (`hosts/apc/system.nix`) is
           # the guest-side equivalent of `sandboxWritableRoots` below — kept
           # as the same two paths deliberately, so both lists describe one
           # fact ("what the agent may work on") rather than drifting apart.

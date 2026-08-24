@@ -24,7 +24,7 @@ guest is trusted to restrict itself.
 | Host mechanism | `flake.modules.nixos.agent-vm` | The single VM instance, the host half of each channel, session lifecycle, and the `agent-vm-session` entry point. |
 | Host | `host.<name>` and its fragments | Which harnesses are attached, which trees the agent may work on, and platform sizing. |
 
-Everything except the harness features lives in `modules/mechanisms/agents/`.
+Everything except the harness features lives in `modules/mechanisms/libagents/`.
 It is a mechanism, not a feature: no host asks for "a VM manager for coding
 agents", it gains one as a consequence of attaching a harness
 ([Module ownership](modules.md), §Reusable modules).
