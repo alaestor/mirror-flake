@@ -29,7 +29,6 @@
     };
     kernelModules = [
       "amdgpu"
-      "dns_resolver"
       "kvm-amd"
       "nfsv4"
       "exfat"
@@ -41,57 +40,9 @@
       "snd_seq_dummy"
       "xt_policy"
     ];
-    kernelParams = [
-      "slab_nomerge"
-      "page_position=1"
-      "page_alloc.shuffle=1"
-      "debugfs=off"
-    ];
-    blacklistedKernelModules = [
-      "ax25"
-      "netrom"
-      "rose"
-      "adfs"
-      "affs"
-      "bfs"
-      "befs"
-      "cramfs"
-      "efs"
-      "erofs"
-      "exofs"
-      "freevxfs"
-      "f2fs"
-      "hfs"
-      "hpfs"
-      "jfs"
-      "minix"
-      "nilfs2"
-      "omfs"
-      "qnx4"
-      "qnx6"
-      "sysv"
-      "ufs"
-    ];
-    kernel.sysctl = {
-      "kernel.kptr_restrict" = lib.mkOverride 500 2;
-      "net.core.bpf_jit_enable" = false;
-      "kernel.ftrace_enabled" = false;
-      "net.ipv4.conf.all.log_martians" = true;
-      "net.ipv4.conf.all.rp_filter" = "1";
-      "net.ipv4.conf.default.log_martians" = true;
-      "net.ipv4.conf.default.rp_filter" = "1";
-      "net.ipv4.icmp_echo_ignore_broadcasts" = true;
-      "net.ipv4.conf.all.accept_redirects" = lib.mkDefault false;
-      "net.ipv4.conf.all.secure_redirects" = lib.mkDefault false;
-      "net.ipv4.conf.default.accept_redirects" = lib.mkDefault false;
-      "net.ipv4.conf.default.secure_redirects" = lib.mkDefault false;
-      "net.ipv6.conf.all.accept_redirects" = lib.mkDefault false;
-      "net.ipv6.conf.default.accept_redirects" = lib.mkDefault false;
-      "net.ipv4.conf.all.send_redirects" = false;
-      "net.ipv4.conf.default.send_redirects" = false;
-      "net.ipv6.conf.all.accept_ra" = 0;
-      "net.ipv6.conf.default.accept_ra" = 0;
-    };
+    # Baseline slab_nomerge/page_poison/kernel.sysctl/blacklistedKernelModules
+    # hardening comes from the `server-hardening` feature module
+    # (`modules/features/server-hardening.nix`), which this host imports.
     loader = {
       systemd-boot.enable = true;
       efi.canTouchEfiVariables = true;

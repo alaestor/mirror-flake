@@ -27,6 +27,7 @@ in
         nas
         printers
         serve-nix-cache
+        server-hardening
         ssh-client
         ssh-host
         steam-gaming

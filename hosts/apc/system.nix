@@ -166,33 +166,14 @@ in
     suppressCrashReports = true;
   };
 
-  security = {
-    lockKernelModules = false;
-    protectKernelImage = true;
-    forcePageTableIsolation = true;
-    virtualisation.flushL1DataCache = "always";
-    sudo.enable = false;
-    sudo-rs = {
-      enable = true;
-      package = pkgs.sudo-rs;
-      execWheelOnly = true;
-    };
-    apparmor = {
-      enable = true;
-      killUnconfinedConfinables = true;
-    };
-  };
+  # Baseline security/service hardening (sudo-rs, apparmor, disabled
+  # avahi/printing broadcast, etc.) comes from the `server-hardening` feature
+  # module this host imports; only apc-specific overrides live here.
+  security.lockKernelModules = false;
 
-  services = {
-    ratbagd = {
-      enable = true;
-      package = pkgs.libratbag;
-    };
-    avahi.enable = lib.mkForce false;
-    printing = {
-      browsed.enable = lib.mkForce false;
-      browsing = lib.mkForce false;
-    };
+  services.ratbagd = {
+    enable = true;
+    package = pkgs.libratbag;
   };
 
   users.users.${username} = {
