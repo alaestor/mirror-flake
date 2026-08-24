@@ -187,8 +187,20 @@ in
         iso,
         postWrite ? "",
       }:
-      pkgs.writeShellScript "mkbootable-${name}" ''
-        set -euo pipefail
+      pkgs.writeShellApplication {
+        name = "mkbootable-${name}";
+        # `sudo` must stay ambient (it re-execs to root); everything else this
+        # script calls is pinned here so a destructive, ordered-before-the-ISO
+        # sequence (wipefs/sfdisk before dd) never fails on a missing command
+        # after it has already started erasing the target device.
+        runtimeInputs = with pkgs; [
+          util-linux
+          gawk
+          coreutils
+          gnused
+          systemd
+        ];
+        text = ''
         echo "Starting @ $(date +%Y%m%dT%H%M%S)"
 
         if [ -z "''${1:-}" ]; then
@@ -231,7 +243,8 @@ in
         ${postWrite}
 
         echo "Done @ $(date +%Y%m%dT%H%M%S)"
-      '';
+        '';
+      };
 
     /**
       Creates a nixos-anywhere deployer for a host using the `ssh-host` and
