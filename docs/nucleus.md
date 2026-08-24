@@ -70,6 +70,8 @@ Normal writing is transactional:
 
 On failure, the writer retains the candidate, attempted lock file, validation log, and backups in a reported temporary artifact directory. The `write-flake --no-check` escape hatch installs generated source without parsing, lock refresh, or validation.
 
+`nix flake check --no-build` evaluates whole NixOS/Home Manager configurations and needs real memory to do it; it was previously unrunnable on constrained hardware (the agent VM's guest resources were sized too small). That's fixed by giving the guest more RAM/CPU rather than by narrowing the gate. There is deliberately no CI running these checks — every check remains a manual, local step.
+
 To initialize the project, or to recover if a broken input declaration prevents the normal writer from evaluating, run:
 
 ```sh

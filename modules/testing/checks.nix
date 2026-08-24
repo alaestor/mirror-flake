@@ -9,6 +9,12 @@
   keeps shared harnesses such as `tests/lib/` and fixtures such as
   `tests/jellybuilder/` out of the check set; those are imported by the tests
   that use them, or wired by the module they exercise.
+
+  This is not the only source of `perSystem.checks`: modules may also
+  contribute a check directly, colocated with the thing it tests
+  (`modules/utils/mkstatus/mkstatus.nix`,
+  `modules/features/nix-store-signing.nix`). The full check set is the union
+  of both mechanisms, not just what's under `tests/`.
 */
 { inputs, self, ... }:
 let

@@ -1,3 +1,6 @@
+# Ignores every dotfile (.claude/, .serena/, .ruff_cache/, ...), which is
+# deliberate but also hides any future .github/, .envrc, or .editorconfig
+# until it's explicitly negated with a `!` rule below.
 .*
 *.old
 __*
