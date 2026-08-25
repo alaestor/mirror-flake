@@ -31,6 +31,10 @@ in
   ];
 
   home = {
+    # This account was created under Home Manager 23.11, predating apc's
+    # own declared stateVersion ("24.05" in modules/host/apc.nix) — do not
+    # sync this to the host baseline; it's compatibility metadata for when
+    # this account's state was first written, not the host's age.
     stateVersion = "23.11";
     packages = with pkgs; [
       (bottles.override { removeWarningPopup = true; })

@@ -55,6 +55,11 @@ let
 
           homeDirectory = mkOption {
             type = types.nonEmptyStr;
+            # nixOnDroid: read-only, so a host that tries to override this
+            # platform fact gets a definition-conflict error instead of the
+            # mismatch only ever surfacing (if at all) deep inside
+            # Nix-on-Droid's own modules.
+            readOnly = class == "nixOnDroid";
             default =
               if class == "nixOnDroid" then
                 nixOnDroidHomeDirectory

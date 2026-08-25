@@ -23,14 +23,47 @@ evaluate `config.flake`.
 {
   config,
   inputs,
+  lib,
   self,
   ...
 }:
+let
+  # Gives the documented contract ("returns the host's fragment lists keyed
+  # by module class") teeth: a missing class defaults to [], and a typo
+  # (e.g. `nixOS = [...]`) fails loudly with "not declared" instead of the
+  # fragments silently never loading and the host still building.
+  fragmentSchema =
+    { lib, ... }:
+    {
+      options = {
+        nixos = lib.mkOption {
+          type = lib.types.listOf lib.types.unspecified;
+          default = [ ];
+          description = "This host's NixOS module fragments.";
+        };
+        homeManager = lib.mkOption {
+          type = lib.types.listOf lib.types.unspecified;
+          default = [ ];
+          description = "This host's Home Manager module fragments.";
+        };
+        nixOnDroid = lib.mkOption {
+          type = lib.types.listOf lib.types.unspecified;
+          default = [ ];
+          description = "This host's Nix-on-Droid module fragments.";
+        };
+      };
+    };
+in
 {
   config.flake.lib.importHostFragments =
     name:
-    import "${self}/hosts/${name}" {
-      inherit inputs self;
-      fleet = config.flake.fleet;
-    };
+    (lib.evalModules {
+      modules = [
+        fragmentSchema
+        (import "${self}/hosts/${name}" {
+          inherit inputs self;
+          fleet = config.flake.fleet;
+        })
+      ];
+    }).config;
 }

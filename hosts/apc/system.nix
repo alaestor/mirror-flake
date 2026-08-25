@@ -85,14 +85,12 @@ in
 
   fonts.packages = builtins.filter lib.attrsets.isDerivation (builtins.attrValues pkgs.nerd-fonts);
 
-  # TODO(apc): yeet nix.settings (is @wheel even needed?)
+  # global-config.nix already defaults auto-optimise-store and
+  # experimental-features (as lib.mkDefault); no need to re-declare them
+  # here, and doing so as hard values only worked because they happened to
+  # match.
   nix.settings = {
-    auto-optimise-store = true;
     download-buffer-size = 524288000 * 2; # TODO(global): download-buffer-size
-    experimental-features = [
-      "nix-command"
-      "flakes"
-    ];
     allowed-users = [
       "@wheel"
       # The agent VM's nix daemon channel connects as this account. It is

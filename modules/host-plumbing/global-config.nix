@@ -20,12 +20,12 @@
       };
       optimise.automatic = lib.mkDefault true;
       settings = {
-        auto-optimise-store = true;
-        experimental-features = [ "nix-command" "flakes" ];
+        auto-optimise-store = lib.mkDefault true;
+        experimental-features = lib.mkDefault [ "nix-command" "flakes" ];
       };
     };
 
-    nixpkgs.config.allowUnfree = true;
+    nixpkgs.config.allowUnfree = lib.mkDefault true;
 
     environment.systemPackages = with pkgs; [
       neovim
