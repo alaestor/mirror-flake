@@ -7,6 +7,7 @@ let
   constants = import (inputs.self.data.path "cryptid/constants.nix");
   hostFragments = config.flake.lib.importHostFragments "cryptid";
   inherit (constants) persist-partition-label;
+  inherit (inputs.self.modules.nixos) isolive airgap;
 
 in
 {
@@ -23,9 +24,12 @@ in
     stateVersion = "26.05";
     nixpkgs = inputs.cryptid-nixpkgs;
 
-    modules = hostFragments.nixos ++ [
+    modules = [
+      isolive
+      airgap
+      # not using cryptos from flake; micromanage dependencies
       { _module.args.cryptidConstants = constants; }
-    ];
+    ] ++ hostFragments.nixos;
 
     /**
     Comes with a helper script to destructively provision a bootable USB flashdrive formatted with an additional btrfs partition for manually managed persistance. The rationale for this is a backup strategy which bundles data with the tools needed to use it. Encrypted containers can be made on the persistant partition and the entire drive can be cloned for redundancy.
