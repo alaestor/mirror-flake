@@ -1,4 +1,4 @@
-{ inputs, tailnet }:
+{ inputs, tailnet, lan }:
 {
   config,
   pkgs,
@@ -25,24 +25,9 @@ in
     };
   };
 
-  services = {
-    displayManager = {
-      defaultSession = "lxqt";
-      autoLogin = {
-        enable = true;
-        user = username;
-      };
-    };
-    xserver = {
-      enable = true;
-      desktopManager.lxqt.enable = true;
-      displayManager.lightdm.enable = true;
-      xkb = {
-        layout = "us";
-        variant = "";
-      };
-    };
-  };
+  # Public-facing host: passwordless autologin into LXQt is intentional here
+  # (kiosk-style access to the media/torrent services this host runs).
+  auto-login.user = username;
 
   environment.systemPackages = with pkgs; [
     git
@@ -115,9 +100,7 @@ in
     };
     headscale = {
       enable = true;
-      adminAllowedCIDRs = [ # TODO(global): somewhere to define LAN?
-        "172.16.0.0/24"
-      ];
+      adminAllowedCIDRs = [ lan.cidr ];
       cookieSecretFile = config.age.secrets.lanser-headplane-cookie-secret.path;
     };
     jellyfin.enable = true;
