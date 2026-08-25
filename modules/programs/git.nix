@@ -20,7 +20,10 @@
         ];
         settings = {
           init.defaultBranch = lib.mkDefault "main";
-          log.abbrevCommit = lib.mkDefault "40";
+          # `log.abbrevCommit` is a boolean (whether to abbreviate at all);
+          # the intent here was full 40-character hashes, which is
+          # `core.abbrev`, not a truthy string coerced into that boolean.
+          core.abbrev = lib.mkDefault 40;
           column.ui = lib.mkDefault "auto";
           branch.sort = lib.mkDefault "-committerdate";
           tag.sort = lib.mkDefault "version:refname";
