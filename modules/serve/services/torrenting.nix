@@ -3,7 +3,7 @@
 
   This is a private host service, not a public domain composition.
 */
-{ inputs, ... }:
+{ inputs, self, ... }:
 {
   nucleus.inputs.vpn-confinement.url = "git+https://git.0x04.cc/alaestor/mirror-VPN-Confinement";
 
@@ -31,7 +31,7 @@
         };
         accessibleFrom = lib.mkOption {
           type = lib.types.listOf lib.types.nonEmptyStr;
-          default = [ "172.16.0.0/24" ];
+          default = [ self.fleet.lan.cidr ];
           description = "Private networks allowed to reach mapped qBittorrent ports.";
         };
         downloadPath = lib.mkOption {

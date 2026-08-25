@@ -12,7 +12,7 @@ let
   options = config: {
     authority = lib.mkOption {
       type = lib.types.str;
-      default = "apc.tailnet.0x04.cc";
+      default = "apc.${self.fleet.tailnets."0x04cc".dnsSuffix}";
       description = "DNS name of the trusted local binary cache.";
     };
     port = lib.mkOption {

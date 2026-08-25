@@ -34,7 +34,7 @@
           default = [ ];
           description = "Networks allowed to reach Headplane's /admin interface through a domain composition.";
           example = [
-            "192.168.2.0/23"
+            "10.20.0.0/24"
             "100.64.0.0/10"
           ];
         };

@@ -2,6 +2,7 @@
   Provides optional NFS mounts for the Cauldron, Vault, Pocket, and Services
   NAS shares. Each share can be enabled independently and mounted read-only.
 */
+{ self, ... }:
 {
   flake.modules.nixos.nas =
     { config, lib, ... }:
@@ -76,7 +77,7 @@
       options.nas = {
         server = lib.mkOption {
           type = lib.types.nonEmptyStr;
-          default = "172.16.0.2"; # TODO(lan): nas ip
+          default = self.fleet.lan.nas;
           description = "Hostname or address of the NAS server.";
         };
 

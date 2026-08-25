@@ -1,4 +1,4 @@
-{ inputs }:
+{ inputs, lan }:
 {
   config,
   lib,
@@ -152,7 +152,7 @@ in
   services.openssh.settings.AllowUsers = [ remoteBuildUser ];
 
   nas = {
-    server = "172.16.0.2"; # TODO(lan): nas ip
+    server = lan.nas;
     cauldron.enable = true;
     vault.enable = true;
     pocket.enable = true;

@@ -1,3 +1,4 @@
+{ tailnet }:
 { config, lib, pkgs, ... }:
 {
 
@@ -26,7 +27,7 @@
   # root-equivalent over its store, so it is a dedicated forced-command account
   # instead of the interactive one.
   nix.extraOptions = lib.mkAfter ''
-    builders = ssh://nixremote@apc.tailnet.0x04.cc aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
+    builders = ssh://nixremote@apc.${tailnet.dnsSuffix} aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
     builders-use-substitutes = true
   '';
 

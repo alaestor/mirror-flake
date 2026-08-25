@@ -1,4 +1,4 @@
-{ inputs }:
+{ inputs, lan, tailnet }:
 { config, lib, ... }:
 {
   age.secrets.apc-wireguard-private-key = {
@@ -7,7 +7,7 @@
   };
 
   networking = {
-    domain = "tailnet.0x04.cc";
+    domain = tailnet.dnsSuffix;
     enableIPv6 = true;
     networkmanager.enable = true;
     useDHCP = false;
@@ -16,7 +16,7 @@
       enp42s0 = { };
     };
     defaultGateway = {
-      address = "172.16.0.1"; # TODO(lan): state: gateway
+      address = lan.gateway;
       interface = "enp34s0";
     };
     wg-quick.interfaces.wg0 = {
@@ -44,17 +44,17 @@
       ];
     };
     hosts = {
-      # TODO(apc):  del dumb fake dns
-      "172.16.0.1" = [ "router.lan" ];
-      "192.168.1.200" = [ "NAS" ];
+      "${lan.gateway}" = [ "router.lan" ];
     };
     firewall = {
       enable = lib.mkForce true;
       allowPing = false;
+      # TODO(lan): confirm this is still a real hand-created libvirt tap and
+      # not leftover from a torn-down VM; nothing declarative here creates it.
       trustedInterfaces = [ "vmtap2" ];
       allowedTCPPorts = [
-        1234
-        2234
+        1234 # LM Studio's API (modules/aspects/ai-coding-local.nix), exposed to the LAN on purpose.
+        2234 # TODO(lan): no referent found anywhere in this repository; confirm still needed.
       ];
     };
   };

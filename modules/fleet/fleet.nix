@@ -21,6 +21,34 @@ let
       };
     };
   };
+
+  lanType = types.submodule {
+    options = {
+      cidr = mkOption {
+        type = types.nonEmptyStr;
+        description = ''
+          The general LAN's CIDR. Not every physical network in the fleet:
+          a direct-attach link between two specific machines (e.g. a
+          dedicated NIC-to-NIC subnet) is that pair's own concern, not a
+          fleet fact.
+        '';
+      };
+
+      gateway = mkOption {
+        type = types.nonEmptyStr;
+        description = "The general LAN's default gateway address.";
+      };
+
+      nas = mkOption {
+        type = types.nonEmptyStr;
+        description = ''
+          The NAS's address on the general LAN. A host reaching the NAS over
+          a different, direct-attach link (not this LAN) has its own address
+          for it and does not consume this fact.
+        '';
+      };
+    };
+  };
 in
 {
   options.flake.fleet.channels = mkOption {
@@ -33,5 +61,11 @@ in
     type = types.attrsOf tailnetType;
     default = { };
     description = "Named public tailnet facts shared by fleet-aware composition modules.";
+  };
+
+  options.flake.fleet.lan = mkOption {
+    type = types.nullOr lanType;
+    default = null;
+    description = "The general LAN's shared facts, if the fleet has one.";
   };
 }
