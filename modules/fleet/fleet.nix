@@ -68,4 +68,14 @@ in
     default = null;
     description = "The general LAN's shared facts, if the fleet has one.";
   };
+
+  options.flake.fleet.knownHosts = mkOption {
+    type = types.attrsOf (types.attrsOf (types.listOf types.nonEmptyStr));
+    default = { };
+    description = ''
+      Fleet-wide SSH known-hosts appendix, shaped like
+      `ssh-client.knownHosts`: domain, then hostname (as it would appear in
+      `known_hosts`), then a list of `type base64-data...` keys.
+    '';
+  };
 }
