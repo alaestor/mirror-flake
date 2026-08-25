@@ -1,6 +1,7 @@
 /**
   Local Tuwunel Matrix service without public ingress policy.
 */
+{ self, ... }:
 {
   flake.modules.nixos.serve-matrix =
     { config, lib, ... }:
@@ -30,7 +31,7 @@
 
         maxRequestSize = lib.mkOption {
           type = lib.types.ints.positive;
-          default = 2 * 1024 * 1024 * 1024;
+          default = self.lib.units.IEC.bytes.GiB 2;
           description = "Maximum Matrix request size in bytes.";
         };
       };
