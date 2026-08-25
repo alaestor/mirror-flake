@@ -25,6 +25,12 @@
           boot.kexec.enable = lib.mkForce true;
           ssh-host.allowUsers = [ config.hostIdentity.primaryUser ];
           services.getty.autologinUser = lib.mkForce config.hostIdentity.primaryUser;
+
+          # bootstrap needs reliable network reachability for remote SSH
+          # install, which isolive-minimal otherwise trims away for size.
+          # Wireless stays off (wired Ethernet is assumed); re-enable
+          # networking.wireless.enable per-host if you need Wi-Fi to bootstrap.
+          hardware.enableRedistributableFirmware = lib.mkForce true;
         }
       )
     ];
