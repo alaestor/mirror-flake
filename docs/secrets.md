@@ -144,16 +144,18 @@ silently "corrected" back to admin-only by a future edit that assumes every
 `ssh_host_ed25519_key_*.age` follows the same convention.
 
 Nix store signing key names follow Nix's binary-cache convention: a DNS-like
-authority name and a rotation counter. `apc.tailnet.0x04.cc-1` identifies APC's
-private builder authority; a future public cache should use its own authority
-such as `cache.0x04.cc-1`.
+authority name and a rotation counter, e.g. `<host>.tailnet.<tailnet-domain>-1`
+for a host's private builder authority, or `cache.<domain>-1` for a future
+public cache. Do not bake a specific host's current rotation counter into
+this doc; check `data/identities/nix-store-signing/` for what is actually
+provisioned.
 
 Generate a new pair explicitly from a trusted workstation:
 
 ```sh
 nix run .#provision-nix-store-signing-key -- \
-  --key-name apc.tailnet.0x04.cc-1 \
-  --recipient "$(grep -v '^#' data/identities/ssh-host/ssh_host_ed25519_key_apc.pub | head -n1)"
+  --key-name "<host>.tailnet.<tailnet-domain>-<rotation>" \
+  --recipient "$(grep -v '^#' "data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub" | head -n1)"
 ```
 
 The app refuses to overwrite either output and writes only `<key-name>.nsk.pub`

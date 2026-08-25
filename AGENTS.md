@@ -29,6 +29,7 @@ remain relative. This keeps moving a component from changing its dependencies.
 | `modules/serve/services/` | Disabled-by-default hosted-service features exported as `serve-*`. |
 | `modules/serve/domains/` | Disabled-by-default public ingress compositions exported as `domain-*`. |
 | `modules/features/de/` | Desktop features; `kde.nix` is the dual NixOS/Home Manager reference. |
+| `modules/features/slop/` | Coding-agent harness features (Claude Code, Codex, Headroom); named as a wink at what they are, not a value judgment. |
 | `modules/programs/` | Opinionated, reusable Home Manager program modules. |
 | `modules/app-config/` | Experimental package-coupled application configuration exported as wrapper modules. |
 | `modules/preferences/` | Settings and identities that follow a person across hosts. |

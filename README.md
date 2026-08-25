@@ -2,6 +2,10 @@
 
 A personal [Nix](https://nixos.org/) flake for my configurations.
 
+See [`AGENTS.md`](AGENTS.md) for the contributor model and repository map,
+and [`docs/`](docs/) for architecture, secrets handling, and per-subsystem
+documentation.
+
 ### About Files
 
 #### ./flake.nix
