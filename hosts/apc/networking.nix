@@ -54,7 +54,7 @@
       trustedInterfaces = [ "vmtap2" ];
       allowedTCPPorts = [
         1234 # LM Studio's API (modules/aspects/ai-coding-local.nix), exposed to the LAN on purpose.
-        2234 # TODO(lan): no referent found anywhere in this repository; confirm still needed.
+        2234 # for soulseek
       ];
     };
   };

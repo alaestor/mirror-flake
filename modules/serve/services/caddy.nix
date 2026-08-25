@@ -19,6 +19,11 @@
 
         contact = lib.mkOption {
           type = lib.types.str;
+          # INTENTIONAL: literal placeholder, not a real address. This text is
+          # generic on purpose so it stays true regardless of which domain
+          # (0x04.cc, bokunopi.co, ...) a given visitor landed on; per-domain
+          # composition modules could override it with a real address per
+          # domain if that's ever wanted, but nothing does today.
           default = "admin @ this domain";
           description = "Contact text displayed by the Cerberus challenge page.";
         };

@@ -18,8 +18,9 @@
   store symlink from `ssh-client.knownHosts`, so `ssh` cannot append a TOFU
   entry for any host not declared in the repository — connecting to an
   undeclared host is a hard failure until the flake is edited (or you use
-  `sshu`, which disables host-key checking entirely rather than recording a
-  key). This is deliberate: it keeps known-hosts state reproducible and
+  `sshu`, a shell app from `standard-terminal`'s script catalog, which
+  disables host-key checking entirely rather than recording a key). This is
+  deliberate: it keeps known-hosts state reproducible and
   auditable instead of accreting client-local TOFU state. See
   `docs/secrets.md` for the escape hatches.
 */
@@ -165,13 +166,6 @@
                 };
               }
           );
-
-        programs.nushell.extraConfig = lib.mkAfter ''
-          # Deliberately bypass host-key verification for an ad-hoc connection.
-          def sshu [...args] {
-            ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" ...$args
-          }
-        '';
       };
     };
 }

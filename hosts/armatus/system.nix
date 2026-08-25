@@ -9,6 +9,9 @@ in
   };
 
   standard-disk.impermanence = {
+    # INTENTIONAL/TEMPORARY: disabled while this host is still being set up;
+    # confirmed with the owner, not an oversight. Re-enable (`true`) once
+    # armatus's install is finished.
     enable = false; #true;
     persist.users.${username}.directories = [ ".ssh" ];
   };
@@ -26,7 +29,9 @@ in
       "wheel"
       "systemd-journal"
     ];
-    # Public bootstrap credential; replace it immediately after install.
+    # INTENTIONAL/TEMPORARY: public bootstrap credential, confirmed with the
+    # owner. World-readable in the Nix store; replace it immediately after
+    # install, same caveat as impermanence above.
     initialPassword = "changeme";
   };
 }
