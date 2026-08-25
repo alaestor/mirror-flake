@@ -13,6 +13,15 @@
   Repository-managed common, tailnet, and fleet-wide host keys are enabled
   independently through `knowCommonHosts`, `knowTailnetHosts`, and
   `knowFleetHosts`.
+
+  Design tradeoff: `~/.ssh/known_hosts` is rendered as a read-only Nix
+  store symlink from `ssh-client.knownHosts`, so `ssh` cannot append a TOFU
+  entry for any host not declared in the repository — connecting to an
+  undeclared host is a hard failure until the flake is edited (or you use
+  `sshu`, which disables host-key checking entirely rather than recording a
+  key). This is deliberate: it keeps known-hosts state reproducible and
+  auditable instead of accreting client-local TOFU state. See
+  `docs/secrets.md` for the escape hatches.
 */
 { inputs, self, ... }:
 {
