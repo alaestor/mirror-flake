@@ -55,6 +55,14 @@
           rotation = lib.mkDefault cfg.rotation;
         };
 
+        # `secret.exists` is a pathExists probe against the flake source, so
+        # an untracked-but-present ciphertext also reads as absent here.
+        # Either way, enabling this service with no usable key must not
+        # silently no-op: run `nix run .#provision-nix-store-signing-key`.
+        warnings = lib.optional (!secret.exists) ''
+          serve.nix-cache: signing key for "${keyName}" is absent (${secret.subpath}); nix-serve was not enabled. Run `nix run .#provision-nix-store-signing-key`.
+        '';
+
         services.nix-serve = lib.mkIf secret.exists {
           enable = true;
           bindAddress = cfg.address;
