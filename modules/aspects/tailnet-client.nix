@@ -50,10 +50,9 @@ in
         nameserver 100.100.100.100
       '';
 
-      home-manager.config = {
-        imports = [ inputs.self.modules.homeManager.tailnet-known-hosts ];
-
-        standard-terminal.tailscale.domain = tailnet.dnsSuffix;
-      };
+      userEnvironment.sharedModules = [
+        inputs.self.modules.homeManager.tailnet-known-hosts
+        { standard-terminal.tailscale.domain = tailnet.dnsSuffix; }
+      ];
     };
 }

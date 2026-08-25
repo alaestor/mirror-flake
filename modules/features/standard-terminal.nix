@@ -180,15 +180,13 @@ in
   };
 
   flake.modules.nixOnDroid.standard-terminal = {
-    home-manager.config = {
-      imports = [
-        (mkHomeModule {
-          includeGhostty = false;
-          includePrograms = false;
-          isNixOnDroid = true;
-        })
-      ];
-      programs.nushell.enable = true;
-    };
+    userEnvironment.sharedModules = [
+      (mkHomeModule {
+        includeGhostty = false;
+        includePrograms = false;
+        isNixOnDroid = true;
+      })
+      { programs.nushell.enable = true; }
+    ];
   };
 }
