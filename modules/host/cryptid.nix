@@ -26,32 +26,27 @@ in
     modules = hostFragments.nixos ++ [
       { _module.args.cryptidConstants = constants; }
     ];
-  };
 
-  /**
-  Comes with a helper script to destructively provision a bootable USB flashdrive formatted with an additional btrfs partition for manually managed persistance. The rationale for this is a backup strategy which bundles data with the tools needed to use it. Encrypted containers can be made on the persistant partition and the entire drive can be cloned for redundancy.
+    /**
+    Comes with a helper script to destructively provision a bootable USB flashdrive formatted with an additional btrfs partition for manually managed persistance. The rationale for this is a backup strategy which bundles data with the tools needed to use it. Encrypted containers can be made on the persistant partition and the entire drive can be cloned for redundancy.
 
-  > [!CAUTION]
-  > ```
-  > nix run .#mkbootable-cryptid -- /dev/sdX
-  > ```
+    > [!CAUTION]
+    > ```
+    > nix run .#mkbootable-cryptid -- /dev/sdX
+    > ```
 
-  Tip: use can use the following command to quickly enumerate removable blockdevices alongside their sizes.
-  ```
-  nix run nixpkgs#nushell -- -c "lsblk --json | from json | get blockdevices | where rm == true | select name size"
-  ```
-  */
-  flake.apps.x86_64-linux.mkbootable-cryptid = {
-    meta.description = "Write the cryptid ISO and persistent partition to a block device.";
-    program =
-      let
-        name = "cryptid";
-        iso = config.flake.nixosConfigurations.${name}.config.system.build.isoImage;
-        pkgs = config.host.${name}.nixpkgs.legacyPackages.${config.host.${name}.system};
-      in
-      toString (config.flake.lib.mkIsoWriter {
-        inherit name pkgs iso;
-        postWrite = ''
+    Tip: use can use the following command to quickly enumerate removable blockdevices alongside their sizes.
+    ```
+    nix run nixpkgs#nushell -- -c "lsblk --json | from json | get blockdevices | where rm == true | select name size"
+    ```
+    */
+    capabilities.isoWriter = {
+      enable = true;
+      postWrite =
+        let
+          pkgs = config.host.cryptid.nixpkgs.legacyPackages.${config.host.cryptid.system};
+        in
+        ''
           printf "\nAppending partition to %s ...\n" "$DEV"
           echo ", ,L" | sudo sfdisk --append --quiet "$DEV"
           sleep 1
@@ -62,6 +57,6 @@ in
           printf "\nFormatting %s%s as btrfs...\n" "$DEV" "$LAST_PART"
           sudo ${pkgs.btrfs-progs}/bin/mkfs.btrfs -L "${persist-partition-label}" -f -m dup -d dup -M -q "''${DEV}''${LAST_PART}"
         '';
-      });
+    };
   };
 }

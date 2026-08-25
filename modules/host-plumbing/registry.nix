@@ -174,9 +174,25 @@ let
       capabilities = {
 
         isoWriter = mkOption {
-          type = types.bool;
+          type = types.either types.bool (
+            types.submodule {
+              options = {
+                enable = mkOption {
+                  type = types.bool;
+                  default = false;
+                  description = "Whether to generate a standard ISO writer app for this host.";
+                };
+                postWrite = mkOption {
+                  type = types.lines;
+                  default = "";
+                  description = "Shell commands run after the ISO image is written to the block device, e.g. to append and format an additional persistence partition.";
+                };
+              };
+            }
+          );
           default = false;
-          description = "Whether to generate a standard ISO writer app for this host.";
+          description = "Whether to generate a standard ISO writer app for this host. Pass `true`/`false` for the plain case, or a submodule with `enable`/`postWrite` when the write needs a follow-up step (e.g. partitioning).";
+          apply = v: if builtins.isBool v then { enable = v; postWrite = ""; } else v;
         };
 
         nixosAnywhere = mkOption {
@@ -438,7 +454,7 @@ let
     in
     lib.mkMerge [
 
-      (lib.mkIf host.capabilities.isoWriter {
+      (lib.mkIf host.capabilities.isoWriter.enable {
         ${host.system}."mkbootable-${hostName}" = {
           type = "app";
           meta.description = "Write the ${hostName} ISO to a block device: ${host.description}";
@@ -447,6 +463,7 @@ let
               name = hostName;
               inherit pkgs;
               iso = systemConfig.system.build.isoImage;
+              postWrite = host.capabilities.isoWriter.postWrite;
             }
           );
         };
