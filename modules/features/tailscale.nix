@@ -17,6 +17,10 @@
       homeModule =
         { lib, ... }:
         {
+          # The interface may arrive through both this feature and a
+          # contributing home environment feature.
+          key = "flake.modules.nixos.tailscale#homeModule";
+
           imports = [ inputs.self.modules.homeManager.standard-terminal-tailnet ];
 
           standard-terminal.tailscale.domain = lib.mkDefault cfg.tailnetDomain;

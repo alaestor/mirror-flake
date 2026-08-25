@@ -8,6 +8,10 @@ let
   homeModule =
     { lib, ... }:
     {
+      # The interface may arrive through both the NixOS `kde` feature (via
+      # userEnvironment.sharedModules) and the Home Manager `kde` module.
+      key = "flake.modules.homeManager.${module-name}";
+
       imports = [ inputs.plasma-manager.homeModules.plasma-manager ];
       programs.plasma = {
         enable = lib.mkDefault true;
