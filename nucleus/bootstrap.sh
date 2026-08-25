@@ -6,6 +6,10 @@ if [[ ! -f flake.nix || ! -f nucleus/bootstrap-flake.nix ]]; then
   exit 2
 fi
 
+if ! cmp -s nucleus/bootstrap-flake.nix flake.nix; then
+  cp flake.nix "flake.nix.pre-bootstrap.$(date +%s)"
+fi
+
 cp nucleus/bootstrap-flake.nix flake.nix
 chmod u+w flake.nix
 nix run --no-write-lock-file .#write-flake -- --no-check

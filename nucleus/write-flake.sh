@@ -6,6 +6,8 @@ usage() {
   printf '%s\n' ''
   printf '%s\n' 'Generate flake.nix transactionally.'
   printf '%s\n' '  --no-check  Install the generated file without validation or lock updates.'
+  printf '%s\n' '              flake.lock is left untouched; run `nix flake lock` yourself'
+  printf '%s\n' '              afterwards if the change affects it (bootstrap.sh does this).'
 }
 
 skip_check=0
@@ -29,6 +31,17 @@ esac
 if [[ ! -f flake.nix || ! -d nucleus ]]; then
   printf '%s\n' 'write-flake must run from the repository root.' >&2
   exit 2
+fi
+
+# nix flake lock/check evaluate the Git-backed source, not the working
+# tree: an unstaged new module is invisible to them, so validation can pass
+# green while the module the user just wrote is not evaluated at all.
+if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  untracked_modules="$(git ls-files --others --exclude-standard -- 'modules/*.nix')"
+  if [[ -n "$untracked_modules" ]]; then
+    printf 'warning: untracked *.nix files under modules/ are invisible to this check (git add first):\n%s\n' \
+      "$untracked_modules" >&2
+  fi
 fi
 
 if cmp -s "$NUCLEUS_GENERATED" flake.nix; then

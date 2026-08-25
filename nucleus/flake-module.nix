@@ -50,11 +50,46 @@ let
     };
   };
 
-  rendered = import ./render.nix { inherit lib; } {
-    inherit (cfg) description inputs outputsExpression;
-  };
+  rendered =
+    assert lib.assertMsg (invalidFollows == [ ]) ''
+      nucleus.inputs: the following `follows` targets don't name a declared
+      top-level nucleus input, so `nix flake lock` will fail for them later
+      instead of failing here at declaration time:
+      ${lib.concatMapStringsSep "\n" (e: "  ${e.prefix}.follows = \"${e.follows}\"") invalidFollows}
+    '';
+    import ./render.nix { inherit lib; } {
+      inherit (cfg) description inputs outputsExpression;
+    };
 
   tests = import ./tests.nix { inherit lib; };
+
+  # A `follows` typo (e.g. "nipxkgs") otherwise renders happily and only
+  # fails much later inside `nix flake lock`, from write-flake's captured
+  # log rather than at the point of declaration. Validate that every
+  # `follows` value's root segment names a declared top-level input.
+  declaredInputNames = builtins.attrNames cfg.inputs;
+
+  collectFollows =
+    prefix: value:
+    lib.optional (value.follows != null) {
+      inherit prefix;
+      inherit (value) follows;
+    }
+    ++ lib.concatLists (
+      lib.mapAttrsToList (name: collectFollows "${prefix}.inputs.${name}") value.inputs
+    );
+
+  allFollows = lib.concatLists (
+    lib.mapAttrsToList (name: collectFollows "nucleus.inputs.${name}") cfg.inputs
+  );
+
+  # `follows = ""` is a deliberate idiom to unset an inherited default
+  # follow (see e.g. standard-disk.nix's impermanence input), not a typo.
+  invalidFollows = builtins.filter (
+    entry:
+    entry.follows != ""
+    && !builtins.elem (lib.head (lib.splitString "/" entry.follows)) declaredInputNames
+  ) allFollows;
 in
 {
   options.flake.modules = lib.mkOption {

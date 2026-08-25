@@ -1,13 +1,10 @@
+/**
+  Recursively lists `*.nix` files under a directory, skipping `_`-prefixed
+  entries. Deliberately plain-`builtins`-only (no `lib.hasSuffix`): this is
+  imported directly from `flake.nix` before flake-parts/nixpkgs inputs are
+  available to reach `lib` from.
+*/
 let
-  hasSuffix =
-    suffix: value:
-    let
-      suffixLength = builtins.stringLength suffix;
-      valueLength = builtins.stringLength value;
-    in
-    valueLength >= suffixLength
-    && builtins.substring (valueLength - suffixLength) suffixLength value == suffix;
-
   listModules =
     directory:
     builtins.concatMap (
@@ -20,7 +17,7 @@ let
         [ ]
       else if type == "directory" then
         listModules path
-      else if hasSuffix ".nix" name then
+      else if builtins.match ".*\\.nix" name != null then
         [ path ]
       else
         [ ]

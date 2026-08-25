@@ -9,6 +9,13 @@ let
 
   rendered = render {
     description = "Fixture flake";
+    outputsExpression = ''
+      inputs:
+        inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+          imports = [ ./nucleus/flake-module.nix ]
+            ++ import ./nucleus/list-modules.nix ./modules;
+        }
+    '';
     inputs = {
       flake-parts = {
         url = "github:hercules-ci/flake-parts";
