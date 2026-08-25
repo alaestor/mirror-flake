@@ -17,6 +17,7 @@ in
       modules = [
         inputs.self.modules.homeManager.workstation
         inputs.self.modules.homeManager.alaestor
+        inputs.self.modules.homeManager.alaestor-plasma
       ] ++ hostFragments.homeManager;
     };
 

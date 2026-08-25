@@ -2,13 +2,13 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.mpv =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     {
       home.packages = [ (inputs.self.wrappers.mpv.wrap { inherit pkgs; }) ];
 
       xdg.mimeApps = {
-        enable = true;
-        defaultApplications = builtins.listToAttrs (map (name: {
+        enable = lib.mkDefault true;
+        defaultApplications = lib.mkDefault (builtins.listToAttrs (map (name: {
           inherit name;
           value = "mpv.desktop";
         }) [
@@ -68,7 +68,7 @@
           "video/x-ogm+ogg"
           "video/x-theora"
           "video/x-theora+ogg"
-        ]);
+        ]));
       };
     };
 }

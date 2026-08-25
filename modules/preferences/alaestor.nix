@@ -1,6 +1,8 @@
 /**
-  Personal identity/preference defaults for the `alaestor` user: PGP
-  fingerprint, Git author identity, and related per-person settings.
+  Personal identity defaults for the `alaestor` user: PGP fingerprint, Git
+  author identity. Portable — safe to import on any host, including headless
+  ones. Desktop theming lives separately in `alaestor-plasma`, which requires
+  KDE Plasma 6.
 */
 { self, ... }:
 {
@@ -11,7 +13,14 @@
       name = "Alaestor Weissman";
       email = "alaestor@0x04.cc";
     };
+  };
 
+  /**
+    Alaestor's KDE Plasma 6 desktop theming and app preferences. Requires
+    `modules/features/de/kde.nix` (Plasma 6); importing this on a host
+    without it is an evaluation error.
+  */
+  flake.modules.homeManager.alaestor-plasma = {
     programs.plasma = {
       workspace = {
         lookAndFeel = "org.kde.breezedark.desktop";
@@ -64,7 +73,7 @@
         "kcminputrc"."Mouse"."cursorTheme" = "Breeze_Light";
         "kdeglobals"."KDE" = { "AnimationDurationFactor" = 0; "DoubleClickInterval" = 200; };
         "kdeglobals"."Shortcuts" = { "Close" = "Ctrl+Esc"; "ShowHideHiddenFiles" = "Ctrl+H"; "ShowMenubar" = ""; };
-        "kded5rc"."Module-baloosearchmodule"."autoload" = true;
+        "kded6rc"."Module-baloosearchmodule"."autoload" = true;
         "baloofilerc"."General" = { "only basic indexing" = true; "exclude filters version" = 9; };
         "krunnerrc"."Plugins" = { "baloosearchEnabled" = true; "krunner_webshortcutsEnabled" = false; };
         "klipperrc"."General" = { "KeepClipboardContents" = false; "MaxClipItems" = 1; "SelectionTextOnly" = false; };
