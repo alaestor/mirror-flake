@@ -29,16 +29,6 @@
       device = "/dev/disk/by-uuid/ad2633a1-749c-4f66-92ee-76f622fa5672";
       fsType = "ext4";
     };
-    "/mnt/Services" = {
-      device = "192.168.2.200:/mnt/Vault/Storage/services";
-      fsType = "nfs";
-      options = [
-        "nfsvers=4.2"
-        "x-systemd.automount"
-        "noauto"
-        "noatime"
-      ];
-    };
   };
   swapDevices = [
     { device = "/dev/disk/by-uuid/343255da-052c-4e75-88e5-381713edf427"; }
