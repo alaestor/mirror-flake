@@ -7,4 +7,7 @@ __*
 result
 STATUS.html
 STATUS.json
+# YubiKey plugin identity stub used by mkIsoWriter's postWrite scripts to
+# decrypt initrd host-key backups; local runtime state, never committed.
+secrets/age_sk.txt
 !.gitignore

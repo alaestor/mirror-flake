@@ -304,26 +304,11 @@ in
           "$TARGET" true
 
         # TODO(deploy): Provision the stable system SSH host key as part of
-        # nixos-anywhere deployment.
-        #
-        # High-level implementation guide:
-        # - Resolve the host backup as
-        #   secrets/ssh-host/ssh_host_ed25519_key_<host>.age and its public
-        #   identity as
-        #   data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub.
-        # - If the encrypted backup exists, decrypt it with the administrative
-        #   age identity and stage it at ssh-host.hostKeyPath. Never generate a
-        #   replacement merely because this is a fresh installation.
-        # - Verify that the staged private key derives the committed public
-        #   identity; fail before partitioning if they differ.
-        # - If no backup exists, generate the key once, encrypt it atomically to
-        #   the administrative recipients, record its public identity, and
-        #   stage that same private key for the initial installation.
-        # - Print the created paths and remind the operator to declare the
-        #   encrypted system-key backup in secrets/secrets.nix; do not rewrite
-        #   that policy file automatically.
-        # - Reuse the restrictive temporary-directory, permissions, and cleanup
-        #   approach below so plaintext keys do not survive the deployment.
+        # nixos-anywhere deployment. Implementation guide: docs/secrets.md
+        # ("Planned: stable system SSH host key during nixos-anywhere
+        # deployment"). Reuse the restrictive temporary-directory, permissions,
+        # and cleanup approach below so plaintext keys do not survive the
+        # deployment.
 
         ${lib.optionalString system-config.ssh-host.initrd.enable ''
             # --- Locate the flake root ---
