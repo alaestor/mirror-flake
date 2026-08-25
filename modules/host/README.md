@@ -2,8 +2,6 @@
 
 Bootable installer ISO (~1.5GB) intended for offline management of cryptographic identities; not intended for system installation. Provides various commandline tools for working with pgp, yubikeys, and veracrypt containers.
 
-Implements various helper scripts. Refer to `modules/hosts/cryptid.nix` and `docs/cryptid-protocol.md` for details. These scripts help automate creation and management of a single cryptographic identity with sensible parameters and disaster response pathways. The scripts won't be useful to you if your needs are more elaborate.
-
 Comes with a helper script to destructively provision a bootable USB flashdrive formatted with an additional btrfs partition for manually managed persistance. The rationale for this is a backup strategy which bundles data with the tools needed to use it. Encrypted containers can be made on the persistant partition and the entire drive can be cloned for redundancy.
 
 > [!CAUTION]
