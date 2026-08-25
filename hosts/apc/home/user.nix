@@ -73,7 +73,6 @@ in
     chromium = {
       enable = true;
       extensions = [
-        "gcbommkclmclpchllfjekcdonpmejbdp" # HTTPS Everywhere
         "oboonakemofpalcgghocfoadofidjkkk" # KeePassXC-Browser
       ];
     };

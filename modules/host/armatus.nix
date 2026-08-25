@@ -27,7 +27,7 @@ in
       auto-login
       crypto-yubikey
       hifi-audio
-      printers
+      printer-brother-hl-l2320d
       nas
       ssh-client
       ssh-host

@@ -30,7 +30,7 @@ in
         kde
         memory-manager
         nas
-        printers
+        printer-brother-hl-l2320d
         serve-nix-cache
         server-hardening
         ssh-client

@@ -2,7 +2,7 @@
   Enables CUPS, a PDF printer, and the configured Brother HL-L2320D printer.
 */
 {
-  flake.modules.nixos.printers = # TODO: less generic name; this is very specific...
+  flake.modules.nixos.printer-brother-hl-l2320d =
     { pkgs, ... }:
     {
       services.printing = {
