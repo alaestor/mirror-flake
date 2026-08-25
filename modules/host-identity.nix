@@ -52,6 +52,7 @@ in
         imports = [ hostIdentityModule ];
 
         system.stateVersion = lib.mkDefault config.hostIdentity.stateVersion;
+        environment.sessionVariables.HOSTNAME = config.hostIdentity.name;
       };
   };
 }
