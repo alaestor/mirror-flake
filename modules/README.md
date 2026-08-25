@@ -24,6 +24,16 @@ private material belongs behind `flake.secrets`, not this interface.
 
 Common representations of frequently used data files
 
+## dendritic
+
+Root nucleus declaration: supported systems, flake description, and the
+base nixpkgs/flake-parts inputs every other module builds on.
+
+## host-identity
+
+Canonical per-host identity facts (name, primary user, home directory)
+that other modules read instead of re-deriving them ad hoc.
+
 ## secrets
 
 # Repository secret boundary

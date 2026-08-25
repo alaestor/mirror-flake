@@ -1,3 +1,4 @@
+/** Standalone mpv, wrapped via `inputs.self.wrappers.mpv`. */
 { inputs, ... }:
 {
   flake.modules.homeManager.mpv =

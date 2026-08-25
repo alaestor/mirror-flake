@@ -1,3 +1,6 @@
+/**
+  Wires a primary OpenPGP fingerprint into GPG and Git commit signing.
+*/
 { inputs, ... }:
 {
   flake.modules.homeManager.pgp =

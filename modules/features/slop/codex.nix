@@ -1,3 +1,7 @@
+/**
+  Codex CLI wired through the Headroom proxy, with model-specific
+  instruction files.
+*/
 { inputs, self, ... }:
 {
   flake.modules.homeManager.codex =

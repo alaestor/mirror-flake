@@ -1,3 +1,7 @@
+/**
+  bootstrap: minimal NixOS installation ISO with remote SSH access, used
+  to install other hosts.
+*/
 { inputs, lib, ... }:
 {
   host.bootstrap = {

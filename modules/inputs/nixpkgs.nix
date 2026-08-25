@@ -1,3 +1,4 @@
+/** Declares the stable and unstable nixpkgs flake inputs. */
 { config, ... } : {
 
   nucleus.inputs = {

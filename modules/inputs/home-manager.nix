@@ -1,3 +1,4 @@
+/** Declares the stable and unstable Home Manager flake inputs, tracking the matching nixpkgs channels. */
 { config, inputs, ... }:
 {
 

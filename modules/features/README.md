@@ -16,6 +16,15 @@ Currently imported by exactly one host, `cryptid`
 this module gains a second consumer with different hardware, audit the
 blacklist against that hardware before trusting it.
 
+## auto-login
+
+Auto-logs a user into the display manager and, optionally, getty.
+
+## crypto
+
+YubiKey-backed cryptography tooling (GPG smartcard, age, SSH) for hosts
+that use one.
+
 ## hifi-audio
 
 Enables the standard PipeWire audio stack with ALSA, 32-bit ALSA, PulseAudio
@@ -78,6 +87,10 @@ in the current directory.
 The NixOS feature deploys a configured encrypted signing key through Agenix
 and installs `sign-nix-store`, which recursively signs the supplied
 installables. Importing the module does not enable deployment.
+
+## pgp
+
+Wires a primary OpenPGP fingerprint into GPG and Git commit signing.
 
 ## printers
 

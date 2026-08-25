@@ -1,3 +1,4 @@
+/** GnuPG, configured for smartcard/agent use. */
 {
   flake.modules.homeManager.gpg =
     {

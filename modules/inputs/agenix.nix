@@ -1,3 +1,4 @@
+/** Declares the agenix flake input, for secret decryption at activation. */
 { inputs, ... }:
 {
   nucleus.inputs.agenix = {

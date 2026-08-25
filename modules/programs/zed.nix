@@ -1,3 +1,4 @@
+/** Zed editor, enabled by default. */
 {
   flake.modules.homeManager.zed =
     { lib, pkgs, ... }:

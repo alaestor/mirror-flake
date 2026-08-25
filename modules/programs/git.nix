@@ -1,3 +1,4 @@
+/** Git, configured with this author's default settings and ignores. */
 {
   flake.modules.homeManager.git =
     { lib, ... }:

@@ -1,3 +1,4 @@
+/** Nushell, this author's default interactive shell. */
 { self, ... }:
 {
   flake.modules.homeManager.nushell =

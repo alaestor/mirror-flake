@@ -1,3 +1,12 @@
+## ai-coding-local
+
+Host-level (non-microVM) agent coding setup pointed at a local LM Studio
+server, with a curated favorites list of local models.
+
+## ai-coding
+
+Bundles the Claude Code and Codex agent modules for a user environment.
+
 ## coding
 
 Home Manager aspect for a coding environment.

@@ -1,3 +1,6 @@
+/**
+  Bundles the Claude Code and Codex agent modules for a user environment.
+*/
 { inputs, ... }:
 {
   flake.modules.homeManager.ai-coding =

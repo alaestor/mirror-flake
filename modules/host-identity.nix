@@ -1,3 +1,7 @@
+/**
+  Canonical per-host identity facts (name, primary user, home directory)
+  that other modules read instead of re-deriving them ad hoc.
+*/
 { lib, ... }:
 let
   hostIdentityModule =

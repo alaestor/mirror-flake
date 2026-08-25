@@ -1,3 +1,7 @@
+/**
+  Personal identity/preference defaults for the `alaestor` user: PGP
+  fingerprint, Git author identity, and related per-person settings.
+*/
 { self, ... }:
 {
   flake.modules.homeManager.alaestor = {

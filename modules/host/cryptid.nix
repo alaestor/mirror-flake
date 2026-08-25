@@ -1,3 +1,7 @@
+/**
+  cryptid: air-gapped secrets/identity management ISO. Declares its host
+  record and pins a known-good nixpkgs revision around a btrfs mount bug.
+*/
 { config, inputs, ...} :
 let
   constants = import (inputs.self.data.path "cryptid/constants.nix");

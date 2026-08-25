@@ -1,3 +1,7 @@
+/**
+  lanser: home server and public service host. Declares its host record:
+  modules, capabilities, and the integrated Home Manager environment.
+*/
 { config, inputs, ... }:
 let
   hostFragments = config.flake.lib.importHostFragments "lanser";

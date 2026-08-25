@@ -1,3 +1,6 @@
+/**
+  noblesse: Android phone running nix-on-droid. Declares its host record.
+*/
 { config, inputs, ... }:
 let
   hostFragments = config.flake.lib.importHostFragments "noblesse";

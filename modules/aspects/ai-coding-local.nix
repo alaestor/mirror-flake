@@ -1,3 +1,7 @@
+/**
+  Host-level (non-microVM) agent coding setup pointed at a local LM Studio
+  server, with a curated favorites list of local models.
+*/
 { inputs, ... }:
 {
   flake.modules.homeManager.ai-coding-local =

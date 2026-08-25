@@ -1,3 +1,7 @@
+/**
+  Claude Code, wrapped so its environment/state paths agree with the
+  agent-vm guest (see docs/agents.md's "Shared state" section).
+*/
 { inputs, self, ... }:
 
 {

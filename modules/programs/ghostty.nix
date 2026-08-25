@@ -1,3 +1,4 @@
+/** Ghostty terminal emulator, enabled by default. */
 {
   flake.modules.homeManager.ghostty =
     { lib, ... }:

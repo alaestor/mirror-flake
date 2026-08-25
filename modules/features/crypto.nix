@@ -1,3 +1,7 @@
+/**
+  YubiKey-backed cryptography tooling (GPG smartcard, age, SSH) for hosts
+  that use one.
+*/
 { inputs, self, ... }:
 {
   # TODO: yubikey tooling should be its own module
@@ -85,20 +89,5 @@
         })
       ];
     };
-
-  # Crypto
-  flake.modules.nixos.crypto-cli = { pkgs, ... }: {
-    environment.systemPackages = with pkgs; [
-      pinentry-tty
-      gnupg
-      age
-    ];
-  };
-  flake.modules.nixos.crypto = { pkgs, ... }: {
-    imports = with inputs.self.modules.nixos; [ crypto-cli ];
-    environment.systemPackages = with pkgs; [
-      veracrypt
-    ];
-  };
 
 }

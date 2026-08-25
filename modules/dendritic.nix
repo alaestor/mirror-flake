@@ -1,3 +1,7 @@
+/**
+  Root nucleus declaration: supported systems, flake description, and the
+  base nixpkgs/flake-parts inputs every other module builds on.
+*/
 {
   systems = [ "x86_64-linux" ];
 

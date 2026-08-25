@@ -1,3 +1,7 @@
+/**
+  User service for the Headroom context-compression proxy that agent CLIs
+  sit behind.
+*/
 { inputs, ... }:
 {
   flake.modules.homeManager.headroom =

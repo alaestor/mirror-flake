@@ -1,14 +1,8 @@
 
-/*
-  random example:
-    https://discourse.nixos.org/t/declare-firefox-extensions-and-settings/36265
-    https://discourse.nixos.org/t/add-custom-addons-to-firefox-directly-from-https-addons-mozilla-org/48730
-    https://gitlab.com/engmark/root/-/blob/60468eb82572d9a663b58498ce08fafbe545b808/configuration.nix#L293-310
-    https://github.com/Kreyren/nixos-config/blob/bd4765eb802a0371de7291980ce999ccff59d619/nixos/users/kreyren/home/modules/web-browsers/firefox/firefox.nix
-    https://gist.github.com/jornane/f47c344bae4c04ac761ee48b0b88c869
-    https://github.com/arkenfox
+/**
+  LibreWolf, declaratively configured with hardened defaults, a stylus
+  extension, and pinned bookmarks/search engines from `data/`.
 */
-
 { inputs, self, ... }:
 {
   nucleus.inputs.firefox-extensions-declarative = {

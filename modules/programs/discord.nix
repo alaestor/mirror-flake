@@ -1,3 +1,4 @@
+/** Discord via the WebCord client. */
 {
   flake.modules.homeManager.discord =
     { config, pkgs, ... }:

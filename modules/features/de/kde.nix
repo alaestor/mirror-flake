@@ -1,3 +1,6 @@
+/**
+  KDE Plasma 6 desktop environment, with Plasma Manager for user config.
+*/
 { inputs, ... }:
 let
   module-name = "kde";

@@ -1,3 +1,7 @@
+/**
+  apc: primary desktop workstation. Declares its host record: modules,
+  capabilities, and the standalone Home Manager environment.
+*/
 { config, inputs, ... }:
 let
   hostFragments = config.flake.lib.importHostFragments "apc";

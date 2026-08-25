@@ -1,3 +1,6 @@
+/**
+  LXQt desktop environment with LightDM, for lighter-weight hosts.
+*/
 { ... }:
 let
   module-name = "lxqt";

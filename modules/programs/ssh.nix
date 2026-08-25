@@ -1,3 +1,4 @@
+/** OpenSSH client program defaults, shared across host/user environments. */
 {
   flake.modules.homeManager.ssh =
     { lib, options, ... }:

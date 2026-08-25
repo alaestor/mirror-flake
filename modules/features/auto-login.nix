@@ -1,3 +1,6 @@
+/**
+  Auto-logs a user into the display manager and, optionally, getty.
+*/
 { ... }:
 let
   module-name = "auto-login";

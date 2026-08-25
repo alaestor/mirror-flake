@@ -1,57 +1,55 @@
+/**
+  A disko configuration set up with interactive LUKS and BTRFS for easy reuse.
+  Persistent swap optional and preconfigured with `/root` `/nix` and `/persist`
+  subvolumes for compatibility with impermanence et al.
+
+  ## Semi-Impermanence
+
+  When `impermanence.enable = true;` and with `old-roots-retention-days`, old root
+  subvolumes are moved to `/old_roots/<timestamp>/` on each boot and pruned after
+  the retention period. These are accessible by mounting the BTRFS device.
+
+  ### Accessing old roots
+
+  ```bash
+  sudo mkdir -p /mnt/btrfs
+  sudo mount /dev/mapper/<luks-name> /mnt/btrfs
+  ls /mnt/btrfs/old_roots/
+  sudo umount /mnt/btrfs
+  ```
+
+  ### Restore files from an old root
+
+  Mount the top-level Btrfs filesystem as above and copy the required files from
+  `/mnt/btrfs/old_roots/<timestamp>/`.
+
+  ### Manually delete old roots
+
+  ```bash
+  sudo mkdir -p /mnt/btrfs
+  sudo mount /dev/mapper/<luks-name> /mnt/btrfs
+  sudo btrfs subvolume delete --recursive /mnt/btrfs/old_roots/<timestamp>
+  sudo umount /mnt/btrfs
+  ```
+
+  ### Booting old roots (nope)
+
+  Replacing the `root` subvolume itself is not a temporary rollback: with
+  impermanence enabled, it will be archived and replaced again during the
+  next boot. To boot a restored root, first deploy a configuration with
+  `impermanence.enable = false`, then replace `root` while booted from
+  external media.
+
+  **Retained roots should be viewed as **recovery archives**, not bootable rollbacks.**
+
+  ### Future Improvements
+
+  These operations, and more, may be made into interactive quality-of-life
+  applications in the future.
+*/
 {lib, inputs, ...}:
 let
   module-name = "standard-disk";
-
-  /**
-    A disko configuration set up with interactive LUKS and BTRFS for easy reuse.
-    Persistent swap optional and preconfigured with `/root` `/nix` and `/persist`
-    subvolumes for compatibility with impermanence et al.
-
-    ## Semi-Impermanence
-
-    When `impermanence.enable = true;` and with `old-roots-retention-days`, old root
-    subvolumes are moved to `/old_roots/<timestamp>/` on each boot and pruned after
-    the retention period. These are accessible by mounting the BTRFS device.
-
-    ### Accessing old roots
-
-    ```bash
-    sudo mkdir -p /mnt/btrfs
-    sudo mount /dev/mapper/<luks-name> /mnt/btrfs
-    ls /mnt/btrfs/old_roots/
-    sudo umount /mnt/btrfs
-    ```
-
-    ### Restore files from an old root
-
-    Mount the top-level Btrfs filesystem as above and copy the required files from
-    `/mnt/btrfs/old_roots/<timestamp>/`.
-
-    ### Manually delete old roots
-
-    ```bash
-    sudo mkdir -p /mnt/btrfs
-    sudo mount /dev/mapper/<luks-name> /mnt/btrfs
-    sudo btrfs subvolume delete --recursive /mnt/btrfs/old_roots/<timestamp>
-    sudo umount /mnt/btrfs
-    ```
-
-    ### Booting old roots (nope)
-
-    Replacing the `root` subvolume itself is not a temporary rollback: with
-    impermanence enabled, it will be archived and replaced again during the
-    next boot. To boot a restored root, first deploy a configuration with
-    `impermanence.enable = false`, then replace `root` while booted from
-    external media.
-
-    **Retained roots should be viewed as **recovery archives**, not bootable rollbacks.**
-
-    ### Future Improvements
-
-    These operations, and more, may be made into interactive quality-of-life
-    applications in the future.
-  */
-
 in with lib;
 {
   nucleus.inputs = {
