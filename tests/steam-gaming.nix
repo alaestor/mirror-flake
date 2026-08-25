@@ -34,7 +34,9 @@ let
       message = "steam-gaming did not suppress Steam crash-report uploads";
     }
     {
-      assertion = enabled.systemd.user.services ? preventSteamDumps;
+      assertion =
+        enabled.systemd.user.services ? preventSteamDumps
+        && enabled.systemd.user.services.preventSteamDumps.wantedBy == [ "default.target" ];
       message = "steam-gaming did not suppress local Steam crash dumps";
     }
   ];
