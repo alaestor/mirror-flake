@@ -1,5 +1,6 @@
 /**
-  Public 0x04.cc domain composition: static site, Matrix, and Cinny.
+  Public 0x04.cc domain composition: static site, Matrix, Cinny, Headscale,
+  and Forgejo (with its Cerberus challenge-page exemption).
 */
 { inputs, ... }:
 {

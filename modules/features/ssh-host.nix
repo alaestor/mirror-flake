@@ -145,7 +145,7 @@ in
 
       # OpenSSH and enable fail2ban
       services = {
-        fail2ban.enable = true;
+        fail2ban.enable = mkDefault true;
         openssh = {
           enable               = true;
           openFirewall         = true;

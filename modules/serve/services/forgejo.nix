@@ -137,6 +137,10 @@
         ] (_: { unitConfig.RequiresMountsFor = [ cfg.dataRoot ]; });
 
         # expects REVERSE_PROXY_TRUSTED_PROXIES and and log MODE console.
+        # This jail is inert unless fail2ban itself is enabled; mkDefault so
+        # a host that also imports server-hardening (which hard-enables it)
+        # doesn't conflict, and any other host still gets a working jail.
+        services.fail2ban.enable = lib.mkDefault true;
         services.fail2ban.jails.forgejo = {
           filter = {
             Definition = {
