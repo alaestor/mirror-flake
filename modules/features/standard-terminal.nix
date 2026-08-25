@@ -153,7 +153,9 @@ let
                   hyfetch --ascii-file ${customLogoPath} ...$args --args "-c ${fastfetchUwuSettingsPath}"
                 }
 
-                clear
+                if $nu.is-interactive {
+                  clear
+                }
               '';
             }
           ))
