@@ -22,7 +22,7 @@ Only include these when they add genuine value. Most ADRs won't need them.
 - **Considered Options**: only when the rejected alternatives are worth remembering
 - **Consequences**: only when non-obvious downstream effects need to be called out
 
-Note: an ADR should be concidered immutable once accepted and the the file has been pushed; only the frontmatter should be updated to reflect the current status.
+Note: an ADR should be concidered conceptually immutable once accepted and the the file has been pushed. Defects can be corrected and terminology sharpened retroactively, but the substance of the ADR must remain unaltered. Only the frontmatter should be updated to reflect the current status.
 
 ## Numbering
 
