@@ -35,6 +35,7 @@ bell.ca mybell-on.akamaized.net * noop
 bell.ca postescanada-canadapost.ca * noop
 chatgpt.com * 3p noop
 chatgpt.com oaistatic.com * noop
+claude.ai * 3p noop
 discord.com discord.gg * noop
 discord.com discordapp.com * noop
 discord.com discordapp.net * noop
