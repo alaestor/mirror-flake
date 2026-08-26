@@ -14,4 +14,4 @@ Make edits with intention and precision with a specific purpose in mind. Don't m
 
 ## Rules
 
-- **NEVER** run `find /` unless you were explicitly told to do a system-wide search. Narrow your command scope when possible: you'll limit your blast radius, lower latency, and improve the quality of the results. Scanning the nix store will hurt you more than help.
+- **NEVER** run `find /` unless you were explicitly told to do a system-wide search. Tightly scope your command when possible: you'll limit your blast radius, lower latency, and improve the quality of the results. Scanning the nix store will hurt you more than help.
