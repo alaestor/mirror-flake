@@ -144,5 +144,13 @@
   vpn-confinement = {
     url = "git+https://git.0x04.cc/alaestor/mirror-VPN-Confinement";
   };
+  zed-cea = {
+    inputs = {
+      nixpkgs = {
+        follows = "nixpkgs";
+      };
+    };
+    url = "git+https://git.0x04.cc/alaestor/zed-cea.git";
+  };
 };
 }

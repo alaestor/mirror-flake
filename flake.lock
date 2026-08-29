@@ -744,7 +744,8 @@
         "unstable-nixpkgs": [
           "nixpkgs"
         ],
-        "vpn-confinement": "vpn-confinement"
+        "vpn-confinement": "vpn-confinement",
+        "zed-cea": "zed-cea"
       }
     },
     "scss-reset": {
@@ -951,6 +952,26 @@
       "original": {
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/mirror-VPN-Confinement"
+      }
+    },
+    "zed-cea": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1788018810,
+        "narHash": "sha256-dOPKgITxMQSbbG87ew3Jt8o5OR1m+c/dRZr+xlv5bLU=",
+        "ref": "refs/heads/main",
+        "rev": "0079b7eb57f147952543bae39dd691b6b3343e63",
+        "revCount": 63,
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/zed-cea.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/zed-cea.git"
       }
     }
   },
