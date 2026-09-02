@@ -155,6 +155,11 @@
           inherit name;
           runtimeInputs = cliBase ++ cliTools ++ [ pkgs.systemd ];
           nativeText = ''
+            # Harmless if Codex never exports its own `find` shell function
+            # the way Claude does — the guard then just wraps plain
+            # findutils. See `findGuardBashEnv`'s doc comment (`libagents.nix`).
+            export BASH_ENV=${agents.findGuardBashEnv pkgs}
+
             model=""
             effort=""
             instruction_file=${lib.escapeShellArg (if cfg.modelInstructionsFile == null then "" else toString cfg.modelInstructionsFile)}

@@ -72,6 +72,29 @@ let
                   target="$(command ncd)" || return
                   builtin cd -- "$target"
                 }
+
+                # Refuse `find` invocations whose search root resolves to `/`,
+                # since a runaway system-wide scan (e.g. an agent typo) is
+                # slow and unhelpful. `FIND_ALLOW_ROOT=1 find ...` bypasses it.
+                find() {
+                  local arg path paths=()
+                  for arg in "$@"; do
+                    case "$arg" in
+                      -* | '(' | ')' | '!' | ',') break ;;
+                      *) paths+=("$arg") ;;
+                    esac
+                  done
+                  ((''${#paths[@]} == 0)) && paths=(.)
+                  if [[ "''${FIND_ALLOW_ROOT:-0}" != 1 ]]; then
+                    for path in "''${paths[@]}"; do
+                      if [[ "$(readlink -f -- "$path" 2>/dev/null)" == / ]]; then
+                        echo "find: refusing to search filesystem root ('$path' -> /); set FIND_ALLOW_ROOT=1 to override" >&2
+                        return 1
+                      fi
+                    done
+                  fi
+                  command find "$@"
+                }
               '';
             };
             nushell.extraConfig = lib.mkAfter ''

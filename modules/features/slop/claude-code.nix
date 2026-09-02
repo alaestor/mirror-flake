@@ -293,6 +293,13 @@
               export GIT_CONFIG_GLOBAL=${lib.escapeShellArg gitConfigGlobal}
             ''}
 
+            # Claude's Bash tool exports its own `find` -> bfs shell function
+            # into every subprocess it spawns, which does not itself refuse a
+            # literal `/` root; this wraps it (or plain findutils, if nothing
+            # claimed the name) with a guard against that one case. See
+            # `findGuardBashEnv`'s doc comment (`libagents.nix`).
+            export BASH_ENV=${agents.findGuardBashEnv pkgs}
+
             # Backstop for the eval-time assertion, which cannot see the
             # `-74` build suffix the behaviour actually landed in and which
             # says nothing at all about a claude that arrived some other way

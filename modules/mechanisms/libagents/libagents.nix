@@ -40,8 +40,98 @@
 */
 { lib, self, ... }:
 let
+  # Claude Code's own Bash tool exports a `find` shell function into every
+  # subprocess it spawns (visible via `declare -f find` inside a session) that
+  # redirects to its own `-S dfs`-flagged binary rather than plain findutils
+  # — and, empirically, does not itself refuse a literal `/` root. Because
+  # bash resolves a function before consulting `PATH`, `findGuard` below
+  # (a `find` package placed ahead of the real one) is shadowed by it and
+  # never runs. `BASH_ENV` is bash's own hook for exactly this shape of
+  # problem: it names a file every *non-interactive* bash it starts sources
+  # first — which is what a harness's Bash tool always is — before running
+  # the command, at a point where an inherited exported function already
+  # exists and can be captured and wrapped. Whatever `find` a harness already
+  # exports (Claude's `bfs` trick, or nothing, as with Codex) is preserved
+  # under `_agent_find_upstream` and still runs for any in-tree search; only
+  # a root-resolving path is refused. A harness wires this in with
+  # `export BASH_ENV=${config}` ahead of its `exec`; it is a no-op for
+  # interactive/login shells, which never read `BASH_ENV`.
+  findGuardBashEnv =
+    pkgs:
+    pkgs.writeText "agent-find-guard.bash" ''
+      if declare -F find >/dev/null 2>&1; then
+        eval "$(declare -f find | sed '1s/^find ()/_agent_find_upstream ()/')"
+        # The capture is a textual rewrite of whatever `declare -f find`
+        # happened to print; if a future Claude Code build changes that
+        # shape enough to break the `sed` pattern, say so on every
+        # invocation instead of quietly losing the upstream (`bfs`)
+        # implementation to `command find` with no sign anything changed.
+        # The root guard below still runs either way.
+        declare -F _agent_find_upstream >/dev/null 2>&1 || echo \
+          "agent-find-guard: could not capture the exported 'find' function; check tests/agent-find-guard.nix against the new shape" >&2
+      fi
+      find() {
+        local arg path paths=()
+        for arg in "$@"; do
+          case "$arg" in
+            -* | '(' | ')' | '!' | ',') break ;;
+            *) paths+=("$arg") ;;
+          esac
+        done
+        (( ''${#paths[@]} == 0 )) && paths=(.)
+        if [[ "''${FIND_ALLOW_ROOT:-0}" != 1 ]]; then
+          for path in "''${paths[@]}"; do
+            if [[ "$(readlink -f -- "$path" 2>/dev/null)" == / ]]; then
+              echo "find: refusing to search filesystem root ('$path' -> /); set FIND_ALLOW_ROOT=1 to override" >&2
+              return 1
+            fi
+          done
+        fi
+        if declare -F _agent_find_upstream >/dev/null 2>&1; then
+          _agent_find_upstream "$@"
+        else
+          command find "$@"
+        fi
+      }
+    '';
+
+  # A harness's Bash tool runs non-interactive subshells that never source
+  # `~/.bashrc` (`modules/features/standard-terminal.nix`'s `find` guard is
+  # therefore invisible to it), so the same guard has to exist as an actual
+  # `find` binary placed ahead of the real one on `PATH` — every
+  # `mkHarnessWrappers` call prepends `runtimeInputs` (and therefore `tools`)
+  # via `writeShellApplication`'s wrapper, so this shadows
+  # `pkgs.findutils`'s `find` for every harness built from `tools` below. It
+  # is only reached when nothing has already claimed the `find` function name
+  # (`findGuardBashEnv` above covers that case) — kept anyway as a backstop
+  # for a harness that execs `find` without going through such a function.
+  # Delegates to the real binary by absolute store path, not by name, so
+  # `command find`/`exec find` inside here cannot recurse back into itself.
+  findGuard =
+    pkgs:
+    pkgs.writeShellScriptBin "find" ''
+      paths=()
+      for arg in "$@"; do
+        case "$arg" in
+          -* | '(' | ')' | '!' | ',') break ;;
+          *) paths+=("$arg") ;;
+        esac
+      done
+      (( ''${#paths[@]} == 0 )) && paths=(.)
+      if [[ "''${FIND_ALLOW_ROOT:-0}" != 1 ]]; then
+        for path in "''${paths[@]}"; do
+          if [[ "$(readlink -f -- "$path" 2>/dev/null)" == / ]]; then
+            echo "find: refusing to search filesystem root ('$path' -> /); set FIND_ALLOW_ROOT=1 to override" >&2
+            exit 1
+          fi
+        done
+      fi
+      exec ${pkgs.findutils}/bin/find "$@"
+    '';
+
   tools =
-    pkgs: with pkgs; [
+    pkgs:
+    (with pkgs; [
       ripgrep
       git
       jq
@@ -63,7 +153,8 @@ let
       tokei
       procs
       dust
-    ];
+    ])
+    ++ [ (findGuard pkgs) ];
 
   toolsMarkdown =
     pkgs:
@@ -295,6 +386,7 @@ in
       stateDirs
       stateDirsFor
       environmentFor
+      findGuardBashEnv
       ;
   };
 }
