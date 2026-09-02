@@ -77,8 +77,19 @@ in
       # mount-timeout above, independent of idle status).
       idleTimeoutSec = null;
     };
-    pocket.enable = true;
-    services.enable = true;
+    pocket = {
+      enable = true;
+      # qBittorrent needs this available on demand; see nas.vault's comment
+      # above for why a remount cycle here isn't worth it.
+      idleTimeoutSec = null;
+    };
+    services = {
+      enable = true;
+      # Forgejo's state dir (SQLite, sessions, git objects, LFS) lives here;
+      # an idle-triggered unmount mid-run stales its open handles and looks
+      # like git.0x04.cc "disconnecting". Same reasoning as nas.vault above.
+      idleTimeoutSec = null;
+    };
   };
 
   serve = {
