@@ -85,6 +85,47 @@ in
 
   fonts.packages = builtins.filter lib.attrsets.isDerivation (builtins.attrValues pkgs.nerd-fonts);
 
+  # WORKAROUND: pin wayland to 1.25.0 until Mesa handles wl_fixes correctly.
+  #
+  # wayland 1.26.0 added `wl_fixes.ack_global_remove`, which requires a client
+  # to acknowledge every `wl_registry.global_remove` it is sent, on the same
+  # registry that announced the global. libwayland-server validates this and
+  # answers a mismatch with a protocol error, which libwayland-client turns
+  # into a fatal abort.
+  #
+  # Mesa's EGL keeps its own wl_registry on a private event queue and gets the
+  # bookkeeping wrong, so it acks globals that registry never announced. kwin
+  # then kills the client:
+  #
+  #   wl_fixes#84: error 0: the given registry did not announce global 96
+  #
+  # apc drives four displays, and the two EDID-less HDMI connectors re-detect
+  # periodically. Every re-detect destroys and recreates the wl_output globals
+  # (they have already climbed to ids 109-112 this boot), so there is almost
+  # always a stale global_remove in flight. Any app that then builds an EGL
+  # window surface -- i.e. opens or maximises a window -- dies. Observed on
+  # librewolf, ghostty and electron alike, since they all go through
+  # libEGL_mesa.
+  #
+  # 1.25.0 predates ack_global_remove entirely, so the request does not exist
+  # and the failure cannot occur. Qt, GTK3/4 and SDL have already landed
+  # their ack_global_remove support; drop this once Mesa does the same.
+  #
+  # wayland-scanner inherits `version` and `src` from wayland, so this pins
+  # both. Scoped to apc because no other host runs a multi-head Wayland
+  # session.
+  nixpkgs.overlays = [
+    (final: prev: {
+      wayland = prev.wayland.overrideAttrs (old: rec {
+        version = "1.25.0";
+        src = final.fetchurl {
+          url = "https://gitlab.freedesktop.org/wayland/wayland/-/releases/${version}/downloads/wayland-${version}.tar.xz";
+          hash = "sha256-wGXwQK/f8xd2gGAPJJcn5Boa/CL8zyciLxX1MG+qHwM=";
+        };
+      });
+    })
+  ];
+
   # global-config.nix already defaults auto-optimise-store and
   # experimental-features (as lib.mkDefault); no need to re-declare them
   # here, and doing so as hard values only worked because they happened to
