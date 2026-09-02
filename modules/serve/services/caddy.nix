@@ -34,7 +34,7 @@
           enable = true;
           package = pkgs.caddy.withPlugins {
             plugins = [ "github.com/sjtug/cerberus@v0.4.6" ];
-            hash = "sha256-l5qBSMBn7SQKv0N+KrT2vnTejSgOwY2HsrX6v4jKcm4=";
+            hash = "sha256-EsHJH1y0fIUUlSNb/RgiVCCepKzrqaM2k+NciYSGS18=";
           };
           dataDir = "/var/lib/caddy";
           # The nixpkgs module emits its own global `log` block from this
