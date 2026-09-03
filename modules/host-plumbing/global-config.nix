@@ -5,7 +5,7 @@
     export is a reusable feature, and hosts never import them explicitly.
   */
 
-  flake.modules.nixos.global-config = { pkgs, lib, ... } :
+  flake.modules.nixos.global-config = { pkgs, lib, options, ... } :
   let
     default_locale = "en_CA.UTF-8";
     default_timezone = "America/Toronto";
@@ -26,6 +26,32 @@
     };
 
     nixpkgs.config.allowUnfree = lib.mkDefault true;
+
+    # Unbounded by default: journald only ships Storage/RateLimit, and
+    # coredump.conf's [Coredump] section is empty, so both the journal and
+    # `/var/lib/systemd/coredump` grow forever. These are vacuum-style caps —
+    # journald deletes its oldest archived (rotated) journal files once the
+    # total exceeds SystemMaxUse, the same as `journalctl --vacuum-size=`,
+    # and systemd-coredump does the same for its coredump directory once
+    # MaxUse is exceeded — so hosts still get to keep recent history, just
+    # not unboundedly.
+    services.journald.extraConfig = lib.mkDefault ''
+      SystemMaxUse=1G
+    '';
+    #
+    # `systemd.coredump.settings` (drop-in-based) replaced `extraConfig` in
+    # newer nixpkgs; `cryptid-nixpkgs` is deliberately pinned old for
+    # reproducibility and only has the latter, so both are wired here rather
+    # than picking one and breaking the other host.
+    systemd.coredump =
+      if options.systemd.coredump ? settings then
+        { settings.Coredump.MaxUse = lib.mkDefault "1G"; }
+      else
+        {
+          extraConfig = lib.mkDefault ''
+            MaxUse=1G
+          '';
+        };
 
     environment.systemPackages = with pkgs; [
       neovim
