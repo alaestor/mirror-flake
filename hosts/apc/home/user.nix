@@ -41,15 +41,15 @@ in
       veracrypt
       keepassxc
       btop-rocm
-      iftop
-      chromium
-      tauon
-      colordiff
+      #iftop
+      #chromium
+      #tauon
+      #colordiff
       podman-compose
       #podman-tui
-      mediainfo
+      #mediainfo
       protonmail-desktop
-      libreoffice-qt6-fresh
+      #libreoffice-qt6-fresh
       obsidian
       discord
       webcord
@@ -77,49 +77,50 @@ in
       ];
     };
 
-    freetube = {
-      enable = true;
-      settings = {
-        useRssFeeds = true;
-        backendPreference = "local";
-        enableSearchSuggestions = false;
-        checkForBlogPosts = false;
-        checkForUpdates = false;
-        autoplayVideos = true;
-        defaultVolume = 0.5;
-        defaultPlayback = 2;
-        defaultQuality = "1080";
-        defaultTheatreMode = true;
-        maxVideoPlaybackRate = true;
-        videoPlaybackRateMouseScroll = true;
-        videoVolumeMouseScroll = true;
-        useSponsorBlock = true;
-        sponsorBlockIntro = {
-          color = "Orange";
-          skip = "autoSkip";
-        };
-        sponsorBlockMusicOffTopic = {
-          color = "Orange";
-          skip = "autoSkip";
-        };
-        sponsorBlockOutro = {
-          color = "Orange";
-          skip = "showInSeekBar";
-        };
-        baseTheme = "dark";
-        listType = "grid";
-        disableSmoothScrolling = true;
-        displayVideoPlayButton = false;
-        commentAutoLoadEnabled = false;
-        hideHeaderLogo = true;
-        hidePopularVideos = true;
-        hideTrendingVideos = true;
-        hideActiveSubscriptions = true;
-        enableScreenshot = true;
-        screenshotFormat = "jpg";
-        screenshotQuality = 85;
-      };
-    };
+    # has been really under-performing ... unfortunate
+    #freetube = {
+    #  enable = true;
+    #  settings = {
+    #    useRssFeeds = true;
+    #    backendPreference = "local";
+    #    enableSearchSuggestions = false;
+    #    checkForBlogPosts = false;
+    #    checkForUpdates = false;
+    #    autoplayVideos = true;
+    #    defaultVolume = 0.5;
+    #    defaultPlayback = 2;
+    #    defaultQuality = "1080";
+    #    defaultTheatreMode = true;
+    #    maxVideoPlaybackRate = true;
+    #    videoPlaybackRateMouseScroll = true;
+    #    videoVolumeMouseScroll = true;
+    #    useSponsorBlock = true;
+    #    sponsorBlockIntro = {
+    #      color = "Orange";
+    #      skip = "autoSkip";
+    #    };
+    #    sponsorBlockMusicOffTopic = {
+    #      color = "Orange";
+    #      skip = "autoSkip";
+    #    };
+    #    sponsorBlockOutro = {
+    #      color = "Orange";
+    #      skip = "showInSeekBar";
+    #    };
+    #    baseTheme = "dark";
+    #    listType = "grid";
+    #    disableSmoothScrolling = true;
+    #    displayVideoPlayButton = false;
+    #    commentAutoLoadEnabled = false;
+    #    hideHeaderLogo = true;
+    #    hidePopularVideos = true;
+    #    hideTrendingVideos = true;
+    #    hideActiveSubscriptions = true;
+    #    enableScreenshot = true;
+    #    screenshotFormat = "jpg";
+    #    screenshotQuality = 85;
+    #  };
+    #};
   };
 
   xdg = {

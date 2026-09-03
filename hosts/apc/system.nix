@@ -77,7 +77,7 @@ in
       lzip
       mozlz4a
       kdePackages.kgpg
-      kdePackages.ksystemlog
+      #kdePackages.ksystemlog
       kdePackages.partitionmanager
       kdePackages.xdg-desktop-portal-kde
     ];
