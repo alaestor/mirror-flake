@@ -61,9 +61,15 @@
               # Avoid indefinite hangs on shutdown/suspend if the NAS is
               # slow or unreachable: fail fast instead of retrying forever,
               # and auto-unmount when idle so it's rarely mounted at all.
+              #
+              # `timeo=30`/`retrans=2` used to live here to shorten that
+              # failure window (3s), but it was a workaround for shutdowns
+              # not releasing the mount cleanly in the first place, and its
+              # side effect was a kernel log line every few seconds for the
+              # whole span of any NAS outage. Removed pending an actual
+              # diagnosis of why shutdown hangs on this mount; NFS's default
+              # timeo (600 deciseconds/60s) applies until then.
               "soft"
-              "timeo=30"
-              "retrans=2"
               "x-systemd.mount-timeout=15s"
             ]
             ++ lib.optional cfg.${optionName}.readonly "ro"
