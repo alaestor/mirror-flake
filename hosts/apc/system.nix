@@ -114,17 +114,17 @@ in
   # wayland-scanner inherits `version` and `src` from wayland, so this pins
   # both. Scoped to apc because no other host runs a multi-head Wayland
   # session.
-  nixpkgs.overlays = [
-    (final: prev: {
-      wayland = prev.wayland.overrideAttrs (old: rec {
-        version = "1.25.0";
-        src = final.fetchurl {
-          url = "https://gitlab.freedesktop.org/wayland/wayland/-/releases/${version}/downloads/wayland-${version}.tar.xz";
-          hash = "sha256-wGXwQK/f8xd2gGAPJJcn5Boa/CL8zyciLxX1MG+qHwM=";
-        };
-      });
-    })
-  ];
+  #nixpkgs.overlays = [
+  #  (final: prev: {
+  #    wayland = prev.wayland.overrideAttrs (old: rec {
+  #      version = "1.25.0";
+  #      src = final.fetchurl {
+  #        url = "https://gitlab.freedesktop.org/wayland/wayland/-/releases/${version}/downloads/wayland-${version}.tar.xz";
+  #        hash = "sha256-wGXwQK/f8xd2gGAPJJcn5Boa/CL8zyciLxX1MG+qHwM=";
+  #      };
+  #    });
+  #  })
+  #];
 
   # global-config.nix already defaults auto-optimise-store and
   # experimental-features (as lib.mkDefault); no need to re-declare them
