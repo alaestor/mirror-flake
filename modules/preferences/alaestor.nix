@@ -4,7 +4,7 @@
   ones. Desktop theming lives separately in `alaestor-plasma`, which requires
   KDE Plasma 6.
 */
-{ self, ... }:
+{ self, inputs, ... }:
 {
   flake.modules.homeManager.alaestor = {
     pgp.primaryFingerprint = self.data.vars.identities.administrative.pgp.fingerprint;
@@ -20,7 +20,15 @@
     `modules/features/de/kde.nix` (Plasma 6); importing this on a host
     without it is an evaluation error.
   */
-  flake.modules.homeManager.alaestor-plasma = {
+  flake.modules.homeManager.alaestor-plasma =
+    { pkgs, ... }:
+    let
+      # Leaf artifact from this author's personal package overlay; kept a
+      # separate package boundary from the consumer's `pkgs`, same as
+      # `app-config/mpv.nix`.
+      mousetiler = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.mousetiler;
+    in
+    {
     programs.plasma = {
       workspace = {
         lookAndFeel = "org.kde.breezedark.desktop";
@@ -81,6 +89,9 @@
         "kiorc"."Confirmations" = { "ConfirmDelete" = true; "ConfirmEmptyTrash" = true; "ConfirmTrash" = false; };
         "kiorc"."Executable scripts"."behaviourOnLaunch" = "open";
         "kwinrc"."EdgeBarrier" = { "CornerBarrier" = false; "EdgeBarrier" = 0; };
+        # Enables the mousetiler KWin script deployed via `home.file` below.
+        # Plugin key must match its `metadata.json`'s `KPlugin.Id`.
+        "kwinrc"."Plugins"."mousetilerEnabled" = true;
         "gwenviewrc"."General"."HistoryEnabled" = false;
         "gwenviewrc"."ImageView" = { "AnimationMethod" = "DocumentView::NoAnimation"; "NavigationEndNotification" = "NavigationEndNotification::AlwaysWarn"; };
         "gwenviewrc"."ThumbnailView"."ListVideos" = false;
@@ -113,6 +124,19 @@
         };
       };
       okular = { enable = true; general.obeyDrm = false; };
+    };
+
+    # `mousetiler`'s package root is the KWin script's KPackage layout
+    # (metadata.json + contents/) as-is, so it drops straight into
+    # scripts/mousetiler; KWin scripts don't need kpackagetool6 registration
+    # the way full KPackage apps do, just files on disk plus the
+    # `[Plugins]` flag above.
+    #
+    # Its tiling layout is still tuned live and stays out of Nix for now:
+    # state lives in kwinrc's `[Script-mousetiler]` group, untracked here.
+    home.file.".local/share/kwin/scripts/mousetiler" = {
+      source = mousetiler;
+      recursive = true;
     };
   };
 }
