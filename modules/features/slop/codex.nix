@@ -241,6 +241,9 @@
               exit 1
             fi
 
+            # Herdr cannot see the guest's process tree through ssh. Its
+            # foreground-process hint preserves agent status notifications.
+            export HERDR_AGENT=codex
             exec agent-vm-session -- \
               bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
               ${lib.getExe native} "$@"

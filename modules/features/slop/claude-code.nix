@@ -469,6 +469,9 @@
             # (`printf %q`), so building the remote command as real argv
             # entries here — not a hand-assembled string — is what keeps that
             # quoting correct end to end.
+            # Herdr cannot see the guest's process tree through ssh. Its
+            # foreground-process hint preserves agent status notifications.
+            export HERDR_AGENT=claude
             exec agent-vm-session -- \
               bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
               ${lib.getExe native} "$@"
