@@ -66,6 +66,13 @@
   guest up regardless, exactly as if the automatic linger had simply expired
   sooner.
 
+  `agent-vm-restart` (`mkRestartScript`) is recovery rather than a third
+  lifecycle verb — there is deliberately no `agent-vm-start`, since a session
+  boots the guest itself. It takes the guest down and bounces the virtiofsd
+  supervisord, the one wedged state a session cannot recover from on its own.
+  `StopWhenUnneeded` on `microvm-virtiofsd@<name>` is what stops that state
+  from arising in the first place; both carry the full reasoning.
+
   The `security.polkit.extraConfig` rule is what lets `hostUser` — an
   unprivileged account — start and stop these specific units at all;
   `systemctl start/stop` on a system unit is refused by default otherwise.
@@ -136,6 +143,9 @@
       # session script) rather than defined.
       vmUnitName = "microvm@${cfg.name}";
       vmUnit = "${vmUnitName}.service";
+      # microvm.nix names the virtiofsd unit after the same instance. It is
+      # only ever *referenced* here, never defined — see `mkRestartScript`.
+      virtiofsdUnit = "microvm-virtiofsd@${cfg.name}.service";
       lingerHoldUnitName = "agent-vm-linger-hold";
       lingerHoldUnit = "${lingerHoldUnitName}.service";
       sessionPrefix = "agent-vm-session-";
@@ -308,6 +318,50 @@
           runtimeInputs = [ pkgs.systemd ];
           text = ''
             systemctl stop ${lib.escapeShellArg lingerHoldUnit}
+          '';
+        };
+
+      # Recovery, not a lifecycle verb: nothing in normal operation needs
+      # this, because `agent-vm-session` boots the guest on demand and
+      # `StopWhenUnneeded` takes both the guest and its shares back down.
+      #
+      # It stays because that teardown is the only thing standing between a
+      # stopped guest and a virtiofsd unit left running with no daemons
+      # behind it — a state whose symptom is every subsequent boot dying on
+      # `Failed connect to 'agent-vm-virtiofs-*.sock': Connection refused`,
+      # and which no session script can repair on its own. See the
+      # `microvm-virtiofsd@` override below for why it arises and why
+      # `StopWhenUnneeded` is what prevents it. A hand-run bounce is the
+      # remedy if it ever arises anyway (a host that predates the override,
+      # or a share that wedges some other way).
+      #
+      # Stop/start rather than `systemctl restart`: the polkit rule below
+      # grants those two verbs only, and widening it to a third for a
+      # script that can express itself in the existing two would trade a
+      # standing privilege for nothing.
+      mkRestartScript =
+        pkgs:
+        pkgs.writeShellApplication {
+          name = "agent-vm-restart";
+          runtimeInputs = [ pkgs.systemd ];
+          text = ''
+            # Drops the linger reference first so the guest is not brought
+            # straight back up by it while virtiofsd is being replaced.
+            systemctl stop ${lib.escapeShellArg lingerHoldUnit}
+            systemctl stop ${lib.escapeShellArg vmUnit}
+
+            # Stopping the guest already stops the shares via
+            # `StopWhenUnneeded`; stated anyway, because the whole point of
+            # this script is to be the thing that works when the state the
+            # override maintains has somehow not been maintained.
+            systemctl stop ${lib.escapeShellArg virtiofsdUnit}
+            systemctl start ${lib.escapeShellArg virtiofsdUnit}
+
+            # Deliberately left down: the next `agent-vm-session` boots it
+            # with a live linger reference attached, whereas starting it
+            # here would produce a guest no referrer is holding, which
+            # `StopWhenUnneeded` may collect at any moment.
+            echo "agent-vm-restart: shares replaced; the next session will boot ${cfg.name}." >&2
           '';
         };
     in
@@ -592,6 +646,41 @@
               unitConfig.StopWhenUnneeded = true;
             };
 
+            # Ties the shares' lifetime to the guest's, the same way the
+            # guest's is tied to its sessions. Without this, a stopped guest
+            # leaves the virtiofsd unit behind in a state that reads healthy
+            # but serves nothing, and every later boot fails against it —
+            # the wedge `agent-vm-restart` exists to undo. Two upstream
+            # facts combine into it:
+            #
+            # 1. virtiofsd exits *cleanly* (status 0) when its guest
+            #    disconnects, and microvm.nix supervises the shares with a
+            #    supervisord whose programs take the default
+            #    `autorestart=unexpected` — which restarts only on an exit
+            #    code outside `exitcodes` (`0`). A clean exit is by
+            #    definition expected, so the shares are never respawned.
+            # 2. The supervisord parent stays up regardless, so the unit
+            #    remains `active (running)` with no daemon behind it and
+            #    systemd's own `Restart=always` sees nothing to act on. The
+            #    `.sock` files also outlive their daemons, so qemu gets
+            #    `Connection refused` rather than a missing path.
+            #
+            # `partOf = [ vmUnit ]` upstream does not cover it: that
+            # propagates explicit stop and restart *jobs*, and the guest
+            # exiting on its own is neither. `StopWhenUnneeded` keys off the
+            # only fact that actually holds — `microvm@` (its sole referrer,
+            # via `Requires=`) no longer being active — so the unit is torn
+            # down whenever the guest goes away, however it went, and the
+            # next `Requires=` pulls in a fresh one.
+            #
+            # Chosen over flipping the shares to `autorestart=true`, which
+            # would mean overriding `microvm.binScripts.virtiofsd-run` (a
+            # fork of upstream's generator, to drift silently on the next
+            # bump) and would leave idle daemons resident with no guest to
+            # serve. This is one line against the unit upstream already
+            # declares, and it deletes the daemons instead of idling them.
+            systemd.services."microvm-virtiofsd@${cfg.name}".unitConfig.StopWhenUnneeded = true;
+
             # A `Wants=`/`After=` referrer of its own, started and dropped by
             # `agent-vm-session` — never at boot, hence no `wantedBy`.
             systemd.services.${lingerHoldUnitName} = {
@@ -610,11 +699,13 @@
             environment.systemPackages = [
               (mkSessionScript pkgs)
               (mkStopScript pkgs)
+              (mkRestartScript pkgs)
             ];
 
             # Grants exactly what `agent-vm-session` needs and nothing more:
-            # starting/stopping the VM unit and the linger-hold reference by
-            # their fixed names, and creating the transient session scopes
+            # starting/stopping the VM unit, its virtiofsd unit
+            # (`agent-vm-restart`) and the linger-hold reference by their
+            # fixed names, and creating the transient session scopes
             # and linger-check units it names with these prefixes. Anyone
             # else's unit, and any other verb (restart, kill, ...), falls
             # through to the default policy — which on a desktop system
@@ -633,7 +724,9 @@
                   return;
                 }
                 var unit = action.lookup("unit");
-                if (unit == ${builtins.toJSON vmUnit} || unit == ${builtins.toJSON lingerHoldUnit}) {
+                if (unit == ${builtins.toJSON vmUnit}
+                 || unit == ${builtins.toJSON lingerHoldUnit}
+                 || unit == ${builtins.toJSON virtiofsdUnit}) {
                   return polkit.Result.YES;
                 }
                 if (unit && (unit.indexOf(${builtins.toJSON sessionPrefix}) == 0
