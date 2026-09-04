@@ -114,6 +114,20 @@
           printf '\nStatus:\n%s\n' "''${status_text:-(clean)}"
           printf '\nRecent commits:\n%s\n' "$(git log --oneline -5 2>/dev/null)"
         }
+
+        # Claude Code only auto-loads CLAUDE.md, with no fallback to AGENTS.md
+        # (anthropics/claude-code#6235/#34235 — still open, no native support).
+        # This reproduces that missing behavior: find AGENTS.md at the project
+        # root and fold it into the appended system prompt, same as an
+        # imported CLAUDE.md would have been. `noagentsmd` skips this.
+        cc_agents_md() {
+          local root file
+          root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
+          file="$root/AGENTS.md"
+          [[ -f "$file" ]] || return 0
+          printf '# AGENTS.md (%s)\n\n' "$file"
+          cat "$file"
+        }
       '';
 
       # Sessions isolate through the agent VM — `sandboxPackage`/
@@ -207,6 +221,7 @@
             search|tool-search) headroom_args+=( --tool-search auto ) ;;
             alltools|all-tools) tools="default" ;;
             skill|skills) skills=1 ;;
+            noagentsmd) agents_md=0 ;;
             full|full-prompt) prompt="full" ;;
             mini|mini-prompt) prompt="mini" ;;
             lean|lean-tools) lean_tools=1 ;;
@@ -319,6 +334,7 @@
             lean_tools=1
             tools=${lib.escapeShellArg (lib.concatStringsSep "," defaultTools)}
             skills=0
+            agents_md=1
             context_limit=200000
             headroom_args=(
               --code-memory ${if withSerena then "serena" else "none"}
@@ -337,6 +353,7 @@
                 "${name} isolates sessions in the agent VM by default; run ${name}-native directly to bypass it entirely"
                 "VM sessions may only run in ${lib.concatStringsSep " and " sandboxWritableRoots}"
                 "skills adds the Skill tool and its catalogue; /<skill-name> works without it"
+                "noagentsmd skips injecting the project root's AGENTS.md, if any"
               ];
               argsVar = "claude_args";
             }}
@@ -358,6 +375,10 @@
             if [[ "$prompt" != "full" ]]; then
               claude_args+=( --system-prompt-file ${lib.escapeShellArg (toString resolvedPrompt.system)} )
               append_prompt="$(cc_environment_block)"$'\n\n'"$append_prompt"
+            fi
+            if (( agents_md )); then
+              agents_md_text="$(cc_agents_md)"
+              [[ -z "$agents_md_text" ]] || append_prompt="$append_prompt"$'\n\n'"$agents_md_text"
             fi
             claude_args+=( --append-system-prompt "$append_prompt" )
 
