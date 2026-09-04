@@ -41,7 +41,7 @@
     flags — because `--append-system-prompt`-style options do not
     accumulate across repeated invocations.
 */
-{ lib, self, ... }:
+{ lib, self, inputs, ... }:
 let
   # Claude Code's own Bash tool exports a `find` shell function into every
   # subprocess it spawns (visible via `declare -f find` inside a session) that
@@ -132,6 +132,11 @@ let
       exec ${pkgs.findutils}/bin/find "$@"
     '';
 
+  # Leaf artifacts from this author's personal package overlay (`alpkgs`),
+  # kept a separate package boundary from the consumer's `pkgs` — same
+  # pattern as `preferences/alaestor.nix` and `app-config/mpv.nix`.
+  alpkgsFor = pkgs: inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system};
+
   tools =
     pkgs:
     (with pkgs; [
@@ -156,6 +161,10 @@ let
       tokei
       procs
       dust
+    ])
+    ++ (with alpkgsFor pkgs; [
+      readability-cli
+      archify-cli
     ])
     ++ [ (findGuard pkgs) ];
 

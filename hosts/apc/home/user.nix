@@ -1,3 +1,4 @@
+{ inputs }:
 { pkgs, ... }:
 let
   # TODO(pkgs): migrate ffmpeg-hdr
@@ -36,28 +37,34 @@ in
     # sync this to the host baseline; it's compatibility metadata for when
     # this account's state was first written, not the host's age.
     stateVersion = "23.11";
-    packages = with pkgs; [
-      (bottles.override { removeWarningPopup = true; })
-      veracrypt
-      keepassxc
-      btop-rocm
-      #iftop
-      #chromium
-      #tauon
-      #colordiff
-      podman-compose
-      #podman-tui
-      #mediainfo
-      protonmail-desktop
-      #libreoffice-qt6-fresh
-      obsidian
-      discord
-      webcord
-      element-desktop
-      jellyfin-desktop
-      ffmpeg-hdr
-      ripgrep
-    ];
+    packages =
+      with pkgs;
+      [
+        (bottles.override { removeWarningPopup = true; })
+        veracrypt
+        keepassxc
+        btop-rocm
+        #iftop
+        #chromium
+        #tauon
+        #colordiff
+        podman-compose
+        #podman-tui
+        #mediainfo
+        protonmail-desktop
+        #libreoffice-qt6-fresh
+        obsidian
+        discord
+        webcord
+        element-desktop
+        jellyfin-desktop
+        ffmpeg-hdr
+        ripgrep
+      ]
+      ++ (with inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}; [
+        readability-cli
+        archify-cli
+      ]);
   };
 
   programs = {
