@@ -94,15 +94,38 @@ def env_int(name, fallback):
         return fallback
 
 
+def session_root(payload):
+    """The cwd the session actually started in, independent of later `cd`s.
+
+    `payload["cwd"]` is re-read live on every hook event, so if the agent
+    changes directory mid-session (e.g. `cd`ing into a subproject) later
+    events see that subdirectory instead of the root the session began in.
+    The first cwd seen for a session is cached to `state_dir()` and reused
+    for the rest of the session, so the handoff always lands in one place.
+    """
+    session = payload.get("session_id")
+    cwd = payload.get("cwd") or os.getcwd()
+    if not session:
+        return cwd
+    marker = os.path.join(state_dir(), f"{session}.cwd")
+    try:
+        with open(marker, "x", encoding="utf-8") as handle:
+            handle.write(cwd)
+        return cwd
+    except FileExistsError:
+        with open(marker, encoding="utf-8") as handle:
+            return handle.read().strip() or cwd
+
+
 def handoff_path(payload):
-    root = payload.get("cwd") or os.getcwd()
+    root = session_root(payload)
     session = (payload.get("session_id") or "session")[:8]
     return os.path.join(root, ".claude", f"handoff-{session}.md")
 
 
 def latest_handoff(payload):
     """Newest handoff left in this working directory, if any."""
-    root = payload.get("cwd") or os.getcwd()
+    root = session_root(payload)
     directory = os.path.join(root, ".claude")
     try:
         names = [n for n in os.listdir(directory) if n.startswith("handoff-") and n.endswith(".md")]
