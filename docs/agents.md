@@ -84,6 +84,17 @@ file granularity, so a second generation over a shared directory renames the
 first one's files out of the way. The host's generation is the sole manager of
 managed files; the guest gets packages, wrappers, and live state only.
 
+The consequence is that a *rendered* configuration file the host keeps under
+`$HOME` does not exist in the guest at all, even though the store path holding
+it does. Where a tool supports it, point the tool at that store path from the
+harness wrapper rather than adding a share: git identity travels as
+`GIT_CONFIG_GLOBAL`, and without it the guest has no `user.email` and no
+signing configuration. Such a value is a function of the *home* configuration,
+which the VM layer cannot see, so it cannot travel through `guestEnvironment`
+and must be exported by each wrapper. It therefore belongs in a shared fragment
+in `flake.lib.agents` (`gitEnvironmentText`) and not in one harness, or the
+next harness silently ships without it.
+
 ## Channels
 
 A channel gives the guest one host capability without giving it the host. Each

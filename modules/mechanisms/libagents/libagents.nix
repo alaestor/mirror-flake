@@ -311,6 +311,35 @@ let
     CLAUDE_CONFIG_DIR = "${home}/.claude";
   };
 
+  # The guest home is fresh: only `stateDirs` and the project roots are
+  # shared, so `~/.config/git/config` does not exist there and git has no
+  # identity at all — `git commit` fails outright, and signing config
+  # (`commit.gpgSign`, `user.signingKey`, `gpg.openpgp.program`) is absent
+  # even though the gpg-agent channel is available. Pointing
+  # `GIT_CONFIG_GLOBAL` at the host's rendered config works because the
+  # store is shared into the guest at an identical path, so this costs no
+  # new share and copies no state.
+  #
+  # Harness-agnostic — git identity is not a Claude fact — but derived from
+  # a *home* config, which the VM layer (a plain NixOS module) cannot see.
+  # It therefore cannot travel through `environmentFor`/`guestEnvironment`
+  # and has to be baked into each wrapper, which is why it lives here as a
+  # shared fragment rather than in one harness.
+  gitConfigGlobalFor =
+    homeConfig:
+    lib.optionalString homeConfig.programs.git.enable (
+      toString homeConfig.xdg.configFile."git/config".source
+    );
+
+  gitEnvironmentText =
+    homeConfig:
+    let
+      path = gitConfigGlobalFor homeConfig;
+    in
+    lib.optionalString (path != "") ''
+      export GIT_CONFIG_GLOBAL=${lib.escapeShellArg path}
+    '';
+
   sandboxWritableRootsFor = home: [
     "${home}/Projects"
     "/mnt/Vault/.dotfiles/flake"
@@ -403,6 +432,8 @@ in
       stateDirs
       stateDirsFor
       environmentFor
+      gitConfigGlobalFor
+      gitEnvironmentText
       sandboxWritableRootsFor
       findGuardBashEnv
       ;

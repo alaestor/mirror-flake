@@ -23,21 +23,13 @@
       # (`agent-vm.guestEnvironment`) about where state lives.
       claudeEnvironment = agents.environmentFor config.home.homeDirectory;
 
-      # The Home Manager-rendered git config is a store path, and the store
-      # is shared into the agent VM at the identical path (`docs/agents.md`
-      # §Shares and state), so a session reads it directly with no new share
-      # and no copied state. Baked into the wrapper script rather than routed
-      # through `guestEnvironment` (`flake.lib.agents.environmentFor`) because
-      # this value is a function of *this* home's Home Manager evaluation,
-      # which the VM layer (a plain NixOS module) cannot see — the wrapper
-      # script itself is what's shared, so exporting it here reaches the
-      # guest the same way `CLAUDE_CONFIG_DIR` already does below. Signing
-      # still goes through the gpg-agent channel's restricted socket; no key
-      # material is in this file, only identity and a signer path that
+      # Carries the host's rendered git config into the guest; see
+      # `gitEnvironmentText`'s comment (`libagents.nix`) for why it is baked
+      # into the wrapper rather than routed through `guestEnvironment`.
+      # Signing still goes through the gpg-agent channel's restricted socket;
+      # no key material is in this file, only identity and a signer path that
       # resolves in the guest.
-      gitConfigGlobal = lib.optionalString config.programs.git.enable (
-        toString config.xdg.configFile."git/config".source
-      );
+      gitEnvironment = agents.gitEnvironmentText config;
 
       # The relocation is undocumented and version-dependent (anthropics/
       # claude-code#3833); an older claude keeps writing `~/.claude.json`
@@ -301,9 +293,7 @@
             # that would silently present as a fresh, logged-out install the
             # day it stops holding.
             export CLAUDE_CONFIG_DIR="$HOME/.claude"
-            ${lib.optionalString (gitConfigGlobal != "") ''
-              export GIT_CONFIG_GLOBAL=${lib.escapeShellArg gitConfigGlobal}
-            ''}
+            ${gitEnvironment}
 
             # Claude's Bash tool exports its own `find` -> bfs shell function
             # into every subprocess it spawns, which does not itself refuse a

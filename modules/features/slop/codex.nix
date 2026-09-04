@@ -156,6 +156,10 @@
             # findutils. See `findGuardBashEnv`'s doc comment (`libagents.nix`).
             export BASH_ENV=${agents.findGuardBashEnv pkgs}
 
+            # Without this the guest has no git identity at all and `git
+            # commit` fails; see `gitEnvironmentText` (`libagents.nix`).
+            ${agents.gitEnvironmentText config}
+
             model=""
             effort=""
             instruction_file=${lib.escapeShellArg (if cfg.modelInstructionsFile == null then "" else toString cfg.modelInstructionsFile)}
