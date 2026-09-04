@@ -32,10 +32,7 @@ in
     # front rather than pick them dynamically. Deliberately not "wherever
     # the caller happens to be" — see the Phase 8 handoff for why arbitrary
     # per-session mounts were ruled out.
-    projectRoots = [
-      "${home}/Projects"
-      "/mnt/Vault/.dotfiles/flake"
-    ];
+    projectRoots = agents.sandboxWritableRootsFor home;
     stateDirs = agents.stateDirsFor home [
       "claude"
       "codex"

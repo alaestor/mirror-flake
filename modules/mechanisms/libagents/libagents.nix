@@ -29,6 +29,9 @@
     in the harness layer is therefore the only place both sides can agree on.
   - `environmentFor` — environment variables that must hold the *same* value
     on the host and inside the guest, for one home directory.
+  - `sandboxWritableRootsFor` — the trees in which harness wrappers may start,
+    shared with the host's agent VM declaration so its fixed shares cannot
+    drift from the wrappers' admission check.
 
   - `mkPrompt` — resolves a `(harness, model, variant)` prompt into the three
     depths a harness can inject at (`system`, `preamble`, `context`), from a
@@ -299,6 +302,11 @@ let
     CLAUDE_CONFIG_DIR = "${home}/.claude";
   };
 
+  sandboxWritableRootsFor = home: [
+    "${home}/Projects"
+    "/mnt/Vault/.dotfiles/flake"
+  ];
+
   # Resolves the text/path a harness injects at each of its three depths
   # (`system`, `preamble`, `context`) for one `(harness, model, variant)`
   # combination. `layers` is:
@@ -386,6 +394,7 @@ in
       stateDirs
       stateDirsFor
       environmentFor
+      sandboxWritableRootsFor
       findGuardBashEnv
       ;
   };

@@ -17,6 +17,7 @@
       proxy = config.services.headroom-proxy;
       codexPackage = config.programs.codex.package;
       headroomPackage = proxy.package;
+      sandboxWritableRoots = agents.sandboxWritableRootsFor "$HOME";
 
       instructionFiles = {
         small = self.data.path "programs/codex/codex-instructions-gpt-5-small.md";
@@ -146,11 +147,6 @@
 
       mkCodexWrapper =
         name: withSerena:
-        # Codex has no sandbox today, so `wrapped` is a plain alias that
-        # execs `<name>-native`; `sandbox` stays unset (`null`) rather than
-        # inventing an isolation step that doesn't exist yet — a later phase
-        # may give it one, at which point this gains a `sandbox` function
-        # the same way `claude-code.nix` has one.
         agents.mkHarnessWrappers pkgs {
           inherit name;
           runtimeInputs = cliBase ++ cliTools ++ [ pkgs.systemd ];
@@ -176,7 +172,22 @@
             }}
 
             if ! systemctl --user --quiet is-active headroom-proxy.service; then
-              systemctl --user start headroom-proxy.service
+              if systemctl --user --quiet cat headroom-proxy.service >/dev/null 2>&1; then
+                systemctl --user start headroom-proxy.service
+              else
+                # The agent VM intentionally runs no Home Manager, so create
+                # the equivalent service in its user manager. The transient
+                # unit is shared by concurrent Codex sessions in this guest.
+                systemd-run --user --quiet --collect \
+                  --unit=headroom-proxy.service \
+                  --property=Restart=on-failure \
+                  --property=RestartSec=2 \
+                  --setenv=HEADROOM_OUTPUT_SHAPER=${if proxy.shape-output then "1" else "0"} \
+                  ${lib.getExe headroomPackage} proxy \
+                    --host ${lib.escapeShellArg proxy.address} \
+                    --port ${toString proxy.port} \
+                  || systemctl --user --quiet is-active headroom-proxy.service
+              fi
             fi
 
             codex_args=()
@@ -199,6 +210,40 @@
             codex_args+=( -c "projects={\"$PWD\"={trust_level=\"trusted\"}}")
 
             exec ${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
+          '';
+
+          sandbox = native: ''
+            case "''${1:-}" in
+              --cx-help)
+                exec ${lib.getExe native} "$@"
+                ;;
+            esac
+
+            cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
+            in_root=0
+            sandbox_writable=(
+              ${lib.concatMapStringsSep "\n              " (root: ''"${root}"'') sandboxWritableRoots}
+            )
+
+            for root in "''${sandbox_writable[@]}"; do
+              [[ -d "$root" ]] || continue
+              root="$(${pkgs.coreutils}/bin/realpath "$root")"
+              if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
+                in_root=1
+                break
+              fi
+            done
+
+            if [[ "$in_root" -ne 1 ]]; then
+              echo "${name}: refusing to run $cwd in the agent VM — it is outside every shared root:" >&2
+              printf '  %s\n' "''${sandbox_writable[@]}" >&2
+              echo "cd into one of them, or run ${name}-native to bypass the VM instead." >&2
+              exit 1
+            fi
+
+            exec agent-vm-session -- \
+              bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
+              ${lib.getExe native} "$@"
           '';
         };
 

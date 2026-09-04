@@ -57,6 +57,10 @@ harness. A standalone Home Manager environment is not evaluated during a NixOS
 rebuild, so a harness module cannot contribute them directly; the shared table
 in `flake.lib.agents.stateDirs` is what lets both sides agree.
 
+The allowed work trees follow the same single-source rule. Harness wrappers use
+`flake.lib.agents.sandboxWritableRootsFor` for their admission check, and the
+host uses that list as the VM's fixed `projectRoots` shares.
+
 ## Shares and state
 
 Every share is mounted at the **identical host path**. Path identity is what

@@ -131,10 +131,7 @@
       # bubblewrap's per-invocation bind mounts, virtiofs shares are fixed at
       # guest boot, so a session is refused outside these roots rather than
       # the list being able to widen itself to wherever `$PWD` happens to be.
-      sandboxWritableRoots = [
-        "$HOME/Projects"
-        "/mnt/Vault/.dotfiles/flake"
-      ];
+      sandboxWritableRoots = agents.sandboxWritableRootsFor "$HOME";
 
       skillsRoot = self.data.path "agents/skills";
       # The tool catalogue rivals the preamble in size. `--tools` replaces it
