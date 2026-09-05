@@ -141,8 +141,9 @@
             xhi|xhigh) effort="xhigh" ;;
             full) instruction_file="" ;;
             small) instruction_file=${lib.escapeShellArg (toString instructionFiles.small)} ;;
-            user) reviewer="user" ;;
+            user) reviewer="user"; approval_policy="untrusted"; sandbox_mode="workspace-write" ;;
             auto) reviewer="auto_review" ;;
+            bypass|yolo) approval_policy="never"; sandbox_mode="danger-full-access" ;;
       '';
 
       mkCodexWrapper =
@@ -163,14 +164,16 @@
             model=""
             effort=""
             instruction_file=${lib.escapeShellArg (if cfg.modelInstructionsFile == null then "" else toString cfg.modelInstructionsFile)}
-            reviewer=""
+            reviewer="auto_review"
+            approval_policy="never"
+            sandbox_mode="danger-full-access"
             passthrough=()
 
             ${agents.mkSelectorLoop {
               caseArms = codexCaseArms;
               helpFlag = "--cx-help";
               helpLines = [
-                "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small] [user|auto] [--] [codex arguments...]"
+                "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [--] [codex arguments...]"
               ];
               argsVar = "passthrough";
             }}
@@ -208,6 +211,12 @@
             fi
             if [[ -n "$reviewer" ]]; then
               codex_args+=( -c "approvals_reviewer=\"''${reviewer}\"" )
+            fi
+            if [[ -n "$approval_policy" ]]; then
+              codex_args+=( -c "approval_policy=\"''${approval_policy}\"" )
+            fi
+            if [[ -n "$sandbox_mode" ]]; then
+              codex_args+=( -c "sandbox_mode=\"''${sandbox_mode}\"" )
             fi
 
             # automatically trust the working-directory
