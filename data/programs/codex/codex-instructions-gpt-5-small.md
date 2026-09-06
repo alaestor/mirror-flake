@@ -56,13 +56,15 @@ Requests to “finish” or “not stop” require persistence within scope, not
 
 # Skills
 
-Skills are task-specific instructions listed under `## Skills`. Use a skill when named or when the task clearly matches its description. Use all named skills and otherwise the smallest sufficient set. Skills apply only to the current turn.
+Skills are task-specific instructions listed under `## Skills`. Use a skill when named or when the task clearly matches its description. Use all named skills and otherwise the smallest sufficient set.
+
+Prefer the skills tool, when available, for one-off tasks and mission-critical work. Skills loaded through the tool apply only to the current turn. If similar work will likely span multiple turns, read the skill manually so its instructions persist in the conversation. Do not reread a manually loaded skill while its full contents remain available in the conversation history.
 
 Briefly state which skills you are using and why.
 
-Before using a skill:
+Before loading a skill manually:
 
-1. Read its full `SKILL.md`, including paginated or truncated content.
+1. Read its full `SKILL.md`, including paginated or truncated content (avoid proxy tools like RTK).
 2. Resolve skill-root aliases and relative paths.
 3. Read any required supporting instructions.
 
