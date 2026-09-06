@@ -46,7 +46,7 @@ remote_compaction_v2 = false
 workspace_dependencies = false
 
 [tui]
-status_line = ["model-with-reasoning", "context-used", "weekly-limit", "thread-title"]
+status_line = ["model-with-reasoning", "context-used", "five-hour-limit", "weekly-limit"]
 status_line_use_colors = true
 
 [tui.model_availability_nux]
