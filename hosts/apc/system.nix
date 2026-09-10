@@ -41,6 +41,12 @@ in
     ];
     localStateDirs = agents.localStateDirsFor home [ "codex" ];
     guestEnvironment = agents.environmentFor home;
+    # Codex only runs hooks it considers managed, and the only source that
+    # qualifies is the system config layer. The guest runs no Home Manager,
+    # so the harness feature cannot place this itself; this host attaches
+    # codex, so it is the one that contributes the file. Same reasoning as
+    # `stateDirs` above.
+    guestEtc."codex/config.toml" = agents.codexHookConfig pkgs;
     # `agent-vm-session` (Phase 7) ssh's from this host into its own guest,
     # so the identity it needs is apc's own SSH client identity — the same
     # one `vm-smoke-test.nix` authorizes, and for the same reason. Without

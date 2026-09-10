@@ -33,10 +33,11 @@ agents", it gains one as a consequence of attaching a harness
 ### The layering rule
 
 The VM layer must never name a harness fact: not a config directory, not a
-model, not a prompt. It receives opaque lists (`projectRoots`, `stateDirs`) and
-opaque `name = value` pairs (`guestEnvironment`), and it is the harness layer's
-job to know what they mean. Conversely the harness library must never mention
-vsock, virtiofs, or systemd units.
+model, not a prompt. It receives opaque lists (`projectRoots`, `stateDirs`),
+opaque `name = value` pairs (`guestEnvironment`), and opaque `/etc`-relative
+paths (`guestEtc`), and it is the harness layer's job to know what they mean.
+Conversely the harness library must never mention vsock, virtiofs, or systemd
+units.
 
 The seam between them is deliberately thin: a harness feature's `sandbox`
 function hands its own `-native` package to the host's session entry point. That
@@ -60,6 +61,34 @@ in `flake.lib.agents.stateDirs` is what lets both sides agree.
 The allowed work trees follow the same single-source rule. Harness wrappers use
 `flake.lib.agents.sandboxWritableRootsFor` for their admission check, and the
 host uses that list as the VM's fixed `projectRoots` shares.
+
+## The context guard
+
+Auto-compaction summarizes for narrative continuity and loses the detail needed
+to resume work. Every harness instead runs one shared guard
+(`flake.lib.agents.contextGuard`) that watches the session's own transcript and,
+past a threshold below the point the harness would compact on its own, asks the
+agent to write a handoff and then blocks further work once it exists.
+
+The guard is a harness fact but lives in the library rather than in a harness
+feature, because the two sides register it from different module classes: Claude
+Code takes hooks from Home Manager settings, while Codex honours only hooks
+declared in the *system* config layer. It selects behaviour from `argv[1]`, and
+only two things vary — how the transcript reports live context, and which JSON
+verb halts a turn. Adding a harness means adding an entry to that table, not
+forking the script.
+
+Handoffs land in `.agents/session/<YYYYMMDDTHHmmss>-<topic>.md` under the
+directory the session started in, kept distinct from a `handoff.md` written
+deliberately by the handoff skill: these are recoverables produced under duress.
+The agent chooses the topic slug, so the guard detects completion by mtime
+against the session's own start rather than by a path it computed.
+
+A harness whose vendor CLI only accepts system-level configuration cannot be
+served by the harness feature alone, since the guest runs no Home Manager and a
+standalone Home Manager attachment is not evaluated during a `nixos-rebuild`.
+The host that attaches the harness contributes the file through `guestEtc`,
+exactly as it already contributes `stateDirs`.
 
 ## Shares and state
 

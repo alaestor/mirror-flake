@@ -475,6 +475,22 @@
           '';
         };
 
+        guestEtc = lib.mkOption {
+          type = lib.types.attrsOf lib.types.path;
+          default = { };
+          example = lib.literalExpression ''{ "codex/config.toml" = ./hooks.toml; }'';
+          description = ''
+            Files placed in the guest's `/etc`, keyed by their `/etc`-relative
+            path. For harness configuration that a vendor CLI only honours
+            from a system location, which a guest running no Home Manager
+            cannot otherwise receive.
+
+            Opaque paths on purpose, for the same reason as
+            `guestEnvironment`: this module places them without interpreting
+            them.
+          '';
+        };
+
         authorizedKeys = lib.mkOption {
           type = lib.types.listOf lib.types.nonEmptyStr;
           default = [ ];
@@ -615,6 +631,7 @@
                   stateDirs
                   localStateDirs
                   guestEnvironment
+                  guestEtc
                   authorizedKeys
                   vcpu
                   mem

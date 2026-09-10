@@ -181,14 +181,12 @@
       # threshold, sitting just under Claude Code's own auto-compact reserve
       # (~83% of the window), so the agent writes a handoff and the turn
       # stops right where native compaction would otherwise have kicked in.
-      # See the script for the threshold environment variables.
-      contextGuard = pkgs.writers.writePython3Bin "cc-context-guard" {
-        flakeIgnore = [ "E501" ];
-      } (self.data.read "agents/context-guard.py");
+      # The guard is shared with every other harness and selects its
+      # transcript reader from `argv[1]`; see `agents.contextGuard`.
       guardCommand = [
         {
           type = "command";
-          command = lib.getExe contextGuard;
+          command = "${lib.getExe (agents.contextGuard pkgs)} claude";
         }
       ];
       # Case arms handed to `agents.mkSelectorLoop`; `--cc-help`/`--`/catch-all

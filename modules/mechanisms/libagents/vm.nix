@@ -8,7 +8,8 @@
     list.
 
     `mkAgentVm { name, hostUser, projectRoots, uid ? null, authorizedKeys ? [],
-    vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {}, channels ? {},
+    vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {},
+    guestEtc ? {}, channels ? {},
     lifecycle ? {} }`
     returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
     entry — the caller decides how to instantiate it, matching how every other
@@ -327,6 +328,7 @@ let
       stateDirs ? [ ],
       localStateDirs ? [ ],
       guestEnvironment ? { },
+      guestEtc ? { },
       channels ? { },
       lifecycle ? { },
       # `null` (the default) keeps the store-resident, non-reproducible
@@ -505,6 +507,13 @@ let
       environment.variables = lib.mapAttrs (_: lib.mkDefault) guestEnvironment // {
         AGENT_VM_GUEST = "1";
       };
+
+      # Same contract as `guestEnvironment`, for state a harness cannot express
+      # as an environment variable: an attribute name is an `/etc`-relative
+      # path and its value a store path to place there. Opaque by
+      # construction, so this layer still never learns which harness needs a
+      # system-level config file or why.
+      environment.etc = lib.mapAttrs (_: source: { inherit source; }) guestEtc;
 
       environment.enableAllTerminfo = true;
 

@@ -269,6 +269,46 @@ let
 
   context = self.data.read "agents/AGENTS.md";
 
+  # Auto-compaction summarizes for narrative continuity and loses the details
+  # needed to resume work. This guard replaces it for every harness: one
+  # threshold, sitting just under the point a harness would compact on its
+  # own, so the agent writes a handoff and further work stops there.
+  #
+  # It lives here rather than in a harness feature because both sides need the
+  # same binary from different module classes -- Claude Code registers it from
+  # a Home Manager module, while Codex only honours hooks declared in
+  # `/etc/codex/config.toml`, which is NixOS. The harness is selected by
+  # `argv[1]`; see the script for what differs between them.
+  contextGuard =
+    pkgs:
+    pkgs.writers.writePython3Bin "agent-context-guard" {
+      flakeIgnore = [ "E501" ];
+    } (self.data.read "agents/context-guard.py");
+
+  # Codex hook registration. Managed hooks -- those from the system config
+  # layer -- are the only ones that run without an interactive `/hooks` trust
+  # prompt, and a Nix-managed config is never writable for trust to be
+  # recorded into. `[features] hooks` gates managed hooks too, so it must stay
+  # enabled in the user config. See `__reference/codex-hooks-trust/FINDINGS.md`.
+  codexHookConfig =
+    pkgs:
+    let
+      guard = "${lib.getExe (contextGuard pkgs)} codex";
+      event = name: ''
+        [[hooks.${name}]]
+        matcher = ""
+        [[hooks.${name}.hooks]]
+        type = "command"
+        command = "${guard}"
+      '';
+    in
+    pkgs.writeText "codex-managed-hooks.toml" ''
+      ${event "PostToolUse"}
+      ${event "Stop"}
+      ${event "SessionStart"}
+      ${event "PreCompact"}
+    '';
+
   # Verified against the live system (`ls ~`) rather than copied from the
   # guide's table, which the guide itself says to distrust. Paths are
   # relative to `$HOME`; `stateDirsFor` makes them absolute.
@@ -447,6 +487,8 @@ in
       fragments
       collectSkills
       context
+      contextGuard
+      codexHookConfig
       mkPrompt
       stateDirs
       stateDirsFor
