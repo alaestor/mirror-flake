@@ -22,7 +22,7 @@
   - `stateDirs` / `stateDirsFor` — the `$HOME`-relative directories each
     harness and component keeps live state in, and a helper that makes them
     absolute for one home. Declared here because the VM layer is forbidden
-    from naming any of them (`implementation-guide.md` Phase 6) and the
+    from naming any of them and the
     harness modules themselves are Home Manager modules, which a NixOS
     configuration cannot read back — a standalone `userEnvironment`
     attachment is not evaluated during `nixos-rebuild` at all. A plain table
@@ -309,8 +309,7 @@ let
       ${event "PreCompact"}
     '';
 
-  # Verified against the live system (`ls ~`) rather than copied from the
-  # guide's table, which the guide itself says to distrust. Paths are
+  # Verified against the live system (`ls ~`). Paths are
   # relative to `$HOME`; `stateDirsFor` makes them absolute.
   #
   # These are *live state*, not configuration: sessions, memories, caches,
@@ -319,8 +318,7 @@ let
   # interleaved with them — the guest gets the directory shared read-write
   # and runs no Home Manager of its own, because Home Manager symlinks at
   # file granularity and two generations over one tree rename each other's
-  # `settings.json` out of the way (`implementation-guide.md` Phase 6,
-  # "the ownership rule").
+  # `settings.json` out of the way.
   stateDirs = {
     # `.claude.json` lives at the top of `$HOME` by default and virtiofs
     # shares directories, not files. `CLAUDE_CONFIG_DIR` (see

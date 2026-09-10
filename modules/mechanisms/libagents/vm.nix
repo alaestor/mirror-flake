@@ -15,15 +15,15 @@
     entry — the caller decides how to instantiate it, matching how every other
     module in this flake stays a value rather than wiring itself in).
 
-    **Shares and identity (Phase 4).** Store share (read-only virtiofs + a
-    tmpfs-backed writable overlay, so the guide's "known failure mode" —
+    **Shares and identity.** Store share (read-only virtiofs + a
+    tmpfs-backed writable overlay, so an overlayfs upper directory on
     overlayfs upper dir on virtiofs/9p — never applies here, since the
     overlay's upper directory lives on the guest's own root instead of a
     share), one virtiofs share per `projectRoots` entry mounted at the
     **identical host path**, SSH reachable via a forwarded port over QEMU user
     networking, and a guest user whose **name and home path** match `hostUser`.
 
-    **Channels (Phase 5).** `channels` is the seam the harness layer eventually
+    **Channels.** `channels` is the seam the harness layer
     declares through: it says *what capability the guest needs*, and this
     function decides that the capability is a vsock proxy. Each channel is a
     unix socket in the guest, socket-activated per connection, forwarded to a
@@ -64,7 +64,7 @@
     `/dev/vhost-vsock` — see `vm-host.nix` for the host-side permissions that
     need.
 
-    **State directories (Phase 6).** `stateDirs` is a list of host directories
+    **State directories.** `stateDirs` is a list of host directories
     shared read-write at the identical path, exactly like `projectRoots` — the
     distinction is entirely in who contributes them and why, not in what this
     function does with them, so they are kept as two lists rather than merged
@@ -85,10 +85,10 @@
     generation's `settings.json` out of the way on every boot. The host's
     generation is the sole manager; the guest gets packages and wrappers only.
 
-    **`lifecycle` stays unwired.** Phase 7 turned out to need nothing from the
+    **`lifecycle` stays unwired.** Lifecycle needs nothing from the
     guest side at all: the VM starts and stops as a host-managed systemd unit
     (`microvm@<name>.service`), refcounted by host-side transient units the
-    guest never hears about — see `vm-host.nix`'s "Lifecycle (Phase 7)"
+    guest never hears about — see `vm-host.nix`'s "Lifecycle"
     section. The parameter is kept, still accepting and ignoring whatever is
     passed, so a caller built against the documented signature doesn't break;
     nothing currently passes it.
@@ -99,8 +99,8 @@
     wrong-owned from inside the guest even though the bytes are identical;
     passing it keeps a `touch`'d file's ownership sane on both sides. Leaving
     it `null` still boots and shares files, just without that cosmetic
-    guarantee — acceptable for this phase's "any VM boots, path identity
-    holds" bar.
+    guarantee — acceptable for a smoke test that only requires booting and
+    path identity.
 */
 {
   inputs,
@@ -393,11 +393,10 @@ let
 
       # `lifecycle` is accepted but intentionally unwired — see the doc
       # comment above. Nix doesn't warn on unused arguments, so no
-      # bookkeeping is needed to "use" it; it exists purely so Phase 7
-      # doesn't have to change this function's call signature.
+      # bookkeeping is needed to "use" it; it preserves the documented
+      # function signature.
       networking.hostName = name;
-      # Matches the guide's other guest examples; bump when a real upgrade
-      # path exists.
+      # Bump when a real upgrade path exists.
       system.stateVersion = lib.trivial.release;
 
       # An agent's working set is spiky — a `nix eval` over a whole flake can
@@ -454,9 +453,8 @@ let
         #
         # Without the channel the guest has to be able to build for itself, so
         # the overlay comes back. Its upper directory lives on the guest's own
-        # (tmpfs) root rather than on a share, which is what keeps the guide's
-        # known failure mode ("upper fs missing required features", overlayfs
-        # with its upper dir on virtiofs/9p) from ever applying.
+        # (tmpfs) root rather than on a share, so overlayfs never uses a
+        # virtiofs/9p upper directory.
         writableStoreOverlay = if useNixDaemon then null else "/nix/.rw-store";
 
         shares = [
@@ -519,7 +517,7 @@ let
 
       # A fixed host key rather than whatever the ephemeral (tmpfs) root
       # would otherwise generate fresh on every boot. `agent-vm-session`
-      # (`vm-host.nix`, Phase 7) pins the matching public key — the
+      # (`vm-host.nix`) pins the matching public key — the
       # committed `data/identities/ssh-host-vm` identity when `hostKey` is
       # deployed, `generatedHostKey.publicKey` otherwise — in a scratch
       # known-hosts file, so the two sides always agree without either

@@ -1,8 +1,8 @@
 /**
   # `nixosConfigurations.agent-vm-smoke-test`
 
-  Phase 4's acceptance test target — "get *any* VM booting, with correct
-  path identity. No harnesses yet." Not part of the host registry
+  An acceptance test target for a VM with correct path identity. It is not
+  part of the host registry
   (`modules/host-plumbing/registry.nix`): it isn't a real fleet host, has no
   `hostIdentity`, and is meant to be built and thrown away, not deployed.
 
@@ -15,13 +15,13 @@
   `modules/mechanisms/libagents/vm-run.nix` for what the wrapper does, why it wants
   `sudo`, and what `--unprivileged` costs you.
 
-  Phase 5 added the nix-daemon and gpg-agent channels here rather than in a
-  second guest. They need `agent-vm.enable = true` on the host (see
+  The nix-daemon and gpg-agent channels live here rather than in a second
+  guest. They need `agent-vm.enable = true` on the host (see
   `modules/mechanisms/libagents/vm-host.nix`); without it the guest boots
   normally and both proxies just fail to connect.
 
-  Phase 6 added the harness state directories as read-write shares. Those
-  come from the host and are not created by this configuration, so building
+  The harness state directories are read-write shares. They come from the host
+  and are not created by this configuration, so building
   it on a machine that lacks them is fine but *running* it there is not:
   virtiofsd refuses a source directory that does not exist. On a host with
   `agent-vm.enable`, systemd-tmpfiles has already made them.
@@ -43,7 +43,7 @@
         ];
         authorizedKeys = [ self.data.vars.sshClientPublicKeys.apc ];
 
-        # Phase 6: the same state directories the declared VM gets on `apc`,
+        # The same state directories the declared VM gets on `apc`,
         # so the shared-config acceptance checks can be run against the
         # throwaway guest instead of the deployed one. Named through
         # `flake.lib.agents` — the smoke test is a caller, and callers are
@@ -56,7 +56,7 @@
         ];
         guestEnvironment = self.lib.agents.environmentFor "/home/user";
 
-        # Phase 5: both channels, so the smoke test stays the one guest
+        # Both channels, so the smoke test stays the one guest
         # everything is verified against. The host end of these lives on the
         # host configuration (`flake.modules.nixos.agent-vm`), so this VM's
         # channels only work on a host that has that module enabled.

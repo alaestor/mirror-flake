@@ -272,8 +272,7 @@
           ]
           ++ cliTools;
           # `box`/`nobox` are gone: `cc-native` never sandboxes at all, and
-          # running it directly *is* the bypass — see selector-loop.nix and
-          # the handoff on Phase 3's redesign. This is an intentional
+          # running it directly *is* the bypass. This is an intentional
           # behavior change from the pre-split wrapper.
           nativeText = ''
             ${environmentBlock}
@@ -284,7 +283,7 @@
             #
             # Resolved against the *runtime* $HOME, not baked in as a literal
             # path: `cc` execs this same `nativeText` over ssh inside the
-            # agent VM guest (Phase 8), whose user shares `hostUser`'s name
+            # agent VM guest, whose user shares `hostUser`'s name
             # and home path (`vm.nix`) — so `$HOME` happens to already agree
             # with the host today, but staying dynamic is what keeps that
             # true if it ever doesn't, rather than baking in an assumption

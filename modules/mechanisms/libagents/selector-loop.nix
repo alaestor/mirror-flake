@@ -29,14 +29,7 @@
     phase). `native` is no longer a selector word: running `<name>-native`
     directly *is* the bypass, so there is no runtime `sandbox` flag to
     thread through one script and no collision surface to guard with an
-    eval-time assertion (the guide's Phase 3 called for one; it has nothing
-    left to protect under this design — see the handoff for why that
-    requirement was dropped rather than carried forward speculatively).
-
-  Forward-looking Phase 3 pieces from the guide (`stateDirs`, `components`,
-  `needs` fields for the VM layer) are intentionally absent here — Phase 4
-  hasn't clarified what the VM layer needs from a harness declaration yet,
-  and guessing ahead of it risks the wrong shape. Don't add them speculatively.
+    eval-time assertion . The narrower design does not need that assertion..
 */
 { lib, ... }:
 let

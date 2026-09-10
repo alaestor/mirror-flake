@@ -25,13 +25,13 @@ in
   agent-vm = {
     enable = true;
     # Same two roots `claude-code.nix`'s bubblewrap sandbox has always
-    # allowed (`sandboxWritableRoots`) — Phase 8 (`cc`/`ccs` onto
+    # allowed (`sandboxWritableRoots`): `cc`/`ccs` run through
     # `agent-vm-session`) needs the guest to be able to see whatever the
     # caller's `$PWD` is, and unlike bubblewrap's per-invocation bind mounts,
     # virtiofs shares are fixed at boot, so this has to name the trees up
     # front rather than pick them dynamically. Deliberately not "wherever
-    # the caller happens to be" — see the Phase 8 handoff for why arbitrary
-    # per-session mounts were ruled out.
+    # the caller happens to be": arbitrary per-session mounts would widen
+    # the guest boundary after boot.
     projectRoots = agents.sandboxWritableRootsFor home;
     stateDirs = agents.stateDirsFor home [
       "claude"
@@ -47,7 +47,7 @@ in
     # codex, so it is the one that contributes the file. Same reasoning as
     # `stateDirs` above.
     guestEtc."codex/config.toml" = agents.codexHookConfig pkgs;
-    # `agent-vm-session` (Phase 7) ssh's from this host into its own guest,
+    # `agent-vm-session` ssh's from this host into its own guest,
     # so the identity it needs is apc's own SSH client identity — the same
     # one `vm-smoke-test.nix` authorizes, and for the same reason. Without
     # this the guest has zero authorized keys and every login is refused

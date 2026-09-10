@@ -12,7 +12,7 @@
   never declare a VM of their own: several harnesses are meant to share one
   guest, so a second declaration is either an outright conflict or an
   accidental merge, and anything that refcounts sessions over the instance
-  (Phase 7) becomes meaningless. Harnesses contribute the facts that are
+  becomes meaningless. Harnesses contribute the facts that are
   theirs — `projectRoots` and `stateDirs` — and may raise `enable` as an
   `mkDefault`. `hostUser`, `uid`, `vcpu`, `mem` and the vsock
   CID are platform policy: this module's defaults, the host's to override, and
@@ -29,8 +29,8 @@
     that is deliberately *not* in `nix.settings.trusted-users`. The host
     daemon authenticates by peer credentials, so whatever uid this proxy runs
     as is the identity the whole guest gets: run it as root and the guest can
-    ask the host to substitute from any binary cache it likes, which the guide
-    is emphatic must be refused. Untrusted is not read-only: an untrusted
+    ask the host to substitute from any binary cache it likes, which must be
+    refused. Untrusted is not read-only: an untrusted
     client may still build derivations and add paths, which is the whole
     point — it just cannot tell the daemon *where to trust content from*.
     The account must appear in `allowed-users`, which an assertion checks
@@ -45,7 +45,7 @@
     sees a connection refused. That is the honest failure — a signature needs
     the human at the machine anyway.
 
-  ## Lifecycle (Phase 7)
+  ## Lifecycle
 
   The VM starts on demand and stops once nothing needs it. `agent-vm-session`
   (`environment.systemPackages`) is the one entry point: `agent-vm-session --
@@ -54,9 +54,8 @@
   that script's doc comment (next to `mkSessionScript` above) for why a scope
   needs no explicit release step, what `agent-vm-linger-hold.service` is for,
   and the two traps in microvm.nix's generated unit (`Restart = "always"`,
-  `StopWhenUnneeded`'s lack of a grace period) that shaped it. Not yet called
-  by any harness wrapper — that wiring is Phase 8's cutover, not this
-  module's.
+  `StopWhenUnneeded`'s lack of a grace period) that shaped it. Harness
+  wrappers call this entry point to enter the guest.
 
   `agent-vm-stop` (`mkStopScript`, next to `mkSessionScript`) is the manual
   counterpart: drops the linger-hold reference immediately rather than
@@ -84,11 +83,11 @@
   `packages.agent-vm-run` exists to solve stops being the deployment path
   (`agent-vm-run` stays a dev tool for throwaway guests like the smoke test).
   Those daemons run as root, which is what makes store paths appear correctly
-  owned inside the guest. And it gives Phase 7 exactly one unit to hang
-  session refcounting off.
+  owned inside the guest. It gives session refcounting exactly one unit to
+  hang off.
 
   `autostart` defaults to **false**: enabling this module should cost a build,
-  not a permanently running VM. Phase 7 decides when the guest actually runs.
+  not a permanently running VM. Sessions decide when the guest actually runs.
 
   `boot.kernelModules` and the udev rule exist because a guest with a channel
   has `microvm.vsock.cid` set, so QEMU opens `/dev/vhost-vsock`; without the
@@ -260,7 +259,7 @@
             # ssh does not retry a refused connection, and a cold boot can
             # easily take longer than one attempt — poll instead. No
             # fallback to a native session on timeout: silently degrading
-            # isolation is the one thing Phase 7 explicitly forbids.
+            # isolation must never silently degrade.
             ready=0
             for _ in $(seq 1 60); do
               if (exec 3<>"/dev/tcp/127.0.0.1/${toString cfg.sshHostPort}") 2>/dev/null; then
@@ -532,7 +531,7 @@
           default = false;
           description = ''
             Start the guest at boot. Off by default: the VM is a tool for
-            sessions, and Phase 7 gives it a lifecycle of its own.
+            sessions, which manage its lifecycle.
           '';
         };
 
@@ -668,7 +667,7 @@
               mode = "0400";
             };
 
-            # Phase 7. Instance-specific config for the *particular*
+            # Instance-specific config for the *particular*
             # `microvm@<name>.service` this module declares, not the
             # `microvm@.service` template — NixOS's systemd module merges a
             # `"unit@instance"` definition as that instance's own drop-in, so

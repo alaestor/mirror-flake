@@ -1,7 +1,7 @@
 /**
   # flake.lib.agents.vmChannels
 
-  The constants both halves of a Phase 5 channel have to agree on, in one
+  The constants both halves of a channel have to agree on, in one
   place so the guest (`vm.nix`) and the host (`vm-host.nix`) can never drift
   apart. Nothing here evaluates to a module; it is a plain lookup table plus
   the CID derivation.

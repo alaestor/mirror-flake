@@ -33,8 +33,7 @@
       # Codex previously ran its own, slightly drifted RTK prose and lacked
       # the headroom-shaping paragraph entirely; both now come from the
       # shared fragments verbatim (claude-code.nix's wording), which is the
-      # one intentional behaviour change in this move — see the implementation
-      # guide, Phase 1.
+      # one intentional behaviour change in this move.
       preprompt =
         agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
 
