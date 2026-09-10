@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 # Writing a Handoff
 
-Write a local handoff to `.claude/handoff.md` in one pass, overwriting if it exists.
+Write a local handoff to `.agents/handoff.md` in one pass, overwriting if it exists.
 
 These guidelines are to help you strategize; they aren't hard and fast rules, or mandatory section headers.
 
