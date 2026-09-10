@@ -1,12 +1,10 @@
 /**
   # flake.lib.agents.{mkSelectorLoop, mkHarnessWrappers}
 
-  Implemented per the deviation recorded in `.claude/handoff-472dce40.md`:
-  an earlier design's literal "harness factory" (model/effort as reserved
-  cross-harness words,
-  `native` as a selector) was replaced with this narrower design after
-  discussion. What genuinely generalizes across `cc`/`ccs`/`cx`/`cxs` turned
-  out to be smaller than the guide scoped it: harnesses keep their own
+  An earlier design's literal "harness factory" (model/effort as reserved
+  cross-harness words, `native` as a selector) was replaced with this
+  narrower design. What genuinely generalizes across `cc`/`ccs`/`cx`/`cxs`
+  turned out to be smaller than first scoped: harnesses keep their own
   selector vocabulary (`haiku|sonnet|opus` vs `luna|terra|sol`, `--effort` vs
   `-c model_reasoning_effort=`, ...) as their own case arms, handed to this
   factory as literal bash text — not a declarative selector DSL, which would
