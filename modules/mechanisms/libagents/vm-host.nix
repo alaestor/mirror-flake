@@ -122,8 +122,7 @@
       # have to constrain what a guest may be named.
       guestKeyName = lib.replaceStrings [ "-" ] [ "" ] cfg.name;
       hostKeySecret = self.secrets.sshHostVm guestKeyName;
-      committedHostPublicKey =
-        self.data.vars.identities.ssh-host-vm.${guestKeyName} or null;
+      committedHostPublicKey = self.data.vars.identities.ssh-host-vm.${guestKeyName} or null;
 
       # Mirrors the guest side in `vm.nix`: systemd accepts the connection and
       # socat is only responsible for the other end of it.
@@ -444,6 +443,22 @@
           '';
         };
 
+        localStateDirs = lib.mkOption {
+          type = lib.types.listOf (
+            lib.types.submodule {
+              options = {
+                path = lib.mkOption { type = lib.types.str; };
+                size = lib.mkOption { type = lib.types.ints.positive; };
+              };
+            }
+          );
+          default = [ ];
+          description = ''
+            Guest-local durable directories backed by block volumes. Use these
+            for state, such as SQLite WAL databases, that is unsafe on virtiofs.
+          '';
+        };
+
         guestEnvironment = lib.mkOption {
           type = lib.types.attrsOf lib.types.str;
           default = { };
@@ -598,6 +613,7 @@
                   uid
                   projectRoots
                   stateDirs
+                  localStateDirs
                   guestEnvironment
                   authorizedKeys
                   vcpu

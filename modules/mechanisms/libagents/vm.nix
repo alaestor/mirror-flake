@@ -1,104 +1,105 @@
 /**
-  # flake.lib.agents.mkAgentVm
+    # flake.lib.agents.mkAgentVm
 
-  The VM layer. Must never mention `~/.claude`, headroom, or a model name — that's
-  the harness layer's job (`libagents.nix`, `selector-loop.nix`). This layer
-  only knows about shares, networking, channels, and the guest's own NixOS
-  configuration; it must never be handed a harness's prompt text or tool
-  list.
+    The VM layer. Must never mention `~/.claude`, headroom, or a model name — that's
+    the harness layer's job (`libagents.nix`, `selector-loop.nix`). This layer
+    only knows about shares, networking, channels, and the guest's own NixOS
+    configuration; it must never be handed a harness's prompt text or tool
+    list.
 
-  `mkAgentVm { name, hostUser, projectRoots, uid ? null, authorizedKeys ? [],
-  vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {}, channels ? {},
-  lifecycle ? {} }`
-  returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
-  entry — the caller decides how to instantiate it, matching how every other
-  module in this flake stays a value rather than wiring itself in).
+    `mkAgentVm { name, hostUser, projectRoots, uid ? null, authorizedKeys ? [],
+    vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {}, channels ? {},
+    lifecycle ? {} }`
+    returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
+    entry — the caller decides how to instantiate it, matching how every other
+    module in this flake stays a value rather than wiring itself in).
 
-  **Shares and identity (Phase 4).** Store share (read-only virtiofs + a
-  tmpfs-backed writable overlay, so the guide's "known failure mode" —
-  overlayfs upper dir on virtiofs/9p — never applies here, since the
-  overlay's upper directory lives on the guest's own root instead of a
-  share), one virtiofs share per `projectRoots` entry mounted at the
-  **identical host path**, SSH reachable via a forwarded port over QEMU user
-  networking, and a guest user whose **name and home path** match `hostUser`.
+    **Shares and identity (Phase 4).** Store share (read-only virtiofs + a
+    tmpfs-backed writable overlay, so the guide's "known failure mode" —
+    overlayfs upper dir on virtiofs/9p — never applies here, since the
+    overlay's upper directory lives on the guest's own root instead of a
+    share), one virtiofs share per `projectRoots` entry mounted at the
+    **identical host path**, SSH reachable via a forwarded port over QEMU user
+    networking, and a guest user whose **name and home path** match `hostUser`.
 
-  **Channels (Phase 5).** `channels` is the seam the harness layer eventually
-  declares through: it says *what capability the guest needs*, and this
-  function decides that the capability is a vsock proxy. Each channel is a
-  unix socket in the guest, socket-activated per connection, forwarded to a
-  listener on the host (`vm-host.nix`); the constants both ends share live in
-  `vm-channels.nix`.
+    **Channels (Phase 5).** `channels` is the seam the harness layer eventually
+    declares through: it says *what capability the guest needs*, and this
+    function decides that the capability is a vsock proxy. Each channel is a
+    unix socket in the guest, socket-activated per connection, forwarded to a
+    listener on the host (`vm-host.nix`); the constants both ends share live in
+    `vm-channels.nix`.
 
-  ```nix
-  channels = {
-    nixDaemon.enable = true;
-    gpgAgent = {
-      enable = true;
-      certificates = [ "<armored public key>" ];
-      ultimatelyTrusted = [ "<fingerprint>" ];
+    ```nix
+    channels = {
+      nixDaemon.enable = true;
+      gpgAgent = {
+        enable = true;
+        certificates = [ "<armored public key>" ];
+        ultimatelyTrusted = [ "<fingerprint>" ];
+      };
     };
-  };
-  ```
+    ```
 
-  - `nixDaemon` replaces the guest's own `nix-daemon` with a proxy onto the
-    **host's** daemon, so a build in the guest lands in the host store and is
-    already there when the guest is gone. The guest's local daemon is
-    disabled outright rather than left running on another path: two daemons
-    over one store is how you corrupt a database, and a fallback that
-    silently builds locally would hide a broken channel behind a slow build.
-    `NIX_REMOTE=daemon` is set explicitly because nix's own heuristic
-    ("is the store writable?") sees a read-only `/nix/store` share and a
-    writable overlay and is not worth trusting to guess right.
-  - `gpgAgent` forwards the **restricted** agent socket. The guest gets the
-    public keyring built from the certificates passed in — never copied out
-    of anyone's `$HOME` — so `git commit -S` finds the key, while the private
-    key stays on the host's smartcard and every signature needs whatever the
-    host's agent asks for (a touch, a PIN). `certificates` and
-    `ultimatelyTrusted` are parameters rather than a reach into
-    `self.data.identities` so this layer keeps knowing nothing about who its
-    caller is; the host module supplies the defaults.
+    - `nixDaemon` replaces the guest's own `nix-daemon` with a proxy onto the
+      **host's** daemon, so a build in the guest lands in the host store and is
+      already there when the guest is gone. The guest's local daemon is
+      disabled outright rather than left running on another path: two daemons
+      over one store is how you corrupt a database, and a fallback that
+      silently builds locally would hide a broken channel behind a slow build.
+      `NIX_REMOTE=daemon` is set explicitly because nix's own heuristic
+      ("is the store writable?") sees a read-only `/nix/store` share and a
+      writable overlay and is not worth trusting to guess right.
+    - `gpgAgent` forwards the **restricted** agent socket. The guest gets the
+      public keyring built from the certificates passed in — never copied out
+      of anyone's `$HOME` — so `git commit -S` finds the key, while the private
+      key stays on the host's smartcard and every signature needs whatever the
+      host's agent asks for (a touch, a PIN). `certificates` and
+      `ultimatelyTrusted` are parameters rather than a reach into
+      `self.data.identities` so this layer keeps knowing nothing about who its
+      caller is; the host module supplies the defaults.
 
-  Enabling any channel sets `microvm.vsock.cid` (derived from `name`, so it
-  is stable and unique without a registry), which makes QEMU want
-  `/dev/vhost-vsock` — see `vm-host.nix` for the host-side permissions that
-  need.
+    Enabling any channel sets `microvm.vsock.cid` (derived from `name`, so it
+    is stable and unique without a registry), which makes QEMU want
+    `/dev/vhost-vsock` — see `vm-host.nix` for the host-side permissions that
+    need.
 
-  **State directories (Phase 6).** `stateDirs` is a list of host directories
-  shared read-write at the identical path, exactly like `projectRoots` — the
-  distinction is entirely in who contributes them and why, not in what this
-  function does with them, so they are kept as two lists rather than merged
-  into one. They carry the agent's memory, sessions and credentials across
-  guest restarts.
+    **State directories (Phase 6).** `stateDirs` is a list of host directories
+    shared read-write at the identical path, exactly like `projectRoots` — the
+    distinction is entirely in who contributes them and why, not in what this
+    function does with them, so they are kept as two lists rather than merged
+    into one. They carry the agent's memory, sessions and credentials across
+  guest restarts. `localStateDirs` instead creates persistent guest block volumes
+  for state, such as SQLite WAL databases, that cannot safely use virtiofs.
 
-  This function must never *name* one of those directories: which state a
-  harness keeps, and where, is the harness layer's fact
-  (`flake.lib.agents.stateDirs`). Same for `guestEnvironment`, an opaque
-  attrset of `name = value` pairs written into the guest's
-  `environment.variables`; the host passes `CLAUDE_CONFIG_DIR` through it
-  without this layer learning what claude is.
+    This function must never *name* one of those directories: which state a
+    harness keeps, and where, is the harness layer's fact
+    (`flake.lib.agents.stateDirs`). Same for `guestEnvironment`, an opaque
+    attrset of `name = value` pairs written into the guest's
+    `environment.variables`; the host passes `CLAUDE_CONFIG_DIR` through it
+    without this layer learning what claude is.
 
-  The guest runs **no Home Manager**, and that is load-bearing rather than
-  incidental: Home Manager symlinks at file granularity, so a guest
-  generation over the same shared `~/.claude` would rename the host
-  generation's `settings.json` out of the way on every boot. The host's
-  generation is the sole manager; the guest gets packages and wrappers only.
+    The guest runs **no Home Manager**, and that is load-bearing rather than
+    incidental: Home Manager symlinks at file granularity, so a guest
+    generation over the same shared `~/.claude` would rename the host
+    generation's `settings.json` out of the way on every boot. The host's
+    generation is the sole manager; the guest gets packages and wrappers only.
 
-  **`lifecycle` stays unwired.** Phase 7 turned out to need nothing from the
-  guest side at all: the VM starts and stops as a host-managed systemd unit
-  (`microvm@<name>.service`), refcounted by host-side transient units the
-  guest never hears about — see `vm-host.nix`'s "Lifecycle (Phase 7)"
-  section. The parameter is kept, still accepting and ignoring whatever is
-  passed, so a caller built against the documented signature doesn't break;
-  nothing currently passes it.
+    **`lifecycle` stays unwired.** Phase 7 turned out to need nothing from the
+    guest side at all: the VM starts and stops as a host-managed systemd unit
+    (`microvm@<name>.service`), refcounted by host-side transient units the
+    guest never hears about — see `vm-host.nix`'s "Lifecycle (Phase 7)"
+    section. The parameter is kept, still accepting and ignoring whatever is
+    passed, so a caller built against the documented signature doesn't break;
+    nothing currently passes it.
 
-  `uid`, if given, is the host user's numeric uid. The default virtiofs
-  `securityModel = "none"` preserves numeric ownership as-is rather than
-  translating it, so a mismatched guest uid makes shared files look
-  wrong-owned from inside the guest even though the bytes are identical;
-  passing it keeps a `touch`'d file's ownership sane on both sides. Leaving
-  it `null` still boots and shares files, just without that cosmetic
-  guarantee — acceptable for this phase's "any VM boots, path identity
-  holds" bar.
+    `uid`, if given, is the host user's numeric uid. The default virtiofs
+    `securityModel = "none"` preserves numeric ownership as-is rather than
+    translating it, so a mismatched guest uid makes shared files look
+    wrong-owned from inside the guest even though the bytes are identical;
+    passing it keeps a `touch`'d file's ownership sane on both sides. Leaving
+    it `null` still boots and shares files, just without that cosmetic
+    guarantee — acceptable for this phase's "any VM boots, path identity
+    holds" bar.
 */
 {
   inputs,
@@ -324,6 +325,7 @@ let
       mem ? 4096,
       sshHostPort ? 2222,
       stateDirs ? [ ],
+      localStateDirs ? [ ],
       guestEnvironment ? { },
       channels ? { },
       lifecycle ? { },
@@ -368,12 +370,12 @@ let
       parentsOf =
         path:
         let
-          go =
-            p:
-            if p == home || p == "/" || p == "." then [ ] else [ p ] ++ go (builtins.dirOf p);
+          go = p: if p == home || p == "/" || p == "." then [ ] else [ p ] ++ go (builtins.dirOf p);
         in
         go (builtins.dirOf path);
       stateDirParents = lib.unique (lib.concatMap parentsOf stateDirs);
+      localStateDirParents = lib.unique (lib.concatMap (entry: parentsOf entry.path) localStateDirs);
+      guestUid = if uid == null then 1000 else uid;
     in
     {
       imports = [
@@ -470,6 +472,17 @@ let
           mountPoint = root;
           proto = "virtiofs";
         }) (projectRoots ++ stateDirs);
+
+        volumes = map (entry: {
+          image = "${tagFor entry.path}.img";
+          mountPoint = entry.path;
+          inherit (entry) size;
+          fsType = "ext4";
+          mkfsExtraArgs = [
+            "-E"
+            "root_owner=${toString guestUid}:100"
+          ];
+        }) localStateDirs;
       };
 
       users.users.${hostUser} = {
@@ -489,7 +502,9 @@ let
       # learns which harness cares. `mkDefault` so a guest-side module (a
       # channel, or a harness wrapper in a later phase) can still override
       # one without a conflict.
-      environment.variables = lib.mapAttrs (_: lib.mkDefault) guestEnvironment;
+      environment.variables = lib.mapAttrs (_: lib.mkDefault) guestEnvironment // {
+        AGENT_VM_GUEST = "1";
+      };
 
       environment.enableAllTerminfo = true;
 
@@ -526,7 +541,7 @@ let
       #   reached by a bootstrap checkout or a throwaway guest (the smoke
       #   test) with no ciphertext to decrypt.
       systemd.tmpfiles.rules =
-        (map (p: "d ${p} 0755 ${hostUser} users - -") stateDirParents)
+        (map (p: "d ${p} 0755 ${hostUser} users - -") (stateDirParents ++ localStateDirParents))
         ++ lib.optionals (!useDeployedHostKey) [
           "C+ /etc/ssh/ssh_host_ed25519_key 0600 root root - ${generatedHostKey.privateKeyPath}"
           "C+ /etc/ssh/ssh_host_ed25519_key.pub 0644 root root - ${generatedHostKey.publicKeyPath}"

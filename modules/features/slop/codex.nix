@@ -35,7 +35,8 @@
       # shared fragments verbatim (claude-code.nix's wording), which is the
       # one intentional behaviour change in this move — see the implementation
       # guide, Phase 1.
-      preprompt = agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
+      preprompt =
+        agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
 
       serena = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
 
@@ -107,20 +108,27 @@
         "openai_base_url=${builtins.toJSON proxyUrl}"
         "developer_instructions=${builtins.toJSON resolvedPrompts.plain.preamble}"
         "mcp_servers.headroom.command=${builtins.toJSON (lib.getExe headroomPackage)}"
-        "mcp_servers.headroom.args=${builtins.toJSON [ "mcp" "serve" ]}"
+        "mcp_servers.headroom.args=${
+          builtins.toJSON [
+            "mcp"
+            "serve"
+          ]
+        }"
       ];
       serenaOverrides = [
         "developer_instructions=${builtins.toJSON resolvedPrompts.serena.preamble}"
         "mcp_servers.serena.startup_timeout_sec=15"
         "mcp_servers.serena.command=${builtins.toJSON (lib.getExe serena)}"
         "mcp_servers.serena.env.SERENA_HOME=${builtins.toJSON serenaHome}"
-        "mcp_servers.serena.args=${builtins.toJSON [
-          "start-mcp-server"
-          "--project-from-cwd"
-          "--context=codex"
-          "--open-web-dashboard"
-          "False"
-        ]}"
+        "mcp_servers.serena.args=${
+          builtins.toJSON [
+            "start-mcp-server"
+            "--project-from-cwd"
+            "--context=codex"
+            "--open-web-dashboard"
+            "False"
+          ]
+        }"
       ];
       mkOverrideArgs =
         values:
@@ -132,18 +140,18 @@
       # Case arms handed to `agents.mkSelectorLoop`; `--cx-help`/`--`/catch-all
       # are the loop's own job, not the harness's — see selector-loop.nix.
       codexCaseArms = ''
-            luna) model="gpt-5.6-luna" ;;
-            terra) model="gpt-5.6-terra" ;;
-            sol) model="gpt-5.6-sol" ;;
-            lo|low) effort="low" ;;
-            med|medium) effort="medium" ;;
-            hi|high) effort="high" ;;
-            xhi|xhigh) effort="xhigh" ;;
-            full) instruction_file="" ;;
-            small) instruction_file=${lib.escapeShellArg (toString instructionFiles.small)} ;;
-            user) reviewer="user"; approval_policy="untrusted"; sandbox_mode="workspace-write" ;;
-            auto) reviewer="auto_review" ;;
-            bypass|yolo) approval_policy="never"; sandbox_mode="danger-full-access" ;;
+        luna) model="gpt-5.6-luna" ;;
+        terra) model="gpt-5.6-terra" ;;
+        sol) model="gpt-5.6-sol" ;;
+        lo|low) effort="low" ;;
+        med|medium) effort="medium" ;;
+        hi|high) effort="high" ;;
+        xhi|xhigh) effort="xhigh" ;;
+        full) instruction_file="" ;;
+        small) instruction_file=${lib.escapeShellArg (toString instructionFiles.small)} ;;
+        user) reviewer="user"; approval_policy="untrusted"; sandbox_mode="workspace-write" ;;
+        auto) reviewer="auto_review" ;;
+        bypass|yolo) approval_policy="never"; sandbox_mode="danger-full-access" ;;
       '';
 
       mkCodexWrapper =
@@ -161,9 +169,27 @@
             # commit` fails; see `gitEnvironmentText` (`libagents.nix`).
             ${agents.gitEnvironmentText config}
 
+            # The sandbox keeps Codex's SQLite state on a persistent local
+            # volume. Recreate only the Home Manager-owned links there.
+            if [[ "''${AGENT_VM_GUEST:-}" == 1 ]]; then
+              ${pkgs.coreutils}/bin/mkdir -p "$HOME/.codex/rules" "$HOME/.codex/skills"
+              ${pkgs.coreutils}/bin/ln -sfn ${lib.escapeShellArg codexConfigFile} "$HOME/.codex/config.toml"
+              ${pkgs.coreutils}/bin/ln -sfn ${lib.escapeShellArg codexContextFile} "$HOME/.codex/AGENTS.md"
+              ${pkgs.coreutils}/bin/ln -sfn ${lib.escapeShellArg (self.data.path "programs/codex/default.rules")} "$HOME/.codex/rules/default.rules"
+              ${lib.concatMapStringsSep "\n" (skillName: ''
+                ${pkgs.coreutils}/bin/ln -sfn ${
+                  lib.escapeShellArg (toString codexSkills.${skillName})
+                } "$HOME/.codex/skills/${skillName}"
+              '') (builtins.attrNames codexSkills)}
+            fi
+
             model=""
             effort=""
-            instruction_file=${lib.escapeShellArg (if cfg.modelInstructionsFile == null then "" else toString cfg.modelInstructionsFile)}
+            instruction_file=${
+              lib.escapeShellArg (
+                if cfg.modelInstructionsFile == null then "" else toString cfg.modelInstructionsFile
+              )
+            }
             reviewer="auto_review"
             approval_policy="never"
             sandbox_mode="danger-full-access"
@@ -272,17 +298,20 @@
         else if builtins.isAttrs value then
           lib.mapAttrs' (
             name: nestedValue:
-            lib.nameValuePair
-              (builtins.replaceStrings [ "/home/user" ] [ config.home.homeDirectory ] name)
-              (normalizeSettingsValue nestedValue)
+            lib.nameValuePair (builtins.replaceStrings [ "/home/user" ] [ config.home.homeDirectory ] name) (
+              normalizeSettingsValue nestedValue
+            )
           ) value
         else
           value;
-      referenceSettings = builtins.removeAttrs (
-        normalizeSettingsValue (builtins.fromTOML (self.data.read "programs/codex/config.toml"))
-      ) [ "model_instructions_file" ];
+      referenceSettings = builtins.removeAttrs (normalizeSettingsValue (
+        builtins.fromTOML (self.data.read "programs/codex/config.toml")
+      )) [ "model_instructions_file" ];
       defaultSettings = lib.mapAttrsRecursive (_: lib.mkDefault) referenceSettings;
       skillsRoot = self.data.path "agents/skills";
+      codexConfigFile = (pkgs.formats.toml { }).generate "codex-config" config.programs.codex.settings;
+      codexContextFile = pkgs.writeText "codex-AGENTS.md" config.programs.codex.context;
+      codexSkills = agents.collectSkills skillsRoot;
     in
     {
       imports = [

@@ -39,6 +39,7 @@ in
       "headroom"
       "serena"
     ];
+    localStateDirs = agents.localStateDirsFor home [ "codex" ];
     guestEnvironment = agents.environmentFor home;
     # `agent-vm-session` (Phase 7) ssh's from this host into its own guest,
     # so the identity it needs is apc's own SSH client identity — the same
@@ -175,9 +176,11 @@ in
     shell = pkgs.bashInteractive;
     description = "Trusted remote-build account for noblesse";
     openssh.authorizedKeys.keys = [
-      ("command=\"${config.nix.package}/bin/nix-store --serve --write\","
+      (
+        "command=\"${config.nix.package}/bin/nix-store --serve --write\","
         + "restrict "
-        + inputs.self.data.vars.sshClientPublicKeys.noblesse)
+        + inputs.self.data.vars.sshClientPublicKeys.noblesse
+      )
     ];
   };
   users.groups.${remoteBuildUser} = { };

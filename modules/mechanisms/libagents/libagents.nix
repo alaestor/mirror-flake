@@ -41,7 +41,12 @@
     flags — because `--append-system-prompt`-style options do not
     accumulate across repeated invocations.
 */
-{ lib, self, inputs, ... }:
+{
+  lib,
+  self,
+  inputs,
+  ...
+}:
 let
   # Claude Code's own Bash tool exports a `find` shell function into every
   # subprocess it spawns (visible via `declare -f find` inside a session) that
@@ -288,10 +293,7 @@ let
     # `.serena-cxs` is codex's own serena instance, pinned there by
     # `SERENA_HOME` in `modules/features/codex.nix`; it belongs to codex
     # rather than to the shared serena component below.
-    codex = [
-      ".codex"
-      ".serena-cxs"
-    ];
+    codex = [ ".serena-cxs" ];
     headroom = [ ".headroom" ];
     # serena's default `SERENA_HOME`, which is what headroom's
     # `--code-memory serena` (the `ccs` wrapper) ends up using.
@@ -301,6 +303,23 @@ let
   stateDirsFor =
     home: names:
     map (directory: "${home}/${directory}") (lib.concatMap (name: stateDirs.${name}) names);
+
+  # SQLite WAL state must stay on a filesystem local to the guest rather than
+  # a virtiofs share. Each entry becomes a persistent block volume.
+  localStateDirs = {
+    codex = [
+      {
+        directory = ".codex";
+        size = 4096;
+      }
+    ];
+  };
+
+  localStateDirsFor =
+    home: names:
+    map (
+      entry: builtins.removeAttrs entry [ "directory" ] // { path = "${home}/${entry.directory}"; }
+    ) (lib.concatMap (name: localStateDirs.${name} or [ ]) names);
 
   # Set on the host *and* in the guest, to the same value, or the two
   # disagree about where state lives and each writes a config the other
@@ -431,6 +450,8 @@ in
       mkPrompt
       stateDirs
       stateDirsFor
+      localStateDirs
+      localStateDirsFor
       environmentFor
       gitConfigGlobalFor
       gitEnvironmentText

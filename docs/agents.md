@@ -68,16 +68,23 @@ makes a store path, a `result` symlink, a `gcroot`, or an error message mean the
 same thing on both sides, and it is why a session can be handed a host-built
 wrapper by store path and simply execute it.
 
-Two contribution points, kept separate because they answer different questions:
+Three contribution points, kept separate because they answer different questions:
 
 - `projectRoots`: what the agent may work on. Fixed at guest boot; a session
   outside them is refused rather than the boundary widening to fit.
 - `stateDirs`: what must outlive the guest: sessions, memories, caches,
   credentials.
+- `localStateDirs`: durable state that must remain on a guest-local filesystem,
+  such as SQLite WAL databases that must not be placed on virtiofs.
 
-Anything not shared is ephemeral. The guest's root filesystem is tmpfs, so a
-home directory, shell history, or configuration file that no share covers is
-gone at shutdown.
+Anything neither shared nor backed by a local-state volume is ephemeral. The
+guest's root filesystem is tmpfs, so a home directory, shell history, or
+configuration file that neither mechanism covers is gone at shutdown.
+
+Codex's `~/.codex` is a local-state volume. The sandbox wrapper recreates its
+declarative Home Manager links on entry, while sessions, credentials, and
+SQLite databases remain together on that volume. Host-native Codex keeps using
+the host's ordinary `~/.codex`; the two stores are intentionally independent.
 
 The ownership rule: the guest runs no Home Manager. Home Manager symlinks at
 file granularity, so a second generation over a shared directory renames the
