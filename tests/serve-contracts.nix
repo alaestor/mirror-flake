@@ -9,6 +9,17 @@ let
   harness = import ./lib/serve-contract.nix { inherit inputs system; };
   nixos = inputs.self.modules.nixos;
 
+  # A service whose data root can sit on a network share must order itself
+  # against that mount, or shutdown tries to unmount the share out from under
+  # a service still holding files open on it.
+  mountOrdering =
+    unit: getPath: config: {
+      assertion = lib.elem (getPath config) (
+        lib.attrByPath [ "systemd" "services" unit "unitConfig" "RequiresMountsFor" ] [ ] config
+      );
+      message = "${unit} does not require the mount holding its data root";
+    };
+
   cases = [
     {
       name = "caddy";
@@ -27,12 +38,18 @@ let
       name = "filebrowser";
       module = nixos.serve-filebrowser;
       activationPaths = [ [ "services" "filebrowser" "enable" ] ];
+      enabledAssertions = [
+        (mountOrdering "filebrowser" (config: config.serve.filebrowser.root))
+      ];
     }
     {
       name = "forgejo";
       module = nixos.serve-forgejo;
       activationPaths = [ [ "services" "forgejo" "enable" ] ];
       enabledConfig.domain = "git.example.test";
+      enabledAssertions = [
+        (mountOrdering "forgejo" (config: config.serve.forgejo.dataRoot))
+      ];
     }
     {
       name = "headscale";
@@ -52,6 +69,9 @@ let
       name = "jellyfin";
       module = nixos.serve-jellyfin;
       activationPaths = [ [ "services" "jellyfin" "enable" ] ];
+      enabledAssertions = [
+        (mountOrdering "jellyfin" (config: config.serve.jellyfin.libraryBuilder.source))
+      ];
     }
     {
       name = "matrix";
@@ -86,6 +106,9 @@ let
       name = "torrenting";
       module = nixos.serve-torrenting;
       activationPaths = [ [ "services" "qbittorrent" "enable" ] ];
+      enabledAssertions = [
+        (mountOrdering "qbittorrent" (config: config.serve.torrenting.downloadPath))
+      ];
     }
   ];
 

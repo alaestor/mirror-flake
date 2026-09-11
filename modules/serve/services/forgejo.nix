@@ -127,9 +127,11 @@
         };
 
         # TODO(serve): maybe this workaround and option defaults should be lanser config?
-        # dataRoot may live on a lazily-mounted network share (see `nas.services`).
-        # Upstream's `systemd.tmpfiles.rules` run early in boot before mount without
-        # any explicit dependency, and errors since the path doesn't exist yet
+        # `dataRoot` may live on a network share. Upstream's
+        # `systemd.tmpfiles.rules` run early in boot with no dependency on it and
+        # error out because the path doesn't exist yet; this also gives the
+        # stop ordering that keeps shutdown from unmounting the share while
+        # Forgejo still holds its SQLite database and git objects open.
         systemd.services = lib.genAttrs [
           "systemd-tmpfiles-setup"
           "forgejo-secrets"

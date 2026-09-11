@@ -1,11 +1,22 @@
 /**
   Provides optional NFS mounts for the Cauldron, Vault, Pocket, and Services
   NAS shares. Each share can be enabled independently and mounted read-only.
+
+  Enabled shares stay mounted for the life of the boot. Services that read or
+  write one are expected to declare `RequiresMountsFor` against their data
+  root, which both waits for the share and, more importantly, stops them
+  before it is unmounted.
 */
 { self, ... }:
 {
   flake.modules.nixos.nas =
-    { config, lib, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      utils,
+      ...
+    }:
     let
       cfg = config.nas;
 
@@ -28,16 +39,6 @@
             default = device;
             description = "Remote NFS export path for the ${name} NAS share.";
           };
-          idleTimeoutSec = lib.mkOption {
-            type = lib.types.nullOr lib.types.ints.unsigned;
-            default = 600;
-            description = ''
-              Seconds of inactivity before the automount unmounts the
-              ${name} share. Set to `null` to keep it mounted indefinitely
-              once triggered, e.g. for services that need it available on
-              short notice and can't tolerate remount cycles.
-            '';
-          };
         };
 
       shares = [
@@ -47,6 +48,10 @@
         cfg.services
       ];
 
+      enabledShares = lib.filter (share: share.enable) shares;
+      mountpoints = map (share: share.mountpoint) enabledShares;
+      mountUnits = map (mountpoint: "${utils.escapeSystemdPath mountpoint}.mount") mountpoints;
+
       mkFileSystem =
         optionName:
         lib.mkIf cfg.${optionName}.enable {
@@ -55,27 +60,23 @@
             fsType = "nfs";
             options = [
               "nfsvers=4.2"
-              "x-systemd.automount"
-              "noauto"
               "noatime"
-              # Avoid indefinite hangs on shutdown/suspend if the NAS is
-              # slow or unreachable: fail fast instead of retrying forever,
-              # and auto-unmount when idle so it's rarely mounted at all.
-              #
-              # `timeo=30`/`retrans=2` used to live here to shorten that
-              # failure window (3s), but it was a workaround for shutdowns
-              # not releasing the mount cleanly in the first place, and its
-              # side effect was a kernel log line every few seconds for the
-              # whole span of any NAS outage. Removed pending an actual
-              # diagnosis of why shutdown hangs on this mount; NFS's default
-              # timeo (600 deciseconds/60s) applies until then.
-              "soft"
+              # Services that consume a share order themselves against its
+              # mount unit, so the share is mounted for the whole time anything
+              # needs it. `nofail` keeps an unreachable NAS from failing the
+              # boot; only the consumers of that share degrade.
+              "_netdev"
+              "nofail"
+              # `hard` so a transient NAS outage suspends I/O instead of
+              # returning errors into live writers: these shares carry
+              # torrent data and service state that `soft` can corrupt
+              # silently. Shutdown hangs, the historical reason for `soft`,
+              # are handled by stop ordering and `nas-detach` below rather
+              # than by letting I/O fail.
+              "hard"
               "x-systemd.mount-timeout=15s"
             ]
-            ++ lib.optional cfg.${optionName}.readonly "ro"
-            ++ lib.optional (
-              cfg.${optionName}.idleTimeoutSec != null
-            ) "x-systemd.idle-timeout=${toString cfg.${optionName}.idleTimeoutSec}";
+            ++ lib.optional cfg.${optionName}.readonly "ro";
           };
         };
     in
@@ -96,7 +97,7 @@
         services = shareOptions "Services" "${cfg.server}:/mnt/Vault/Storage/services";
       };
 
-      config = lib.mkIf (lib.any (share: share.enable) shares) {
+      config = lib.mkIf (enabledShares != [ ]) {
         boot = {
           supportedFilesystems.nfs = true;
           kernelModules = [
@@ -111,6 +112,35 @@
           (mkFileSystem "pocket")
           (mkFileSystem "services")
         ];
+
+        # A share can still be busy when systemd tries to unmount it: an
+        # interactive shell may sit with its working directory inside one, and
+        # no unit ordering can describe that. An ordinary unmount then fails,
+        # the mount unit burns its stop timeout, and whatever is left mounted
+        # is retried in the late shutdown phase, after the network is gone,
+        # where an NFS unmount has no way to complete.
+        #
+        # Detaching lazily removes that whole class of hang: the mount is
+        # detached from the tree immediately, while the NAS is still
+        # reachable, no matter who holds it open. Starting after the mounts
+        # means stopping before them, which is the ordering that matters.
+        systemd.services.nas-detach = {
+          description = "Detach NAS mounts before shutdown";
+          wantedBy = [ "multi-user.target" ];
+          after = mountUnits;
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            ExecStart = "${pkgs.coreutils}/bin/true";
+            ExecStop = pkgs.writeShellScript "nas-detach" ''
+              for mountpoint in ${lib.escapeShellArgs mountpoints}; do
+                if ${pkgs.util-linux}/bin/mountpoint -q "$mountpoint"; then
+                  ${pkgs.util-linux}/bin/umount --lazy --force "$mountpoint" || true
+                fi
+              done
+            '';
+          };
+        };
 
         userEnvironment.sharedModules = lib.optional cfg.vault.enable (
           { lib, ... }:

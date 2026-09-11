@@ -48,15 +48,10 @@
           };
         };
 
-        # `root` typically lives on an NFS automount (see the `nas` module)
-        # that idle-unmounts and drags this service down with it via the
-        # generated RequiresMountsFor. Filebrowser exits cleanly (status 0)
-        # when that happens, so only Restart=on-success (not on-failure)
-        # brings it back once the mount reappears.
-        systemd.services.filebrowser.serviceConfig = {
-          Restart = "on-success";
-          RestartSec = "5s";
-        };
+        # `root` usually lives on a network share. Without this, nothing stops
+        # Filebrowser before that share is unmounted, and the unmount fails
+        # against its open files.
+        systemd.services.filebrowser.unitConfig.RequiresMountsFor = [ cfg.root ];
       };
     };
 }

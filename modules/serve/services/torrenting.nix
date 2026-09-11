@@ -89,9 +89,16 @@
           ];
         };
 
-        systemd.services.qbittorrent.vpnConfinement = {
-          enable = true;
-          vpnNamespace = cfg.namespace;
+        systemd.services.qbittorrent = {
+          vpnConfinement = {
+            enable = true;
+            vpnNamespace = cfg.namespace;
+          };
+
+          # `downloadPath` usually lives on a network share. Without this,
+          # nothing stops qBittorrent before that share is unmounted, and the
+          # unmount fails against its open files.
+          unitConfig.RequiresMountsFor = [ cfg.downloadPath ];
         };
       };
     };
