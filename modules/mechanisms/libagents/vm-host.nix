@@ -220,9 +220,10 @@
             # rather than a QEMU one because its lifetime is the session's:
             # the port exists exactly while something is behind it, and a
             # guest that binds only loopback — the sole binding some servers
-            # accept — is still reachable. The value is an ssh `-L` spec, so
-            # a non-loopback bind address is honoured (`GatewayPorts` below
-            # is set to trust the spec rather than to widen it), and how far
+            # accept — is still reachable. The value is an ssh `-L` spec,
+            # whose explicit bind address ssh honours on its own —
+            # `GatewayPorts` only chooses the default bind for specs that
+            # omit one, so it is deliberately left unset here — and how far
             # that reaches is the host's firewall policy to decide.
             forwards=()
             while [[ $# -gt 0 ]]; do
@@ -321,7 +322,6 @@
               -- ssh -tA -p ${toString cfg.sshHostPort} \
                    -o UserKnownHostsFile=${knownHosts} \
                    -o StrictHostKeyChecking=yes \
-                   -o GatewayPorts=clientspecified \
                    -o ExitOnForwardFailure=yes \
                    ''${forwards[@]+"''${forwards[@]}"} \
                    ${cfg.hostUser}@localhost -- "$remote_cmd"
