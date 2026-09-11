@@ -15,6 +15,7 @@
         case "$1" in
           s.*) printf '%s#%s' '${inputs.stable-nixpkgs}' "''${1#s.}" ;;
           u.*) printf '%s#%s' '${inputs.unstable-nixpkgs}' "''${1#u.}" ;;
+          a.*) printf '%s#%s' '${inputs.alpkgs}' "''${1#a.}" ;;
           *) printf '%s#%s' '${inputs.self}' "$1" ;;
         esac
       }
