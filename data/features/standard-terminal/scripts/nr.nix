@@ -11,10 +11,35 @@
     name = "nr";
     runtimeInputs = [ pkgs.nix ];
     text = ''
+      usage() {
+        cat <<'EOF'
+Usage: nr <package> [arguments...]
+
+Runs a package without installing it. A prefix on <package> picks the set
+it is resolved from; without one, it comes from this flake.
+
+  s.<package>   stable nixpkgs
+  u.<package>   unstable nixpkgs
+  a.<package>   alpkgs
+  <package>     this flake
+
+Every set is pinned by this flake's lock, so a package is the revision the
+lock names, not whatever upstream is at right now.
+
+Examples:
+  nr u.ffmpeg -i in.mkv out.mp4
+  nr a.minilua --help
+EOF
+      }
+
       if [ "$#" -lt 1 ]; then
-        printf 'Usage: nr <package> [arguments...]\\n' >&2
+        usage >&2
         exit 2
       fi
+
+      case "$1" in
+        -h | --help) usage; exit 0 ;;
+      esac
 
       nix_installable() {
         case "$1" in
