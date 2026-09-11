@@ -35,14 +35,22 @@
     # and systemd-coredump does the same for its coredump directory once
     # MaxUse is exceeded — so hosts still get to keep recent history, just
     # not unboundedly.
-    services.journald.extraConfig = lib.mkDefault ''
-      SystemMaxUse=1G
-    '';
     #
-    # `systemd.coredump.settings` (drop-in-based) replaced `extraConfig` in
-    # newer nixpkgs; `cryptid-nixpkgs` is deliberately pinned old for
-    # reproducibility and only has the latter, so both are wired here rather
-    # than picking one and breaking the other host.
+    # `services.journald.settings` and `systemd.coredump.settings`
+    # (drop-in-based) replaced `extraConfig` in newer nixpkgs;
+    # `cryptid-nixpkgs` is deliberately pinned old for reproducibility and
+    # only has the latter, so both are wired here rather than picking one and
+    # breaking the other host.
+    services.journald =
+      if options.services.journald ? settings then
+        { settings.Journal.SystemMaxUse = lib.mkDefault "1G"; }
+      else
+        {
+          extraConfig = lib.mkDefault ''
+            SystemMaxUse=1G
+          '';
+        };
+
     systemd.coredump =
       if options.systemd.coredump ? settings then
         { settings.Coredump.MaxUse = lib.mkDefault "1G"; }
