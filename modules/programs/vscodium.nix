@@ -59,6 +59,14 @@
               version = "1.32.4";
               sha256 = "sha256-+hyJZinWsa6U+s0fdrx2wUi6tOV3FNKf8O1qMMZEdkQ=";
             }
+            {
+              # github.com/wikibonsai/vscode-tendr, published under the
+              # author's personal marketplace publisher rather than the org's.
+              publisher = "manunamz";
+              name = "vscode-tendr";
+              version = "0.0.9";
+              sha256 = "sha256-E7Wug1pRo4tIBukLMgGy79PSCwYDqACa1Gc9RYiHEW4=";
+            }
           ];
 
           userSettings = {
