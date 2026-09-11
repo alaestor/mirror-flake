@@ -23,6 +23,9 @@
   };
   alpkgs = {
     inputs = {
+      flake-parts = {
+        follows = "flake-parts";
+      };
       nixpkgs = {
         follows = "nixpkgs";
       };
@@ -42,6 +45,14 @@
   };
   cryptid-nixpkgs = {
     url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";
+  };
+  deepseek-harness = {
+    inputs = {
+      nixpkgs = {
+        follows = "nixpkgs";
+      };
+    };
+    url = "github:Moraxyc/deepseek-harness.nix";
   };
   disko = {
     inputs = {

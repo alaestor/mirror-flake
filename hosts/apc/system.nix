@@ -36,6 +36,7 @@ in
     stateDirs = agents.stateDirsFor home [
       "claude"
       "codex"
+      "deepseek"
       "headroom"
       "serena"
     ];

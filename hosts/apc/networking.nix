@@ -56,6 +56,14 @@
         1234 # LM Studio's API (modules/aspects/ai-coding-local.nix), exposed to the LAN on purpose.
         2234 # for soulseek
       ];
+      # `agent-vm.forwardPorts` binds the agent VM's web UI on every address
+      # so it can be reached from a phone; admitting it here and nowhere else
+      # is what confines that to the tailnet. Anything behind this port is an
+      # agent session running without approval prompts, so it must never move
+      # up into `allowedTCPPorts`.
+      interfaces."tailscale0".allowedTCPPorts = [
+        inputs.self.lib.agents.webPorts.deepseek
+      ];
     };
   };
 }

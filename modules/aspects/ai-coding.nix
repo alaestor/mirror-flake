@@ -1,5 +1,6 @@
 /**
-  Bundles the Claude Code and Codex agent modules for a user environment.
+  Bundles the Claude Code, Codex, and DeepSeek Harness agent modules for a
+  user environment.
 */
 { inputs, ... }:
 {
@@ -9,6 +10,7 @@
       imports = with inputs.self.modules.homeManager; [
         claude-code
         codex
+        deepseek-harness
       ];
 
       home.packages = [ pkgs.herdr ];

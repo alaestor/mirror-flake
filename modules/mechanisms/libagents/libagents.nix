@@ -27,6 +27,10 @@
     configuration cannot read back — a standalone `userEnvironment`
     attachment is not evaluated during `nixos-rebuild` at all. A plain table
     in the harness layer is therefore the only place both sides can agree on.
+  - `webPorts` — the TCP port each browser-serving harness listens on. Same
+    table argument as `stateDirs`: the wrapper that binds it and the
+    firewall rule that scopes it live on opposite sides of the Home
+    Manager/NixOS split, and neither can read the other back.
   - `environmentFor` — environment variables that must hold the *same* value
     on the host and inside the guest, for one home directory.
   - `sandboxWritableRootsFor` — the trees in which harness wrappers may start,
@@ -336,6 +340,16 @@ let
     # serena's default `SERENA_HOME`, which is what headroom's
     # `--code-memory serena` (the `ccs` wrapper) ends up using.
     serena = [ ".serena" ];
+    # `DSH_HOME`, which holds dsh's profiles and the plugins installed into
+    # them (`dsh plugin --profile web add ...`), so sharing it is what makes
+    # a plugin added on either side visible to the other. Safe on virtiofs
+    # as shipped: the only SQLite dsh mounts by default is the session query
+    # index at `:memory:` with `openAt: never`. Enabling a durable index or
+    # the SQLite session-persistence backend means also setting that
+    # plugin's `journalMode` to a rollback mode (`truncate`/`persist`), or
+    # moving this to `localStateDirs` — WAL's shared-memory files do not
+    # work over a network mount.
+    deepseek = [ ".dsh" ];
   };
 
   stateDirsFor =
@@ -358,6 +372,15 @@ let
     map (
       entry: builtins.removeAttrs entry [ "directory" ] // { path = "${home}/${entry.directory}"; }
     ) (lib.concatMap (name: localStateDirs.${name} or [ ]) names);
+
+  # The port each browser-serving harness listens on. Kept here for the same
+  # reason as `stateDirs`: the wrapper that binds it is a Home Manager
+  # module, which a `nixos-rebuild` never evaluates, while the firewall rule
+  # deciding who may reach it is a NixOS one — a table both sides read is the
+  # only place they can agree on a number.
+  webPorts = {
+    deepseek = 3080;
+  };
 
   # Set on the host *and* in the guest, to the same value, or the two
   # disagree about where state lives and each writes a config the other
@@ -492,6 +515,7 @@ in
       stateDirsFor
       localStateDirs
       localStateDirsFor
+      webPorts
       environmentFor
       gitConfigGlobalFor
       gitEnvironmentText

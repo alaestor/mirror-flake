@@ -1,4 +1,4 @@
-{ inputs }:
+{ inputs, tailnet }:
 { pkgs, ... }:
 let
   # TODO(pkgs): migrate ffmpeg-hdr
@@ -26,6 +26,15 @@ let
       });
 in
 {
+  # A browser reaching `ds` by this host's tailnet name sends that name as
+  # `Host`, and the web UI's `/api` fence rejects every authority it was not
+  # told about — the page renders and then nothing works. The bind address
+  # is decided by `agent-vm.forwardPorts`, so this list has to name the same
+  # port the firewall admits on `tailscale0`.
+  deepseek-harness.trustedHosts = [
+    "apc.${tailnet.dnsSuffix}:${toString inputs.self.lib.agents.webPorts.deepseek}"
+  ];
+
   ssh-client.identityFiles = [
     "~/.ssh/ssh_sk"
     "~/.ssh/id_ed25519_apc"

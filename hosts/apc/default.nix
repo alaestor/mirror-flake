@@ -15,6 +15,9 @@
 
   homeManager = [
     ./home/plasma.nix
-    (import ./home/user.nix { inherit inputs; })
+    (import ./home/user.nix {
+      inherit inputs;
+      tailnet = fleet.tailnets."0x04cc";
+    })
   ];
 }

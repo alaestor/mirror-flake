@@ -56,7 +56,9 @@
     },
     "alpkgs": {
       "inputs": {
-        "flake-parts": "flake-parts",
+        "flake-parts": [
+          "flake-parts"
+        ],
         "nixpkgs": [
           "nixpkgs"
         ],
@@ -166,6 +168,28 @@
         "type": "github"
       }
     },
+    "deepseek-harness": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "systems": "systems_3"
+      },
+      "locked": {
+        "lastModified": 1789121673,
+        "narHash": "sha256-N6bts0N/Q05kCkB2fv6+KwzdKIjrYjScfdFq6Zpwp4I=",
+        "owner": "Moraxyc",
+        "repo": "deepseek-harness.nix",
+        "rev": "43d5a93e558d6073ca58c5d5f60293ede4c33dc3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Moraxyc",
+        "repo": "deepseek-harness.nix",
+        "type": "github"
+      }
+    },
     "disko": {
       "inputs": {
         "nixpkgs": [
@@ -234,16 +258,16 @@
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
-          "alpkgs",
+          "deepseek-harness",
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1788306937,
-        "narHash": "sha256-lbrI1UYVpFgKSsyrU9oeF7FHfnu8nLD9ja0ou9f2rxk=",
+        "lastModified": 1788450739,
+        "narHash": "sha256-glZLQlzIn1fXH6PazR2iUmTo7kzzyYSshrWhLS9TqCU=",
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "f16b25b8c3d2809b87925d0b76652d7821a75c68",
+        "rev": "31729ca8cbdb4fa927b34e5f4353e6a83f39e993",
         "type": "github"
       },
       "original": {
@@ -729,6 +753,7 @@
         "android-home-manager": "android-home-manager",
         "android-nixpkgs": "android-nixpkgs",
         "cryptid-nixpkgs": "cryptid-nixpkgs",
+        "deepseek-harness": "deepseek-harness",
         "disko": "disko",
         "firefox-extensions-declarative": "firefox-extensions-declarative",
         "flake-parts": "flake-parts_3",
@@ -868,6 +893,21 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "systems_3": {
+      "locked": {
+        "lastModified": 1776166891,
+        "narHash": "sha256-bI8yrEGjrohR5hkQox7UrxDH7XqrYMwI8SL/LrJ1+S8=",
+        "owner": "nix-systems",
+        "repo": "triplet",
+        "rev": "6de7bc09397911ce03636afbcf6118745ab2cda0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "triplet",
         "type": "github"
       }
     },

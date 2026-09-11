@@ -50,7 +50,9 @@
   The VM starts on demand and stops once nothing needs it. `agent-vm-session`
   (`environment.systemPackages`) is the one entry point: `agent-vm-session --
   <command>` starts the guest if it is not already up, waits for its sshd,
-  and runs `<command>` over ssh in a `systemd-run --scope` of its own — see
+  and runs `<command>` over ssh in a `systemd-run --scope` of its own. A
+  leading `--forward <ssh -L spec>` (repeatable) additionally carries a port
+  the guest serves back out to the host for that session's lifetime — see
   that script's doc comment (next to `mkSessionScript` above) for why a scope
   needs no explicit release step, what `agent-vm-linger-hold.service` is for,
   and the two traps in microvm.nix's generated unit (`Restart = "always"`,
@@ -213,8 +215,32 @@
             pkgs.systemd
           ];
           text = ''
+            # `--forward` is for a guest process that serves something the
+            # caller has to reach, such as a browser UI. An ssh forward
+            # rather than a QEMU one because its lifetime is the session's:
+            # the port exists exactly while something is behind it, and a
+            # guest that binds only loopback — the sole binding some servers
+            # accept — is still reachable. The value is an ssh `-L` spec, so
+            # a non-loopback bind address is honoured (`GatewayPorts` below
+            # is set to trust the spec rather than to widen it), and how far
+            # that reaches is the host's firewall policy to decide.
+            forwards=()
+            while [[ $# -gt 0 ]]; do
+              case "$1" in
+                --forward)
+                  if [[ $# -lt 2 ]]; then
+                    echo "agent-vm-session: --forward needs an ssh -L specification" >&2
+                    exit 2
+                  fi
+                  forwards+=( -L "$2" )
+                  shift 2
+                  ;;
+                *) break ;;
+              esac
+            done
+
             if [[ $# -eq 0 ]]; then
-              echo "usage: agent-vm-session -- <command to run inside ${cfg.name}>" >&2
+              echo "usage: agent-vm-session [--forward <bind:port:host:hostport>]... -- <command to run inside ${cfg.name}>" >&2
               exit 2
             fi
 
@@ -295,6 +321,9 @@
               -- ssh -tA -p ${toString cfg.sshHostPort} \
                    -o UserKnownHostsFile=${knownHosts} \
                    -o StrictHostKeyChecking=yes \
+                   -o GatewayPorts=clientspecified \
+                   -o ExitOnForwardFailure=yes \
+                   ''${forwards[@]+"''${forwards[@]}"} \
                    ${cfg.hostUser}@localhost -- "$remote_cmd"
           '';
         };
