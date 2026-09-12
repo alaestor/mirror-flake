@@ -293,7 +293,7 @@ let
   # layer -- are the only ones that run without an interactive `/hooks` trust
   # prompt, and a Nix-managed config is never writable for trust to be
   # recorded into. `[features] hooks` gates managed hooks too, so it must stay
-  # enabled in the user config. See `__reference/codex-hooks-trust/FINDINGS.md`.
+  # enabled in the user config.
   codexHookConfig =
     pkgs:
     let

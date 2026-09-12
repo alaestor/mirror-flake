@@ -26,7 +26,7 @@ Both harnesses speak the same hook protocol -- same payload fields, same
 * Halting. Claude Code honours `{"continue": false}`. Codex ignores it -- the
   turn runs to completion -- and needs `{"decision": "block"}`, which turns the
   tool result into an error carrying the reason and makes the model abandon the
-  sequence. See `__reference/codex-hooks-trust/FINDINGS.md`.
+  sequence.
 
 Claude Code reserves a fixed fraction of the window (observed ~16.5%,
 regardless of how much of the rest is used) as its own auto-compact buffer --
