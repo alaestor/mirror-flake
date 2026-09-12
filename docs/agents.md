@@ -84,6 +84,19 @@ deliberately by the handoff skill: these are recoverables produced under duress.
 The agent chooses the topic slug, so the guard detects completion by mtime
 against the session's own start rather than by a path it computed.
 
+The same script also renders Claude Code's status line, invoked with
+`statusline` instead of a harness name. It is not a hook: the status-line
+payload reports the live context window, so it leads the transcript the hook
+path reads. It counts down to the guard's threshold rather than the harness's
+own compaction point, since the handoff is what actually interrupts the
+session. Keeping it in the guard is deliberate — an indicator that predicts an
+event must share the constant that triggers it, or the two drift apart.
+
+It also reports the plan's 5-hour and weekly quota windows, which the same
+payload carries. Those are absent for API-key, Bedrock, and Vertex auth and
+until a response has carried the quota headers, so the renderer omits whatever
+is missing rather than assuming a shape.
+
 A harness whose vendor CLI only accepts system-level configuration cannot be
 served by the harness feature alone, since the guest runs no Home Manager and a
 standalone Home Manager attachment is not evaluated during a `nixos-rebuild`.

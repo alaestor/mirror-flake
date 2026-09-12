@@ -505,6 +505,15 @@
           # The away recap spends a background model call to restate a session
           # we were present for. Equivalent to `CLAUDE_CODE_ENABLE_AWAY_SUMMARY`.
           awaySummaryEnabled = lib.mkDefault false;
+          # The stock indicator counts down to a compaction that never comes —
+          # `--autocompact 1M` parks it out of reach. This counts down to the
+          # guard's handoff threshold instead, which is what actually
+          # interrupts the session, and reads the live context rather than the
+          # transcript the hooks lag behind.
+          statusLine = {
+            type = "command";
+            command = "${lib.getExe (agents.contextGuard pkgs)} statusline";
+          };
           hooks = {
             # PostToolUse is the only event that fires mid-turn often enough to
             # catch the ceiling before a long turn overruns it.

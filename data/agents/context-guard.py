@@ -4,7 +4,9 @@ Reads a hook payload on stdin and decides whether the session is close enough
 to its context limit to warrant a handoff, or far enough that further work must
 be blocked outright. Dispatches on `hook_event_name`, so one command serves
 every event it is registered for, and on a harness name given as `argv[1]`,
-which selects how the transcript is read and how a turn is halted.
+which selects how the transcript is read and how a turn is halted. `argv[1]`
+may instead be `statusline`, which renders Claude Code's status line from the
+same threshold the guard enforces rather than acting as a hook at all.
 
 Rationale: auto-compaction summarizes for narrative continuity and routinely
 drops the details needed to resume work. This trades that summary for an
@@ -46,6 +48,7 @@ the only way forward rather than a suggestion. That also means dropping the
 one-shot `warned` claim, since a block must fire on every attempt.
 """
 
+import datetime
 import glob
 import json
 import os
@@ -135,6 +138,106 @@ def codex_context(transcript_path):
         if isinstance(usage, dict):
             total = usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
     return total, limit or env_int("CODEX_CONTEXT_LIMIT", DEFAULT_LIMIT)
+
+
+def statusline(payload):
+    """Render the Claude Code status line and exit.
+
+    Not a hook. Claude Code hands a status-line command a payload carrying
+    `context_window`, which is computed from the live conversation rather than
+    the transcript the hook path reads -- so this number leads the one the
+    guard acts on instead of lagging it by a message or two.
+
+    The countdown targets the guard's own threshold rather than the harness's
+    compaction point, because the handoff is what actually interrupts the
+    session. Reaching 0% here is the moment the guard starts asking. Sharing
+    THRESHOLD_FRACTION with the guard is why this lives in the same file: two
+    scripts would drift, and an indicator that disagrees with the event it
+    predicts is worse than none.
+    """
+    window = payload.get("context_window") or {}
+    used = window.get("total_input_tokens") or 0
+    limit = env_int("CC_CONTEXT_LIMIT", window.get("context_window_size") or DEFAULT_LIMIT)
+    threshold = env_int("AGENT_CONTEXT_THRESHOLD", int(limit * THRESHOLD_FRACTION))
+    model = (payload.get("model") or {}).get("display_name") or ""
+
+    if not used or threshold <= 0:
+        print(model, end="")
+        sys.exit(0)
+
+    remaining = max(0, threshold - used) / threshold * 100
+    # Dim until the budget is worth thinking about, then yellow, then red once
+    # the handoff is close enough that starting new work is a bad idea.
+    colour = "32" if remaining > 50 else "33" if remaining > 20 else "31"
+    parts = [
+        f"\033[2m{model}\033[0m",
+        f"\033[2m{used // 1000}k/{threshold // 1000}k\033[0m",
+        f"\033[{colour}m{remaining:.0f}% until handoff\033[0m",
+    ]
+
+    quota = plan_usage(payload)
+    if quota:
+        parts.append(f"\033[2m—\033[0m {quota}")
+
+    print(" ".join(parts), end="")
+    sys.exit(0)
+
+
+def reset_in(stamp):
+    """`resets_at` as a compact duration from now, or None if unusable.
+
+    The status-line payload carries an ISO 8601 timestamp rather than an epoch
+    count. Rendered coarsely on purpose: the point is whether the window turns
+    over before the work does, not the exact minute.
+    """
+    if not stamp:
+        return None
+    try:
+        when = datetime.datetime.fromisoformat(stamp)
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=datetime.timezone.utc)
+    seconds = (when - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+    if seconds <= 0:
+        return None
+    minutes = int(seconds // 60)
+    if minutes < 60:
+        return f"{minutes}m"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours}h{minutes:02d}m"
+    days, hours = divmod(hours, 24)
+    return f"{days}d{hours:02d}h"
+
+
+def plan_usage(payload):
+    """The 5-hour and weekly plan windows, or "" when they do not apply.
+
+    `rate_limits` is null for API-key, Bedrock, and Vertex auth, and absent
+    until a response has carried the quota headers, so every field here is
+    treated as optional. The model-scoped weekly windows the payload can also
+    carry are deliberately ignored: which of them a plan exposes varies, and a
+    status line that changes shape by plan is not worth reading.
+    """
+    limits = payload.get("rate_limits")
+    if not isinstance(limits, dict):
+        return ""
+
+    rendered = []
+    for label, key in (("5h", "five_hour"), ("7d", "seven_day")):
+        window = limits.get(key)
+        if not isinstance(window, dict):
+            continue
+        used = window.get("utilization")
+        if not isinstance(used, (int, float)):
+            continue
+        colour = "32" if used < 50 else "33" if used < 80 else "31"
+        resets = reset_in(window.get("resets_at"))
+        suffix = f" \033[2m{resets}\033[0m" if resets else ""
+        rendered.append(f"\033[2m{label}:\033[0m \033[{colour}m{used:.0f}%\033[0m{suffix}")
+
+    return " \033[2m—\033[0m ".join(rendered)
 
 
 def find_key(entry, key):
@@ -276,14 +379,18 @@ def emit(obj):
 
 
 def main():
-    harness = HARNESSES.get(sys.argv[1] if len(sys.argv) > 1 else "")
-    if harness is None:
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    harness = HARNESSES.get(mode)
+    if harness is None and mode != "statusline":
         sys.exit(0)
 
     try:
         payload = json.load(sys.stdin)
     except ValueError:
         sys.exit(0)
+
+    if mode == "statusline":
+        statusline(payload)
 
     tokens, limit = harness["read"](payload.get("transcript_path"))
     event = payload.get("hook_event_name")
