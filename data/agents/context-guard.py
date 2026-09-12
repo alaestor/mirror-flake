@@ -34,6 +34,16 @@ handoff pre-empts native compaction at the same point Claude Code would have
 acted anyway, rather than racing it with an independent fraction. A small
 margin is kept below that line since the transcript this reads from lags the
 live count by a message or two.
+
+That margin is only a few thousand tokens, and the request below is advisory:
+it rides along as `additionalContext` and competes with whatever the agent was
+already doing. A single large tool result can therefore cross the threshold and
+the harness's own hard ceiling within one turn, leaving no room to write the
+handoff the request asked for. Lowering THRESHOLD_FRACTION widens the margin;
+if that proves insufficient, the escalation is to reuse the PreCompact path's
+`{"decision": "block"}` for the pre-handoff PostToolUse case, making the handoff
+the only way forward rather than a suggestion. That also means dropping the
+one-shot `warned` claim, since a block must fire on every attempt.
 """
 
 import glob
