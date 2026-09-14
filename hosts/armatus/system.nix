@@ -16,16 +16,19 @@ in
     persist.users.${username}.directories = [ ".ssh" ];
   };
 
-  /*nas = {
+  # The NAS feature marks these mounts `nofail`, so an unavailable NAS never
+  # becomes a boot dependency.
+  nas = {
     cauldron.enable = true;
     vault.enable = true;
     pocket.enable = true;
-    };*/
+  };
 
   users.users.${username} = {
     isNormalUser = true;
     description = username;
     extraGroups = [
+      "networkmanager"
       "wheel"
       "systemd-journal"
     ];

@@ -17,17 +17,20 @@ in
       mode = "integrated";
       modules = [
         inputs.self.modules.homeManager.workstation
+        inputs.self.modules.homeManager.pgp
+        inputs.self.modules.homeManager.git
+        inputs.self.modules.homeManager.deepseek-harness
         inputs.self.modules.homeManager.alaestor
         inputs.self.modules.homeManager.alaestor-plasma
       ] ++ hostFragments.homeManager;
     };
 
     modules = (with inputs.self.modules.nixos; [
+      tailnet-client
       kde
       auto-login
       crypto-yubikey
       hifi-audio
-      printer-brother-hl-l2320d
       nas
       ssh-client
       ssh-host

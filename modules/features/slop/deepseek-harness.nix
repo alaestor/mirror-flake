@@ -120,9 +120,12 @@
         '';
       };
 
-      config.home.packages = [
-        wrappers.native
-        wrappers.wrapped
-      ];
+      options.deepseek-harness.enableSandbox = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Whether to install the agent-VM-backed `ds` wrapper alongside `ds-native`.";
+      };
+
+      config.home.packages = [ wrappers.native ] ++ lib.optional cfg.enableSandbox wrappers.wrapped;
     };
 }
