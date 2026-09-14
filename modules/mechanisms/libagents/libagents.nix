@@ -189,6 +189,8 @@ let
 
       ${toolsMarkdown pkgs}
 
+      Prefer these tools over usual bash alternatives (e.g. rg > grep)
+
       Run `tldr <program>` to see usage examples.
     '';
 
