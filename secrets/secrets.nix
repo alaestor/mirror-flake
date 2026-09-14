@@ -81,6 +81,10 @@ in
   "ssh-client/id_ed25519_apc.age".publicKeys =
     administrators ++ [ (sshHost "apc") ];
 
+  # Armatus consumes its device client identity at runtime.
+  "ssh-client/id_ed25519_armatus.age".publicKeys =
+    administrators ++ [ (sshHost "armatus") ];
+
   # APC's private Nix store signing identity.
   "nix-store-signing/apc.tailnet.0x04.cc-1.nsk.age".publicKeys =
     administrators ++ [ (sshHost "apc") ];
@@ -127,6 +131,7 @@ in
     encrypts initrd backups directly to the administrative recipients.
   */
   "ssh-host/ssh_host_ed25519_key_apc.age".publicKeys = administrators;
+  "ssh-host/ssh_host_ed25519_key_armatus.age".publicKeys = administrators;
   "ssh-host/ssh_host_ed25519_key_lanser.age".publicKeys = administrators;
   "ssh-host/ssh_host_ed25519_key_noblesse.age".publicKeys = administrators;
 

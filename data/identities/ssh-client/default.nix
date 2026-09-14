@@ -7,6 +7,7 @@ let
   */
   hosts = {
     apc = readFile ./id_ed25519_apc.pub;
+    armatus = readFile ./id_ed25519_armatus.pub;
     noblesse = readFile ./id_ed25519_noblesse.pub;
   };
 in

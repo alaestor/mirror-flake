@@ -13,6 +13,7 @@ let
     apc = readFile ./ssh_host_ed25519_key_apc.pub;
     lanser = readFile ./ssh_host_ed25519_key_lanser.pub;
     noblesse = readFile ./ssh_host_ed25519_key_noblesse.pub;
+    armatus = readFile ./ssh_host_ed25519_key_armatus.pub;
   };
 in
 hosts
