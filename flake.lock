@@ -65,11 +65,11 @@
         "serena": "serena"
       },
       "locked": {
-        "lastModified": 1789145822,
-        "narHash": "sha256-eVfquguZSodX8oWkjuIberqpLY3RF7pd7bx1UUUYQ5M=",
+        "lastModified": 1789492273,
+        "narHash": "sha256-BSqsgsB8wgmDW35aoJXR2qng1MRkmeN6Ecr2Mxu9d7Y=",
         "ref": "refs/heads/main",
-        "rev": "20540c1d7c3065c3e7b0ca18dd7983ebd42e8cf5",
-        "revCount": 41,
+        "rev": "9695548cb146f32d5313894625e5d1e6baf22c27",
+        "revCount": 45,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/pkgs.git"
       },
@@ -177,11 +177,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1789121673,
-        "narHash": "sha256-N6bts0N/Q05kCkB2fv6+KwzdKIjrYjScfdFq6Zpwp4I=",
+        "lastModified": 1789461851,
+        "narHash": "sha256-D1uFqm6nfuxD7xCK9l2uISP3oSSefZJVVNNnyZvIC/A=",
         "owner": "Moraxyc",
         "repo": "deepseek-harness.nix",
-        "rev": "43d5a93e558d6073ca58c5d5f60293ede4c33dc3",
+        "rev": "d06a2af4de6f03bd91e7cb63e1d6aa209ce40cf6",
         "type": "github"
       },
       "original": {
@@ -227,11 +227,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1789064165,
-        "narHash": "sha256-SSaSVnXeGdivrI3g3BWGVGcuotSblZDdjifkngk1uK4=",
+        "lastModified": 1789423641,
+        "narHash": "sha256-Y3vohLngAvOPtm00rtq5bU3ai7PHsDvVjeOOTdLhVts=",
         "ref": "refs/heads/main",
-        "rev": "89d4d176164db4ce5ce38808dbcf4d5381bf5c62",
-        "revCount": 82,
+        "rev": "ba998c74d9f9e4c6fdc2207f2fce0d16bf14adba",
+        "revCount": 84,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative"
       },
@@ -465,11 +465,11 @@
         "spectrum": "spectrum"
       },
       "locked": {
-        "lastModified": 1789082121,
-        "narHash": "sha256-AS7YiRfU//W5a/+kHOWRrMI0mLuHQ9OQTVNfT6rUff4=",
+        "lastModified": 1789387382,
+        "narHash": "sha256-WhBnNmOaxwntBhp/aateJNWlH+y5z2fWFbIH/5gONJY=",
         "owner": "microvm-nix",
         "repo": "microvm.nix",
-        "rev": "1b99da49e9d1c8f15fd4911f7b8d2c4375758dcd",
+        "rev": "614e9541186d724438edfd91c3bbc8474dd1b76e",
         "type": "github"
       },
       "original": {
@@ -587,11 +587,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1789006805,
-        "narHash": "sha256-q+GdZ3yq4Y2LXHRK0vKTM32Hwy7RCgUgy+hjwZLI5pY=",
-        "rev": "8ce4ef6cb6f871616146b9fe26d2a5ae594e94fe",
+        "lastModified": 1789286504,
+        "narHash": "sha256-3i80JnZ9pZ7tWReb/Sqpc32cfzffCu8TWLnbnH0hN9c=",
+        "rev": "ef34387ddd751e1ab8857adf4676492d32eb24ec",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1070770.8ce4ef6cb6f8/nixexprs.tar.xz"
+        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1073009.ef34387ddd75/nixexprs.tar.zst"
       },
       "original": {
         "id": "nixpkgs",
@@ -818,11 +818,11 @@
     "spectrum": {
       "flake": false,
       "locked": {
-        "lastModified": 1785761586,
-        "narHash": "sha256-MWOMVqJJERwjQGgRIv8d6rlEBqbLM3VZWxHkNKIIZNw=",
+        "lastModified": 1786032750,
+        "narHash": "sha256-+Ba/kIn5BjvV7PN8bWOo7RoqgTY/Yv2M7qeMf3wS2Ag=",
         "ref": "refs/heads/main",
-        "rev": "a7762d6f54b40560dd5255ce902e6e6a5d980fe9",
-        "revCount": 1416,
+        "rev": "77d2389874bb092b8dbf05ecc5b1030372e80e98",
+        "revCount": 1417,
         "type": "git",
         "url": "https://spectrum-os.org/git/spectrum"
       },
@@ -838,11 +838,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1788642154,
-        "narHash": "sha256-sPpQFVaFTDqO/4vvCAhuAhqTgqN/ygu+9eJcs5eB0js=",
+        "lastModified": 1789267039,
+        "narHash": "sha256-LWiBv9yAYFi2LPbUhDGHPGKYskJQjj2fw12OlyO1uQo=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "fd0956c99c41ae3c13a73a638f1f7e963aebc4ab",
+        "rev": "ec172013fa62135f58fb58dd17ae9651e8f39727",
         "type": "github"
       },
       "original": {
@@ -854,11 +854,11 @@
     },
     "stable-nixpkgs": {
       "locked": {
-        "lastModified": 1789009968,
-        "narHash": "sha256-68Lf9xkbHO3VecGRDpxFAsYCU/Lx2fySxqueRanA8BE=",
-        "rev": "d58a46e3bc02d91ebe04667f8397752a749c0024",
+        "lastModified": 1789344334,
+        "narHash": "sha256-it+7kNGnOOHBCEnl4SfZ7QtfGziH3EryzHqwvJpjAfg=",
+        "rev": "c3eea5b2156db11c7eeeada3dc737711255b253e",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/26.05/nixos-26.05.9498.d58a46e3bc02/nixexprs.tar.xz"
+        "url": "https://releases.nixos.org/nixos/26.05/nixos-26.05.9729.c3eea5b2156d/nixexprs.tar.zst"
       },
       "original": {
         "id": "nixpkgs",
@@ -939,11 +939,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789144075,
-        "narHash": "sha256-zD31BI5PqEdLRCSdtlwlbAOPCdmg6sFW+/fmGRSeG3I=",
+        "lastModified": 1789482455,
+        "narHash": "sha256-pD3qVlQ4mUCFoTWrYtxecpSitQMsgJvJIN0FUIDZoEU=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "61b08afca39cc9afe69a47cdd82fbb305899b106",
+        "rev": "efa3ccb4c3cc90d832eab232976379058fa75aa3",
         "type": "github"
       },
       "original": {
@@ -981,11 +981,11 @@
     },
     "vpn-confinement": {
       "locked": {
-        "lastModified": 1788035501,
-        "narHash": "sha256-3Xs9lCMwjvFURU7/fPEGDR5kCKvcdX2l5Fah1nZoaGQ=",
+        "lastModified": 1789394839,
+        "narHash": "sha256-trdjVJKmDBbzgbP8pd+R7iKbGkdRu0nmXgQlBR/hEiU=",
         "ref": "refs/heads/master",
-        "rev": "ce8949125b698406810ea71a8bd7b567d9a0b09f",
-        "revCount": 78,
+        "rev": "a21f66ccd9f644c3770ccdf287cb380c00192628",
+        "revCount": 79,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/mirror-VPN-Confinement"
       },
