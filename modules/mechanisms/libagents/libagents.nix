@@ -56,7 +56,7 @@ let
   # subprocess it spawns (visible via `declare -f find` inside a session) that
   # redirects to its own `-S dfs`-flagged binary rather than plain findutils
   # — and, empirically, does not itself refuse a literal `/` root. Because
-  # bash resolves a function before consulting `PATH`, `findGuard` below
+  # bash resolves a function before consulting `PATH`, a PATH-level guard
   # (a `find` package placed ahead of the real one) is shadowed by it and
   # never runs. `BASH_ENV` is bash's own hook for exactly this shape of
   # problem: it names a file every *non-interactive* bash it starts sources
@@ -107,39 +107,6 @@ let
       }
     '';
 
-  # A harness's Bash tool runs non-interactive subshells that never source
-  # `~/.bashrc` (`modules/features/standard-terminal.nix`'s `find` guard is
-  # therefore invisible to it), so the same guard has to exist as an actual
-  # `find` binary placed ahead of the real one on `PATH` — every
-  # `mkHarnessWrappers` call prepends `runtimeInputs` (and therefore `tools`)
-  # via `writeShellApplication`'s wrapper, so this shadows
-  # `pkgs.findutils`'s `find` for every harness built from `tools` below. It
-  # is only reached when nothing has already claimed the `find` function name
-  # (`findGuardBashEnv` above covers that case) — kept anyway as a backstop
-  # for a harness that execs `find` without going through such a function.
-  # Delegates to the real binary by absolute store path, not by name, so
-  # `command find`/`exec find` inside here cannot recurse back into itself.
-  findGuard =
-    pkgs:
-    pkgs.writeShellScriptBin "find" ''
-      paths=()
-      for arg in "$@"; do
-        case "$arg" in
-          -* | '(' | ')' | '!' | ',') break ;;
-          *) paths+=("$arg") ;;
-        esac
-      done
-      (( ''${#paths[@]} == 0 )) && paths=(.)
-      if [[ "''${FIND_ALLOW_ROOT:-0}" != 1 ]]; then
-        for path in "''${paths[@]}"; do
-          if [[ "$(readlink -f -- "$path" 2>/dev/null)" == / ]]; then
-            echo "find: refusing to search filesystem root ('$path' -> /); set FIND_ALLOW_ROOT=1 to override" >&2
-            exit 1
-          fi
-        done
-      fi
-      exec ${pkgs.findutils}/bin/find "$@"
-    '';
 
   # Leaf artifacts from this author's personal package overlay (`alpkgs`),
   # kept a separate package boundary from the consumer's `pkgs` — same
@@ -174,8 +141,7 @@ let
     ++ (with alpkgsFor pkgs; [
       readability-cli
       archify-cli
-    ])
-    ++ [ (findGuard pkgs) ];
+    ]);
 
   toolsMarkdown =
     pkgs:
