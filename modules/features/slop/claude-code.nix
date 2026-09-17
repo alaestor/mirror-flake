@@ -71,8 +71,6 @@
         };
       };
       resolvedPrompt = agents.mkPrompt {
-        inherit pkgs;
-        harness = "claude";
         model = "default";
         variant = "plain";
         layers = promptLayers;

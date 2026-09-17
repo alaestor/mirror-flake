@@ -37,9 +37,9 @@
     shared with the host's agent VM declaration so its fixed shares cannot
     drift from the wrappers' admission check.
 
-  - `mkPrompt` — resolves a `(harness, model, variant)` prompt into the three
+  - `mkPrompt` — resolves a `(model, variant)` prompt into the three
     depths a harness can inject at (`system`, `preamble`, `context`), from a
-    layered `common -> byHarness -> byVariant -> byModel` declaration. See
+    layered `common -> byVariant -> byModel` declaration. See
     its doc comment below for the layer shape. `system` is a `path` (or
     `null`); `preamble` and `context` are single strings — never a list of
     flags — because `--append-system-prompt`-style options do not
@@ -479,28 +479,24 @@ let
     '';
 
   # Resolves the text/path a harness injects at each of its three depths
-  # (`system`, `preamble`, `context`) for one `(harness, model, variant)`
+  # (`system`, `preamble`, `context`) for one `(model, variant)`
   # combination. `layers` is:
   #
   #   {
   #     common    = <ops>;                 # applies to every combination
-  #     byHarness.<name>  = <ops>;         # applies when harness == <name>
   #     byVariant.<name>  = <ops>;         # applies when variant == <name>
   #     byModel.<name>    = <ops>;         # applies when model == <name>
   #   }
   #
   # `<ops>` is an attrset keyed by depth. For `system` the value is either a
   # `path` (replaces) or `{ replace = path; }`; later layers win. For
-  # `preamble` / `context` the value is `{ add = [ ... ]; }`,
-  # `{ drop = [ ... ]; }` (removes matching items already accumulated), or
+  # `preamble` / `context` the value is `{ add = [ ... ]; }` or
   # `{ replace = [ ... ]; }` (discards everything accumulated so far); `add`
   # is shorthand for a plain list. Layers apply in order, later wins for
   # `system`; for `preamble`/`context` the accumulated list is joined with
   # `"\n\n"` at the end — never handed back as a list of flags.
   mkPrompt =
     {
-      pkgs ? null,
-      harness,
       model,
       variant,
       layers,
@@ -508,7 +504,6 @@ let
     let
       ops = [
         (layers.common or { })
-        (layers.byHarness.${harness} or { })
         (layers.byVariant.${variant} or { })
         (layers.byModel.${model} or { })
       ];
@@ -539,12 +534,7 @@ let
           else if dop ? replace then
             dop.replace
           else
-            let
-              added = dop.add or [ ];
-              dropped = dop.drop or [ ];
-              kept = lib.filter (item: !(builtins.elem item dropped)) acc;
-            in
-            kept ++ added
+            acc ++ (dop.add or [ ])
         ) [ ] ops;
     in
     {

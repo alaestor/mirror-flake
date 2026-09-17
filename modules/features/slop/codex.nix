@@ -54,8 +54,6 @@
       mkResolvedPrompt =
         variant:
         agents.mkPrompt {
-          inherit pkgs;
-          harness = "codex";
           model = "default";
           inherit variant;
           layers = promptLayers;
