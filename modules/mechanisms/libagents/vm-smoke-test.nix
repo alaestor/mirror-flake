@@ -30,6 +30,15 @@
   (not part of this repository).
 */
 { inputs, self, ... }:
+let
+  vmContributions = self.lib.agents.vmContributionsFor "/home/user" [
+    "claude"
+    "codex"
+    "deepseek"
+    "headroom"
+    "serena"
+  ];
+in
 {
   flake.nixosConfigurations.agent-vm-smoke-test = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
@@ -48,13 +57,7 @@
         # throwaway guest instead of the deployed one. Named through
         # `flake.lib.agents` — the smoke test is a caller, and callers are
         # allowed to know what a harness keeps where; the VM layer is not.
-        stateDirs = self.lib.agents.stateDirsFor "/home/user" [
-          "claude"
-          "codex"
-          "headroom"
-          "serena"
-        ];
-        guestEnvironment = self.lib.agents.environmentFor "/home/user";
+          inherit (vmContributions) stateDirs localStateDirs guestEnvironment;
 
         # Both channels, so the smoke test stays the one guest
         # everything is verified against. The host end of these lives on the

@@ -325,73 +325,72 @@ let
   # and runs no Home Manager of its own, because Home Manager symlinks at
   # file granularity and two generations over one tree rename each other's
   # `settings.json` out of the way.
-  stateDirs = {
-    # `.claude.json` lives at the top of `$HOME` by default and virtiofs
-    # shares directories, not files. `CLAUDE_CONFIG_DIR` (see
-    # `environmentFor`) relocates it into the config directory, so sharing
-    # `.claude` is enough to carry it too.
-    claude = [
-      ".claude"
-      ".cache/claude-cli-nodejs"
-    ];
-    # `.serena-cxs` is codex's own serena instance, pinned there by
-    # `SERENA_HOME` in `modules/features/codex.nix`; it belongs to codex
-    # rather than to the shared serena component below.
-    codex = [ ".serena-cxs" ];
-    headroom = [ ".headroom" ];
-    # serena's default `SERENA_HOME`, which is what headroom's
-    # `--code-memory serena` (the `ccs` wrapper) ends up using.
-    serena = [ ".serena" ];
-    # `DSH_HOME`, which holds dsh's profiles and the plugins installed into
-    # them (`dsh plugin --profile web add ...`), so sharing it is what makes
-    # a plugin added on either side visible to the other. Safe on virtiofs
-    # as shipped: the only SQLite dsh mounts by default is the session query
-    # index at `:memory:` with `openAt: never`. Enabling a durable index or
-    # the SQLite session-persistence backend means also setting that
-    # plugin's `journalMode` to a rollback mode (`truncate`/`persist`), or
-    # moving this to `localStateDirs` — WAL's shared-memory files do not
-    # work over a network mount.
-    deepseek = [ ".dsh" ];
+  harnesses = {
+    # `.claude.json` is relocated into `.claude` by this environment value,
+    # because virtiofs shares directories rather than individual files.
+    claude = {
+      stateDirs = [
+        ".claude"
+        ".cache/claude-cli-nodejs"
+      ];
+      guestEnvironment = home: {
+        CLAUDE_CONFIG_DIR = "${home}/.claude";
+      };
+    };
+
+    # `.serena-cxs` is Codex's private Serena instance. Codex itself must stay
+    # on a guest-local filesystem because its SQLite databases use WAL.
+    codex = {
+      stateDirs = [ ".serena-cxs" ];
+      localStateDirs = [
+        {
+          directory = ".codex";
+          size = 4096;
+        }
+      ];
+    };
+
+    headroom.stateDirs = [ ".headroom" ];
+    serena.stateDirs = [ ".serena" ];
+
+    # DSH profiles and plugins must be visible on both sides. Its shipped
+    # SQLite query index is in-memory; durable SQLite state would instead
+    # require rollback journaling or a guest-local contribution.
+    deepseek.stateDirs = [ ".dsh" ];
   };
 
-  stateDirsFor =
+  vmContributionsFor =
     home: names:
-    map (directory: "${home}/${directory}") (lib.concatMap (name: stateDirs.${name}) names);
+    let
+      selected = map (
+        name: harnesses.${name} or (throw "unknown agent harness `${name}`")
+      ) names;
+    in
+    {
+      stateDirs = map (directory: "${home}/${directory}") (
+        lib.concatMap (harness: harness.stateDirs or [ ]) selected
+      );
+      localStateDirs = map (
+        entry: builtins.removeAttrs entry [ "directory" ] // { path = "${home}/${entry.directory}"; }
+      ) (lib.concatMap (harness: harness.localStateDirs or [ ]) selected);
+      guestEnvironment = lib.foldl' lib.recursiveUpdate { } (
+        map (harness: (harness.guestEnvironment or (_: { })) home) selected
+      );
+    };
 
-  # SQLite WAL state must stay on a filesystem local to the guest rather than
-  # a virtiofs share. Each entry becomes a persistent block volume.
-  localStateDirs = {
-    codex = [
-      {
-        directory = ".codex";
-        size = 4096;
-      }
-    ];
-  };
+  # Compatibility projections for callers that need one contribution class.
+  stateDirs = lib.mapAttrs (_: harness: harness.stateDirs or [ ]) harnesses;
+  stateDirsFor = home: names: (vmContributionsFor home names).stateDirs;
+  localStateDirs = lib.mapAttrs (_: harness: harness.localStateDirs or [ ]) harnesses;
+  localStateDirsFor = home: names: (vmContributionsFor home names).localStateDirs;
 
-  localStateDirsFor =
-    home: names:
-    map (
-      entry: builtins.removeAttrs entry [ "directory" ] // { path = "${home}/${entry.directory}"; }
-    ) (lib.concatMap (name: localStateDirs.${name} or [ ]) names);
-
-  # The port each browser-serving harness listens on. Kept here for the same
-  # reason as `stateDirs`: the wrapper that binds it is a Home Manager
-  # module, which a `nixos-rebuild` never evaluates, while the firewall rule
-  # deciding who may reach it is a NixOS one — a table both sides read is the
-  # only place they can agree on a number.
+  # The port table remains separate: it coordinates a Home Manager wrapper and
+  # a NixOS firewall rule, rather than contributing guest state.
   webPorts = {
     deepseek = 3080;
   };
 
-  # Set on the host *and* in the guest, to the same value, or the two
-  # disagree about where state lives and each writes a config the other
-  # never reads. Consumed by the harness's Home Manager module on the host
-  # and handed to the VM as opaque `name = value` pairs on the guest side,
-  # so the VM layer still never learns what `.claude` is.
-  environmentFor = home: {
-    CLAUDE_CONFIG_DIR = "${home}/.claude";
-  };
+  environmentFor = home: (vmContributionsFor home (builtins.attrNames harnesses)).guestEnvironment;
 
   # The guest home is fresh: only `stateDirs` and the project roots are
   # shared, so `~/.config/git/config` does not exist there and git has no
@@ -565,6 +564,8 @@ in
       contextGuard
       codexHookConfig
       mkPrompt
+      harnesses
+      vmContributionsFor
       stateDirs
       stateDirsFor
       localStateDirs

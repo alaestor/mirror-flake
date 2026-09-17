@@ -18,7 +18,7 @@ guest is trusted to restrict itself.
 
 | Layer | Export | Owns |
 |---|---|---|
-| Harness library | `flake.lib.agents` | Prompt fragments and resolution, tool lists, skills, selector-loop and wrapper factories, and the table of per-harness state directories. |
+| Harness library | `flake.lib.agents` | Prompt fragments and resolution, tool lists, skills, selector-loop and wrapper factories, and per-harness VM contributions. |
 | Harness feature | `flake.modules.homeManager.<harness>` | One CLI: its packages, prompt depths, settings, and the `sandbox` seam that hands a session to the isolation boundary. |
 | VM layer | `flake.lib.agents.mkAgentVm` | A guest NixOS configuration: shares, guest identity, sshd, and the guest half of each channel. |
 | Host mechanism | `flake.modules.nixos.agent-vm` | The single VM instance, the host half of each channel, session lifecycle, and the `agent-vm-session` entry point. |
@@ -53,10 +53,11 @@ preserve, and may raise `enable` only as a default. Identity and platform
 parameters (guest name, user, uid, vCPUs, memory, forwarded port) belong to the
 mechanism as defaults and to the host as policy.
 
-State directories are a harness fact, contributed by the host that attaches the
-harness. A standalone Home Manager environment is not evaluated during a NixOS
-rebuild, so a harness module cannot contribute them directly; the shared table
-in `flake.lib.agents.stateDirs` is what lets both sides agree.
+VM state is a harness fact, contributed by the host that attaches the harness.
+A standalone Home Manager environment is not evaluated during a NixOS rebuild,
+so the harness module cannot contribute it directly;
+`flake.lib.agents.vmContributionsFor` resolves the selected harness records into
+the VM's shared directories, guest-local directories, and environment.
 
 The allowed work trees follow the same single-source rule. Harness wrappers use
 `flake.lib.agents.sandboxWritableRootsFor` for their admission check, and the

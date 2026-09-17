@@ -9,6 +9,13 @@ let
   username = config.hostIdentity.primaryUser;
   home = "/home/${username}";
   agents = inputs.self.lib.agents;
+  vmContributions = agents.vmContributionsFor home [
+    "claude"
+    "codex"
+    "deepseek"
+    "headroom"
+    "serena"
+  ];
   # noblesse offloads its builds here.
   remoteBuildUser = "nixremote";
 in
@@ -33,15 +40,7 @@ in
     # the caller happens to be": arbitrary per-session mounts would widen
     # the guest boundary after boot.
     projectRoots = agents.sandboxWritableRootsFor home;
-    stateDirs = agents.stateDirsFor home [
-      "claude"
-      "codex"
-      "deepseek"
-      "headroom"
-      "serena"
-    ];
-    localStateDirs = agents.localStateDirsFor home [ "codex" ];
-    guestEnvironment = agents.environmentFor home;
+    inherit (vmContributions) stateDirs localStateDirs guestEnvironment;
     # Codex only runs hooks it considers managed, and the only source that
     # qualifies is the system config layer. The guest runs no Home Manager,
     # so the harness feature cannot place this itself; this host attaches
