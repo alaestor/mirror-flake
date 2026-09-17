@@ -61,9 +61,19 @@ let
       n = ((digit 0 * 16 + digit 1) * 16 + digit 2) * 16 + digit 3;
     in
     3 + lib.mod n 65533;
+
+  proxyService = pkgs: description: target: {
+    inherit description;
+    serviceConfig = {
+      ExecStart = "${lib.getExe pkgs.socat} - ${target}";
+      StandardInput = "socket";
+      StandardOutput = "socket";
+      Restart = "no";
+    };
+  };
 in
 {
   flake.lib.agents.vmChannels = {
-    inherit hostCid ports cidFor;
+    inherit hostCid ports cidFor proxyService;
   };
 }

@@ -324,8 +324,9 @@ only knows about shares, networking, channels, and the guest's own NixOS
 configuration; it must never be handed a harness's prompt text or tool
 list.
 
-`mkAgentVm { name, hostUser, projectRoots, uid ? null, authorizedKeys ? [],
-vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {}, channels ? {} }`
+`mkAgentVm { name, hostUser, projectRoots, hostKey, uid ? null,
+authorizedKeys ? [], vcpu ? 2, mem ? 4096, stateDirs ? [],
+localStateDirs ? [], guestEnvironment ? {}, guestEtc ? {}, channels ? {} }`
 returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
 entry — the caller decides how to instantiate it, matching how every other
 module in this flake stays a value rather than wiring itself in).

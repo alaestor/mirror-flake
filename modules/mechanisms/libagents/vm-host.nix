@@ -125,17 +125,6 @@
       hostKeySecret = self.secrets.sshHostVm guestKeyName;
       committedHostPublicKey = self.data.vars.identities.ssh-host-vm.${guestKeyName} or null;
 
-      # Mirrors the guest side in `vm.nix`: systemd accepts the connection and
-      # socat is only responsible for the other end of it.
-      proxyService = description: target: {
-        inherit description;
-        serviceConfig = {
-          ExecStart = "${lib.getExe pkgs.socat} - ${target}";
-          StandardInput = "socket";
-          StandardOutput = "socket";
-          Restart = "no";
-        };
-      };
 
       # `vmUnitName` is the `systemd.services.<name>` attribute (no
       # `.service` suffix — NixOS appends it); `vmUnit` is the resulting unit
@@ -899,7 +888,7 @@
 
             systemd.services."agent-vm-nix-daemon@" =
               lib.recursiveUpdate
-                (proxyService "Agent VM nix daemon channel connection %i" "UNIX-CONNECT:/nix/var/nix/daemon-socket/socket")
+                (self.lib.agents.vmChannels.proxyService pkgs "Agent VM nix daemon channel connection %i" "UNIX-CONNECT:/nix/var/nix/daemon-socket/socket")
                 { serviceConfig.User = cfg.nixProxyUser; };
           })
 

@@ -147,6 +147,12 @@ next harness silently ships without it.
 
 ## Channels
 
+Host-side channel units remain in `vm-host.nix`: they refine the same
+`agent-vm` option schema, user attachment, and VM lifecycle as the rest of the
+host mechanism. Splitting them would create an internal NixOS module export
+without an independent consumer. Only reusable channel constants and the proxy
+service constructor live in `vm-channels.nix`.
+
 A channel gives the guest one host capability without giving it the host. Each
 is a unix socket in the guest, socket-activated per connection and proxied over
 `AF_VSOCK` to a host listener that connects to the real socket. Guest and host

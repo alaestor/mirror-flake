@@ -7,9 +7,9 @@
     configuration; it must never be handed a harness's prompt text or tool
     list.
 
-    `mkAgentVm { name, hostUser, projectRoots, uid ? null, authorizedKeys ? [],
-    vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {},
-    guestEtc ? {}, channels ? {} }`
+ `mkAgentVm { name, hostUser, projectRoots, hostKey, uid ? null,
+ authorizedKeys ? [], vcpu ? 2, mem ? 4096, stateDirs ? [],
+ localStateDirs ? [], guestEnvironment ? {}, guestEtc ? {}, channels ? {} }`
     returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
     entry — the caller decides how to instantiate it, matching how every other
     module in this flake stays a value rather than wiring itself in).
@@ -132,25 +132,6 @@ let
 
   inherit (self.lib.agents.vmChannels) hostCid ports cidFor;
 
-  # One socket-activated proxy per connection: systemd owns the listening
-  # socket, accepts, and hands the connection to socat on stdin/stdout, which
-  # dials the host. `Accept = true` (one instance per connection) rather than
-  # a single long-lived proxy because both protocols multiplex nothing — a
-  # shared proxy would need to demultiplex streams itself, and a crash would
-  # take every session with it.
-  proxyService = pkgs: description: target: {
-    inherit description;
-    serviceConfig = {
-      ExecStart = "${lib.getExe pkgs.socat} - ${target}";
-      StandardInput = "socket";
-      StandardOutput = "socket";
-      # A proxy that keeps failing is a channel that is down; it should be
-      # visible in `systemctl` rather than restarting behind the user's
-      # back. The socket unit stays up regardless, so the next connection
-      # still gets a fresh attempt.
-      Restart = "no";
-    };
-  };
 
   # The guest's own nix-daemon is switched off and its socket path taken over
   # by the proxy, so every nix client in the guest — including ones that
@@ -186,7 +167,7 @@ let
       };
 
       systemd.services."agent-vm-nix-daemon@" =
-        proxyService pkgs "Host nix daemon channel (vsock) connection %i"
+        self.lib.agents.vmChannels.proxyService pkgs "Host nix daemon channel (vsock) connection %i"
           "VSOCK-CONNECT:${toString hostCid}:${toString ports.nixDaemon}";
     };
 
@@ -259,7 +240,7 @@ let
       };
 
       systemd.user.services."agent-vm-gpg-agent@" =
-        proxyService pkgs "Host gpg-agent channel (vsock) connection %i"
+        self.lib.agents.vmChannels.proxyService pkgs "Host gpg-agent channel (vsock) connection %i"
           "VSOCK-CONNECT:${toString hostCid}:${toString ports.gpgAgent}";
 
       # Copied rather than symlinked: gpg rewrites its own keyring and
@@ -332,7 +313,7 @@ let
       # used to pin `known_hosts` on the other side of the same call. This
       # function stays ignorant of Agenix/secrets entirely — resolving the
       # secret is `vm-host.nix`'s job, not the VM layer's.
-      hostKey ? null,
+    hostKey,
     }:
     {
       lib,
@@ -342,8 +323,6 @@ let
     let
       anyChannel = lib.any (c: c.enable or false) (builtins.attrValues channels);
       useNixDaemon = channels.nixDaemon.enable or false;
-      generatedHostKey = mkAgentVmHostKey pkgs name;
-      useDeployedHostKey = hostKey != null;
       hostKeyCredentialName = "agent_vm_ssh_host_key";
 
       # `stateDirs` shares directories at the identical path, but only the
@@ -504,51 +483,16 @@ let
       environment.etc = lib.mapAttrs (_: source: { inherit source; }) guestEtc;
 
       environment.enableAllTerminfo = true;
-
-      # A fixed host key rather than whatever the ephemeral (tmpfs) root
-      # would otherwise generate fresh on every boot. `agent-vm-session`
-      # (`vm-host.nix`) pins the matching public key — the
-      # committed `data/identities/ssh-host-vm` identity when `hostKey` is
-      # deployed, `generatedHostKey.publicKey` otherwise — in a scratch
-      # known-hosts file, so the two sides always agree without either
-      # copying the other's key material. Without this, every reboot is a
-      # new identity: ssh either has to prompt on the first connection after
-      # each one, or (worse, and what actually happened the first time this
-      # was tried) fail outright, because the caller's `~/.ssh/known_hosts`
-      # is a Home Manager–managed file ssh cannot append a TOFU entry to.
-      #
-      # Two delivery paths, chosen by whether the caller passed `hostKey`:
-      #
-      # - Deployed (`useDeployedHostKey`): the plaintext never enters the
-      #   store. `microvm.credentialFiles` hands QEMU the *host* runtime
-      #   path (`/run/agenix/...`, root-only) at VM start via
-      #   `-fw_cfg name=opt/io.systemd.credentials/...`
-      #   (`vm-host-key-age.md`); the guest's pid 1 receives it as a system
-      #   credential, and this oneshot materializes it before sshd starts.
-      #   `requiredBy` (not just `before`) is what makes this fail *closed*:
-      #   if the credential is missing or the oneshot fails, sshd is pulled
-      #   down with it rather than falling back to a fresh, unpinned key.
-      # - Generated (fallback, no `hostKey`): the old behaviour — a
-      #   store-resident, non-reproducible keypair copied into `/etc/ssh`
-      #   with `C+` (always overwrite) rather than pointed at directly,
-      #   because sshd's own host key handling is far less forgiving of a
-      #   world-readable Nix store path's permissions than the fact that
-      #   this key has no real secrecy to protect (its only job is a stable
-      #   identity behind a host-only port forward) would suggest. Only
-      #   reached by a bootstrap checkout or a throwaway guest (the smoke
-      #   test) with no ciphertext to decrypt.
+      # The credential path never enters the store. The materialization service
+      # fails closed: sshd is required by it and cannot generate an unpinned key.
       systemd.tmpfiles.rules =
-        (map (p: "d ${p} 0755 ${hostUser} users - -") (stateDirParents ++ localStateDirParents))
-        ++ lib.optionals (!useDeployedHostKey) [
-          "C+ /etc/ssh/ssh_host_ed25519_key 0600 root root - ${generatedHostKey.privateKeyPath}"
-          "C+ /etc/ssh/ssh_host_ed25519_key.pub 0644 root root - ${generatedHostKey.publicKeyPath}"
-        ];
+        map (p: "d ${p} 0755 ${hostUser} users - -") (stateDirParents ++ localStateDirParents);
 
-      microvm.credentialFiles = lib.mkIf useDeployedHostKey {
+      microvm.credentialFiles = {
         ${hostKeyCredentialName} = hostKey.path;
       };
 
-      systemd.services.agent-vm-host-key = lib.mkIf useDeployedHostKey {
+      systemd.services.agent-vm-host-key = {
         description = "Materialize the deployed sshd host key from its systemd credential";
         before = [ "sshd.service" ];
         requiredBy = [ "sshd.service" ];

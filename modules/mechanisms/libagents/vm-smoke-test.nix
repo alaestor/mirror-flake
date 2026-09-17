@@ -43,8 +43,13 @@ in
   flake.nixosConfigurations.agent-vm-smoke-test = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules = [
-      (self.lib.agents.mkAgentVm {
-        name = "agent-vm-smoke-test";
+        (
+          { pkgs, ... }:
+          {
+            imports = [
+              (self.lib.agents.mkAgentVm {
+                name = "agent-vm-smoke-test";
+                hostKey = self.lib.agents.mkAgentVmHostKey pkgs "agent-vm-smoke-test";
         hostUser = "user";
         projectRoots = [
           "/home/user/Projects"
@@ -71,7 +76,10 @@ in
             ultimatelyTrusted = [ self.data.vars.identities.administrative.pgp.fingerprint ];
           };
         };
-      })
+              })
+            ];
+          }
+        )
     ];
   };
 }
