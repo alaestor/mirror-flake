@@ -411,58 +411,17 @@
           #
           # Sessions isolate through the agent VM (`agent-vm-session`) instead
           # of bubblewrap. `agent-vm.projectRoots` (`hosts/apc/system.nix`) is
-          # the guest-side equivalent of `sandboxWritableRoots` below — kept
+          # the guest-side equivalent of `sandboxWritableRoots` — kept
           # as the same two paths deliberately, so both lists describe one
           # fact ("what the agent may work on") rather than drifting apart.
           # Unlike bubblewrap's per-invocation `--extra-bind`, virtiofs
           # shares are fixed at guest boot, so there is nothing to bind here
           # — only a membership check against what was already shared.
-          sandbox = native: ''
-            case "''${1:-}" in
-              --cc-help)
-                exec ${lib.getExe native} "$@"
-                ;;
-            esac
-
-            cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
-            in_root=0
-            sandbox_writable=(
-              ${lib.concatMapStringsSep "\n              " (root: ''"${root}"'') sandboxWritableRoots}
-            )
-
-            for root in "''${sandbox_writable[@]}"; do
-              [[ -d "$root" ]] || continue
-              root="$(${pkgs.coreutils}/bin/realpath "$root")"
-              if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
-                in_root=1
-                break
-              fi
-            done
-
-            if [[ "$in_root" -ne 1 ]]; then
-              echo "${name}: refusing to run $cwd in the agent VM — it is outside every shared root:" >&2
-              printf '  %s\n' "''${sandbox_writable[@]}" >&2
-              echo "cd into one of them, or run ${name}-native to bypass the VM instead." >&2
-              exit 1
-            fi
-
-            # `agent-vm-session` lands an ssh session in the guest user's
-            # $HOME, not $PWD — `cd` explicitly before handing off, since the
-            # project tree is shared at the identical host path (`vm-host.nix`
-            # `projectRoots`) and is therefore reachable under the same
-            # `$cwd` inside the guest. `bash -c ... bash "$cwd" <native> "$@"`
-            # rather than a literal `cd "$cwd" &&` string: `agent-vm-session`
-            # re-quotes every argument it receives independently
-            # (`printf %q`), so building the remote command as real argv
-            # entries here — not a hand-assembled string — is what keeps that
-            # quoting correct end to end.
-            # Herdr cannot see the guest's process tree through ssh. Its
-            # foreground-process hint preserves agent status notifications.
-            export HERDR_AGENT=claude
-            exec agent-vm-session -- \
-              bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
-              ${lib.getExe native} "$@"
-          '';
+          sandbox = native: agents.mkVmSandbox pkgs {
+            inherit name native;
+            helpFlag = "--cc-help";
+            herdrAgent = "claude";
+          };
         };
 
       ccWrappers = mkClaudeWrapper "cc" false;

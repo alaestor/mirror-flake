@@ -25,7 +25,6 @@
     let
       agents = self.lib.agents;
       cfg = config.deepseek-harness;
-      sandboxWritableRoots = agents.sandboxWritableRootsFor "$HOME";
 
       dsh = inputs.deepseek-harness.packages.${pkgs.stdenv.hostPlatform.system}.dsh;
 
@@ -68,43 +67,18 @@
           exec ${lib.getExe dsh} "''${dsh_args[@]}" "$@"
         '';
 
-        sandbox = native: ''
-          cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
-          in_root=0
-          sandbox_writable=(
-            ${lib.concatMapStringsSep "\n            " (root: ''"${root}"'') sandboxWritableRoots}
-          )
-
-          for root in "''${sandbox_writable[@]}"; do
-            [[ -d "$root" ]] || continue
-            root="$(${pkgs.coreutils}/bin/realpath "$root")"
-            if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
-              in_root=1
-              break
-            fi
-          done
-
-          if [[ "$in_root" -ne 1 ]]; then
-            echo "ds: refusing to run $cwd in the agent VM — it is outside every shared root:" >&2
-            printf '  %s\n' "''${sandbox_writable[@]}" >&2
-            echo "cd into one of them, or run ds-native to bypass the VM instead." >&2
-            exit 1
-          fi
-
+        sandbox = native: agents.mkVmSandbox pkgs {
+          name = "ds";
+          inherit native;
+          forward = "0.0.0.0:${toString port}:127.0.0.1:${toString port}";
+          beforeExec = ''
           echo "ds: serving the DeepSeek Harness web UI on http://127.0.0.1:${toString port}" >&2
           ${lib.concatMapStringsSep "\n" (host: ''
             echo "ds: also reachable at http://${host}" >&2
           '') cfg.trustedHosts}
 
-          # The forward's host-side bind is every address rather than
-          # loopback so a phone can reach it. That is only as wide as the
-          # firewall lets it be: nothing admits this port on a LAN
-          # interface, and the forward exists only while this session runs.
-          exec agent-vm-session \
-            --forward '0.0.0.0:${toString port}:127.0.0.1:${toString port}' \
-            -- bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
-            ${lib.getExe native} "$@"
-        '';
+          '';
+        };
       };
     in
     {

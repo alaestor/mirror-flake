@@ -206,11 +206,11 @@ grant like that starts running unattended, it needs this boundary too.
 
 ## Extending
 
-**A new harness.** Build its wrappers through the shared factory, give it a
-`sandbox` function that hands `<name>-native` to the session entry point, add
-its state directories to the shared table, and have the host contribute them. If
-that is not roughly all it takes, the factory boundary is wrong; report it
-rather than working around it.
+**A new harness.** Build its wrappers through the shared factory, use
+`flake.lib.agents.mkVmSandbox` to hand `<name>-native` to the session entry
+point, add its state directories to the shared table, and have the host
+contribute them. If that is not roughly all it takes, the factory boundary is
+wrong; report it rather than working around it.
 
 **A new channel.** Add the constant, the guest half, and the host half. Decide
 what an untrusted guest may do with the thing behind the socket *before* wiring

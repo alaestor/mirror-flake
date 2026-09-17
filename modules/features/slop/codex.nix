@@ -17,7 +17,6 @@
       proxy = config.services.headroom-proxy;
       codexPackage = config.programs.codex.package;
       headroomPackage = proxy.package;
-      sandboxWritableRoots = agents.sandboxWritableRootsFor "$HOME";
 
       instructionFiles = {
         small = self.data.path "programs/codex/codex-instructions-gpt-5-small.md";
@@ -250,42 +249,11 @@
             exec ${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
           '';
 
-          sandbox = native: ''
-            case "''${1:-}" in
-              --cx-help)
-                exec ${lib.getExe native} "$@"
-                ;;
-            esac
-
-            cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
-            in_root=0
-            sandbox_writable=(
-              ${lib.concatMapStringsSep "\n              " (root: ''"${root}"'') sandboxWritableRoots}
-            )
-
-            for root in "''${sandbox_writable[@]}"; do
-              [[ -d "$root" ]] || continue
-              root="$(${pkgs.coreutils}/bin/realpath "$root")"
-              if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
-                in_root=1
-                break
-              fi
-            done
-
-            if [[ "$in_root" -ne 1 ]]; then
-              echo "${name}: refusing to run $cwd in the agent VM — it is outside every shared root:" >&2
-              printf '  %s\n' "''${sandbox_writable[@]}" >&2
-              echo "cd into one of them, or run ${name}-native to bypass the VM instead." >&2
-              exit 1
-            fi
-
-            # Herdr cannot see the guest's process tree through ssh. Its
-            # foreground-process hint preserves agent status notifications.
-            export HERDR_AGENT=codex
-            exec agent-vm-session -- \
-              bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
-              ${lib.getExe native} "$@"
-          '';
+          sandbox = native: agents.mkVmSandbox pkgs {
+            inherit name native;
+            helpFlag = "--cx-help";
+            herdrAgent = "codex";
+          };
         };
 
       normalizeSettingsValue =

@@ -427,6 +427,58 @@ let
     "/mnt/Vault/.dotfiles/flake"
   ];
 
+  mkVmSandbox =
+    pkgs:
+    {
+      name,
+      native,
+      helpFlag ? null,
+      herdrAgent ? null,
+      forward ? null,
+      beforeExec ? "",
+    }:
+    let
+      sandboxWritableRoots = sandboxWritableRootsFor "$HOME";
+    in
+    ''
+      ${lib.optionalString (helpFlag != null) ''
+        case "''${1:-}" in
+          ${helpFlag})
+            exec ${lib.getExe native} "$@"
+            ;;
+        esac
+      ''}
+
+      cwd="$(${pkgs.coreutils}/bin/realpath "$PWD")"
+      in_root=0
+      sandbox_writable=(
+        ${lib.concatMapStringsSep "\n        " (root: ''"${root}"'') sandboxWritableRoots}
+      )
+
+      for root in "''${sandbox_writable[@]}"; do
+        [[ -d "$root" ]] || continue
+        root="$(${pkgs.coreutils}/bin/realpath "$root")"
+        if [[ "$cwd" == "$root" || "$cwd" == "$root"/* ]]; then
+          in_root=1
+          break
+        fi
+      done
+
+      if [[ "$in_root" -ne 1 ]]; then
+        echo "${name}: refusing to run $cwd in the agent VM — it is outside every shared root:" >&2
+        printf '  %s\n' "''${sandbox_writable[@]}" >&2
+        echo "cd into one of them, or run ${name}-native to bypass the VM instead." >&2
+        exit 1
+      fi
+
+      ${beforeExec}
+      ${lib.optionalString (herdrAgent != null) "export HERDR_AGENT=${lib.escapeShellArg herdrAgent}"}
+      exec agent-vm-session \
+        ${lib.optionalString (forward != null) "--forward ${lib.escapeShellArg forward} \\"}
+        -- bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
+        ${lib.getExe native} "$@"
+    '';
+
   # Resolves the text/path a harness injects at each of its three depths
   # (`system`, `preamble`, `context`) for one `(harness, model, variant)`
   # combination. `layers` is:
@@ -522,6 +574,7 @@ in
       gitConfigGlobalFor
       gitEnvironmentText
       sandboxWritableRootsFor
+      mkVmSandbox
       findGuardBashEnv
       ;
   };
