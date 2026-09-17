@@ -159,11 +159,6 @@ let
 
       Run `tldr <program>` to see usage examples.
     '';
-
-    # Prose taken verbatim from claude-code.nix, the newer and more complete
-    # of the two copies that had drifted between claude-code.nix and
-    # codex.nix. Codex previously lacked this paragraph entirely; folding it
-    # in here is the one intentional behaviour change in this move.
     headroom = ''
       ## Headroom shaping
 

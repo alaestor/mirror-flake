@@ -119,15 +119,6 @@
           cat "$file"
         }
       '';
-
-      # Sessions isolate through the agent VM — `sandboxPackage`/
-      # `sandboxToolPath` (the vendored bubblewrap sandbox's own PATH
-      # reconstruction, needed because it clears the environment) are gone
-      # from this file along with the bubblewrap `sandbox` function they only
-      # served; `modules/mechanisms/claude-sandbox.nix` and
-      # `data/utils/claude-sandbox/` are gone too, having been kept around
-      # only as a fallback in case the VM migration didn't work out.
-      #
       # The only paths a session may work in. `agent-vm.projectRoots`
       # (`hosts/apc/system.nix`) shares exactly these two trees into the
       # guest — kept as the same list on purpose, so there is one fact

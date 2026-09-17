@@ -97,8 +97,7 @@ harness, since that text is harness-specific.
 unsandboxed session invocation: selector parsing through the final
 exec) and a `<name>` package (a thin dispatcher that either execs
 `<name>-native` directly, when `sandbox` is null, or hands off to
-whatever `sandbox` returns — bubblewrap today, a microVM in a later
-phase). `native` is no longer a selector word: running `<name>-native`
+whatever `sandbox` returns). `native` is no longer a selector word: running `<name>-native`
 directly *is* the bypass, so there is no runtime `sandbox` flag to
 thread through one script and no collision surface to guard with an
 eval-time assertion (the guide's Phase 3 called for one; it has nothing
@@ -326,8 +325,7 @@ configuration; it must never be handed a harness's prompt text or tool
 list.
 
 `mkAgentVm { name, hostUser, projectRoots, uid ? null, authorizedKeys ? [],
-vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {}, channels ? {},
-lifecycle ? {} }`
+vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {}, channels ? {} }`
 returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
 entry — the caller decides how to instantiate it, matching how every other
 module in this flake stays a value rather than wiring itself in).
@@ -401,13 +399,6 @@ generation over the same shared `~/.claude` would rename the host
 generation's `settings.json` out of the way on every boot. The host's
 generation is the sole manager; the guest gets packages and wrappers only.
 
-**`lifecycle` stays unwired.** Phase 7 turned out to need nothing from the
-guest side at all: the VM starts and stops as a host-managed systemd unit
-(`microvm@<name>.service`), refcounted by host-side transient units the
-guest never hears about — see `vm-host.nix`'s "Lifecycle (Phase 7)"
-section. The parameter is kept, still accepting and ignoring whatever is
-passed, so a caller built against the documented signature doesn't break;
-nothing currently passes it.
 
 `uid`, if given, is the host user's numeric uid. The default virtiofs
 `securityModel = "none"` preserves numeric ownership as-is rather than

@@ -9,8 +9,7 @@
 
     `mkAgentVm { name, hostUser, projectRoots, uid ? null, authorizedKeys ? [],
     vcpu ? 2, mem ? 4096, stateDirs ? [], guestEnvironment ? {},
-    guestEtc ? {}, channels ? {},
-    lifecycle ? {} }`
+    guestEtc ? {}, channels ? {} }`
     returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
     entry — the caller decides how to instantiate it, matching how every other
     module in this flake stays a value rather than wiring itself in).
@@ -84,14 +83,6 @@
     generation over the same shared `~/.claude` would rename the host
     generation's `settings.json` out of the way on every boot. The host's
     generation is the sole manager; the guest gets packages and wrappers only.
-
-    **`lifecycle` stays unwired.** Lifecycle needs nothing from the
-    guest side at all: the VM starts and stops as a host-managed systemd unit
-    (`microvm@<name>.service`), refcounted by host-side transient units the
-    guest never hears about — see `vm-host.nix`'s "Lifecycle"
-    section. The parameter is kept, still accepting and ignoring whatever is
-    passed, so a caller built against the documented signature doesn't break;
-    nothing currently passes it.
 
     `uid`, if given, is the host user's numeric uid. The default virtiofs
     `securityModel = "none"` preserves numeric ownership as-is rather than
@@ -330,7 +321,6 @@ let
       guestEnvironment ? { },
       guestEtc ? { },
       channels ? { },
-      lifecycle ? { },
       # `null` (the default) keeps the store-resident, non-reproducible
       # generated key below — needed for a bootstrap checkout and for
       # throwaway guests like the smoke test, neither of which has ciphertext
@@ -500,7 +490,7 @@ let
       # Opaque to this layer by construction: the caller says
       # `CLAUDE_CONFIG_DIR = ...`, this writes it out, and the VM never
       # learns which harness cares. `mkDefault` so a guest-side module (a
-      # channel, or a harness wrapper in a later phase) can still override
+      # channel or a harness wrapper) can still override
       # one without a conflict.
       environment.variables = lib.mapAttrs (_: lib.mkDefault) guestEnvironment // {
         AGENT_VM_GUEST = "1";

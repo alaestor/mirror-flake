@@ -25,8 +25,7 @@
     unsandboxed session invocation: selector parsing through the final
     exec) and a `<name>` package (a thin dispatcher that either execs
     `<name>-native` directly, when `sandbox` is null, or hands off to
-    whatever `sandbox` returns — bubblewrap today, a microVM in a later
-    phase). `native` is no longer a selector word: running `<name>-native`
+    whatever `sandbox` returns). `native` is no longer a selector word: running `<name>-native`
     directly *is* the bypass, so there is no runtime `sandbox` flag to
     thread through one script and no collision surface to guard with an
     eval-time assertion . The narrower design does not need that assertion..
