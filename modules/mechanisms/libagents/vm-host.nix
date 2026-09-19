@@ -662,7 +662,7 @@
                       publicKey = committedHostPublicKey;
                     }
                   else
-                    null;
+                    self.lib.agents.mkAgentVmHostKey pkgs cfg.name;
               };
             };
 

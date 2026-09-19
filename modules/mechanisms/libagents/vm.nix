@@ -278,6 +278,7 @@ let
           '';
     in
     {
+      path = "${dir}/ssh_host_ed25519_key";
       privateKeyPath = "${dir}/ssh_host_ed25519_key";
       publicKeyPath = "${dir}/ssh_host_ed25519_key.pub";
       # Forces the tiny keygen derivation to build at evaluation time
