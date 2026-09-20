@@ -19,8 +19,7 @@ from pathlib import Path
 from typing import Any
 
 LOGGER = logging.getLogger("jellybuilder")
-VIDEO_PATTERNS = ("*.mkv", "*.avi")
-MOVIE_PATTERNS = (*VIDEO_PATTERNS, "*.mp4", "*.srt")
+VIDEO_PATTERNS = ("*.mkv", "*.mp4", "*.avi")
 
 
 def natural_key(value: str | Path) -> tuple[tuple[int, int | str], ...]:
@@ -298,17 +297,6 @@ def process_anime(source_root: Path, destination_root: Path, overwrite: bool) ->
                 link_file(episode_source, episode_destination, overwrite)
 
 
-def process_movies(source_root: Path, destination_root: Path, overwrite: bool) -> None:
-    source = source_root / "Movies"
-    destination = destination_root / "Movies"
-    if not source.is_dir():
-        raise FileNotFoundError(f"Movie source directory not found: {source}")
-    destination.mkdir(parents=True, exist_ok=True)
-    remove_dangling_symlinks(destination)
-    for relative_movie in find_relative_files(source, *MOVIE_PATTERNS):
-        link_file(source / relative_movie, destination / relative_movie.name, overwrite)
-
-
 def process_music(source_root: Path, destination_root: Path, overwrite: bool) -> None:
     link_directory(
         source_root / "Music" / "Library-squashed",
@@ -382,7 +370,6 @@ def process_shows(source_root: Path, destination_root: Path, overwrite: bool) ->
 
 PROCESSORS = {
     "anime": process_anime,
-    "movies": process_movies,
     "shows": process_shows,
     "music": process_music,
 }

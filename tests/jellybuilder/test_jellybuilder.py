@@ -38,32 +38,8 @@ class JellybuilderTest(unittest.TestCase):
         path.write_text(content)
         return path
 
-    def test_movies_are_flattened_and_naturally_ordered(self) -> None:
-        first = self.touch("Movies/Collection/Movie 2.mkv")
-        second = self.touch("Movies/Other/Movie 10.mp4")
-        dangling = self.destination / "Movies/old.mkv"
-        dangling.parent.mkdir()
-        dangling.symlink_to(self.source / "missing.mkv")
-
-        jellybuilder.process_movies(self.source, self.destination, overwrite=False)
-
-        self.assertFalse(dangling.is_symlink())
-        self.assertEqual(
-            (self.destination / "Movies/Movie 2.mkv").resolve(), first.resolve()
-        )
-        self.assertEqual(
-            (self.destination / "Movies/Movie 10.mp4").resolve(), second.resolve()
-        )
-
-    def test_movie_name_collision_fails_loudly(self) -> None:
-        self.touch("Movies/First/Same.mkv")
-        self.touch("Movies/Second/Same.mkv")
-
-        with self.assertRaises(FileExistsError):
-            jellybuilder.process_movies(self.source, self.destination, overwrite=False)
-
     def test_anime_generates_natural_episode_order_and_metadata(self) -> None:
-        episode_10 = self.touch("Anime/Example/01 First/episode 10.mkv")
+        episode_10 = self.touch("Anime/Example/01 First/episode 10.mp4")
         episode_2 = self.touch("Anime/Example/01 First/episode 2.mkv")
         poster = self.touch("Anime/Example/poster.jpg")
 
@@ -74,7 +50,7 @@ class JellybuilderTest(unittest.TestCase):
             (season / "Example - S01E01.mkv").resolve(), episode_2.resolve()
         )
         self.assertEqual(
-            (season / "Example - S01E02.mkv").resolve(), episode_10.resolve()
+            (season / "Example - S01E02.mp4").resolve(), episode_10.resolve()
         )
         self.assertEqual(
             (self.destination / "Anime/Example/poster.jpg").resolve(), poster.resolve()
