@@ -122,9 +122,11 @@ in
         # The alias library is a tree of links into `source`, so Jellyfin reads
         # through to it and holds files open there. Without this, nothing stops
         # Jellyfin before that share is unmounted, and the unmount fails.
-        systemd.services.jellyfin.unitConfig = lib.mkIf cfg.libraryBuilder.enable {
-          RequiresMountsFor = [ cfg.libraryBuilder.source ];
-        };
+      systemd.services.jellyfin = lib.mkIf cfg.libraryBuilder.enable {
+        # Stop before nas-detach lazily detaches network filesystems.
+        after = [ "nas-detach.service" ];
+        unitConfig.RequiresMountsFor = [ cfg.libraryBuilder.source ];
+      };
       };
     };
 }

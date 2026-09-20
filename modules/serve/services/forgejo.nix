@@ -126,17 +126,15 @@
           };
         };
 
-        # TODO(serve): maybe this workaround and option defaults should be lanser config?
-        # `dataRoot` may live on a network share. Upstream's
-        # `systemd.tmpfiles.rules` run early in boot with no dependency on it and
-        # error out because the path doesn't exist yet; this also gives the
-        # stop ordering that keeps shutdown from unmounting the share while
-        # Forgejo still holds its SQLite database and git objects open.
-        systemd.services = lib.genAttrs [
-          "systemd-tmpfiles-setup"
-          "forgejo-secrets"
-          "forgejo"
-        ] (_: { unitConfig.RequiresMountsFor = [ cfg.dataRoot ]; });
+        # `dataRoot` may live on a network share. Do not make the global
+        # tmpfiles boot unit depend on that optional share: only Forgejo's own
+        # units wait for it. Explicit nas-detach ordering keeps its data
+        # available until the daemon has stopped.
+      systemd.services = lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
+        # Stop before nas-detach lazily detaches network filesystems.
+        after = [ "nas-detach.service" ];
+        unitConfig.RequiresMountsFor = [ cfg.dataRoot ];
+      });
 
         # expects REVERSE_PROXY_TRUSTED_PROXIES and and log MODE console.
         # This jail is inert unless fail2ban itself is enabled; mkDefault so

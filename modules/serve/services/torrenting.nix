@@ -89,8 +89,10 @@
           ];
         };
 
-        systemd.services.qbittorrent = {
-          vpnConfinement = {
+      systemd.services.qbittorrent = {
+        # Stop before nas-detach lazily detaches network filesystems.
+        after = [ "nas-detach.service" ];
+        vpnConfinement = {
             enable = true;
             vpnNamespace = cfg.namespace;
           };

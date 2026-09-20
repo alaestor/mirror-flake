@@ -2,10 +2,10 @@
   Provides optional NFS mounts for the Cauldron, Vault, Pocket, and Services
   NAS shares. Each share can be enabled independently and mounted read-only.
 
-  Enabled shares stay mounted for the life of the boot. Services that read or
-  write one are expected to declare `RequiresMountsFor` against their data
-  root, which both waits for the share and, more importantly, stops them
-  before it is unmounted.
+  Enabled shares are optional to boot. Services that read or write one are
+  expected to declare `RequiresMountsFor` against their data root so only the
+  consumer fails when a share is absent, and order themselves after
+  `nas-detach.service` so they stop before shutdown detaches the shares.
 */
 { self, ... }:
 {
