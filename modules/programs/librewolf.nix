@@ -28,7 +28,7 @@
         name = "${default-profile-name}";
         isDefault = true;
         extensions.packages = [
-          inputs.firefox-extensions-declarative.packages.${pkgs.stdenv.hostPlatform.system}.stylus-declarative
+        #  inputs.firefox-extensions-declarative.packages.${pkgs.stdenv.hostPlatform.system}.stylus-declarative
         ];
         settings = {
           "extensions.autoDisableScopes"                          = 0; # automatically enable installed extensions
