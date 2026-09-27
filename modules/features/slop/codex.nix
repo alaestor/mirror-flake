@@ -136,9 +136,10 @@
       # Case arms handed to `agents.mkSelectorLoop`; `--cx-help`/`--`/catch-all
       # are the loop's own job, not the harness's — see selector-loop.nix.
       codexCaseArms = ''
-        luna) model="gpt-5.6-luna" ;;
-        terra) model="gpt-5.6-terra" ;;
-        sol) model="gpt-5.6-sol" ;;
+        luna) model="gpt-6-luna" ;;
+        terra) model="gpt-6-terra" ;;
+        sol) model="gpt-6-sol" ;;
+        astra) model="gpt-6-astra" ;;
         lo|low) effort="low" ;;
         med|medium) effort="medium" ;;
         hi|high) effort="high" ;;
@@ -195,7 +196,7 @@
               caseArms = codexCaseArms;
               helpFlag = "--cx-help";
               helpLines = [
-                "usage: ${name} [luna|terra|sol] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [--] [codex arguments...]"
+                "usage: ${name} [luna|terra|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [--] [codex arguments...]"
               ];
               argsVar = "passthrough";
             }}

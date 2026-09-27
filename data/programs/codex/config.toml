@@ -1,4 +1,4 @@
-model = "gpt-5.6-sol"
+model = "gpt-6-sol"
 model_reasoning_effort = "low"
 approvals_reviewer = "auto_review"
 # Sessions isolate through the agent VM, so Codex's own sandbox and approval
