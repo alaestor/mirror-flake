@@ -64,11 +64,11 @@
         "serena": "serena"
       },
       "locked": {
-        "lastModified": 1790432912,
-        "narHash": "sha256-ks0EfZukLJuowAbC7yMhlZlgHc7Pi0zxIGDur1Gxa1g=",
+        "lastModified": 1790487719,
+        "narHash": "sha256-pOjaKQZnwI2jUDmw62he7FBDnTC7KIxDyxPqHBIUFRs=",
         "ref": "refs/heads/main",
-        "rev": "2aa80de3eb64ab0b91e9565867d37d212148bef8",
-        "revCount": 46,
+        "rev": "9b1e98958446d19be67876459b0bad85c875e8c2",
+        "revCount": 47,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/pkgs.git"
       },

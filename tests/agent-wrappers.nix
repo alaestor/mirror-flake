@@ -28,6 +28,7 @@ let
         };
         programs.claude-code.package = mockClient "claude";
         programs.codex.package = mockClient "codex";
+        services.tokview.enable = false;
       }
     ];
   };

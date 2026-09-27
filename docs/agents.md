@@ -74,6 +74,29 @@ Claude starts with an explicit MCP configuration rather than inheriting stale
 registrations from its auth-bearing state. Its native tool-search and extended
 context settings belong to the Claude wrapper, not to a proxy.
 
+## Token observability
+
+The Tokview feature owns one on-demand user service per environment. Both
+Claude and Codex send provider traffic through its loopback proxy and wait for
+readiness before launching. Proxy failure stops launch rather than silently
+losing observations. Codex receives its endpoint through invocation-time
+configuration; do not use `tokview wrap codex`, which rewrites the immutable
+Home Manager config.
+
+The feature owns the CLI, ports, and managed configuration. Harnesses import it
+and enable it as a default; setting `services.tokview.enable = false` restores
+direct provider connections. Prompt and response capture are disabled by
+default. This replaces compression with observation: prompts, responses, and
+tool results are not compressed. Provider routing remains the proxy's concern.
+
+Tokview uses SQLite WAL, so `.tokview` is guest-local persistent state. Native
+and VM sessions intentionally have separate databases. Use
+`tokview show --watch` for native sessions and `tokview-guest show --watch` from
+a shared work tree for VM sessions. The guest CLI uses the same isolation
+entry point as the agent wrappers; it does not mount or copy the database onto
+the host. The host attaching the harnesses contributes Tokview's local-state
+record alongside theirs.
+
 ## The context guard
 
 Auto-compaction summarizes for narrative continuity and loses the detail needed

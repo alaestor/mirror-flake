@@ -343,7 +343,10 @@
             # scale its thresholds to the session's actual window.
             export CC_CONTEXT_LIMIT="$context_limit"
 
-            exec ${lib.getExe claudePackage} "''${claude_args[@]}"
+            ${lib.optionalString config.services.tokview.enable ''
+              export ANTHROPIC_BASE_URL=http://127.0.0.1:${toString config.services.tokview.proxyPort}
+            ''}
+            exec ${lib.optionalString config.services.tokview.enable "${lib.getExe config.services.tokview.sessionLauncher} "}${lib.getExe claudePackage} "''${claude_args[@]}"
           '';
 
           # `cc` sandboxes `cc-native` unconditionally —
@@ -373,7 +376,12 @@
       ccWrappers = mkClaudeWrapper "cc";
     in
     {
-      imports = [ inputs.self.modules.homeManager.agents-prompt-preview ];
+      imports = [
+        inputs.self.modules.homeManager.tokview
+        inputs.self.modules.homeManager.agents-prompt-preview
+      ];
+
+      services.tokview.enable = lib.mkDefault true;
 
       assertions = [
         {

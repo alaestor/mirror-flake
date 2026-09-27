@@ -46,7 +46,8 @@
       };
       baseOverrides = [
         "developer_instructions=${builtins.toJSON resolvedPrompts.plain.preamble}"
-      ];
+      ]
+      ++ lib.optional config.services.tokview.enable "openai_base_url=${builtins.toJSON "http://127.0.0.1:${toString config.services.tokview.proxyPort}/v1"}";
       mkOverrideArgs =
         values:
         lib.concatMapStringsSep "\n" (value: ''
@@ -147,7 +148,7 @@
             # automatically trust the working-directory
             codex_args+=( -c "projects={\"$PWD\"={trust_level=\"trusted\"}}")
 
-            exec ${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
+            exec ${lib.optionalString config.services.tokview.enable "${lib.getExe config.services.tokview.sessionLauncher} "}${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
           '';
 
           sandbox =
@@ -185,6 +186,7 @@
     in
     {
       imports = [
+        inputs.self.modules.homeManager.tokview
         inputs.self.modules.homeManager.agents-prompt-preview
       ];
 
@@ -199,6 +201,7 @@
       };
 
       config = {
+        services.tokview.enable = lib.mkDefault true;
         home.packages =
           let
             cxWrappers = mkCodexWrapper "cx";

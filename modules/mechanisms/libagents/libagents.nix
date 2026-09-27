@@ -283,6 +283,15 @@ let
     # SQLite query index is in-memory; durable SQLite state would instead
     # require rollback journaling or a guest-local contribution.
     deepseek.stateDirs = [ ".dsh" ];
+
+    # Tokview also uses SQLite WAL. Native and guest observations stay in
+    # independent databases rather than sharing one over virtiofs.
+    tokview.localStateDirs = [
+      {
+        directory = ".tokview";
+        size = 4096;
+      }
+    ];
   };
 
   vmContributionsFor =
