@@ -243,7 +243,7 @@ let
   #
   # It lives here rather than in a harness feature because both sides need the
   # same binary from different module classes -- Claude Code registers it from
-  # a Home Manager module, while Codex only honours hooks declared in
+  # a Home Manager module, while Codex automatically trusts hooks declared in
   # `/etc/codex/config.toml`, which is NixOS. The harness is selected by
   # `argv[1]`; see the script for what differs between them.
   contextGuard =

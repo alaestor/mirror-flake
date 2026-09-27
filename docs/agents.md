@@ -73,8 +73,9 @@ agent to write a handoff and then blocks further work once it exists.
 
 The guard is a harness fact but lives in the library rather than in a harness
 feature, because the two sides register it from different module classes: Claude
-Code takes hooks from Home Manager settings, while Codex honours only hooks
-declared in the *system* config layer. It selects behaviour from `argv[1]`, and
+Code takes hooks from Home Manager settings, while Codex trusts hooks
+declared in the *system* config layer without interactive trust. The guard must
+run in both native and wrapped sessions. It selects behaviour from `argv[1]`, and
 only two things vary — how the transcript reports live context, and which JSON
 verb halts a turn. Adding a harness means adding an entry to that table, not
 forking the script.
@@ -98,11 +99,13 @@ payload carries. Those are absent for API-key, Bedrock, and Vertex auth and
 until a response has carried the quota headers, so the renderer omits whatever
 is missing rather than assuming a shape.
 
-A harness whose vendor CLI only accepts system-level configuration cannot be
-served by the harness feature alone, since the guest runs no Home Manager and a
+A harness whose hooks need system-level registration cannot be served by the
+harness feature alone, since the guest runs no Home Manager and a
 standalone Home Manager attachment is not evaluated during a `nixos-rebuild`.
 The host that attaches the harness contributes the file through `guestEtc`,
-exactly as it already contributes `stateDirs`.
+exactly as it already contributes `stateDirs`. For native Codex sessions, the
+host also installs the same file through `environment.etc`. User-level Codex
+hooks require persisted trust, which a Nix-managed user config cannot record.
 
 ## Shares and state
 

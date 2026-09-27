@@ -22,6 +22,10 @@ in
 {
   age.identityPaths = [ config.ssh-host.hostKeyPath ];
 
+  # Native Codex needs the same managed hooks as the guest. User-level hooks
+  # require writable trust state, which the Home Manager config cannot provide.
+  environment.etc."codex/config.toml".source = agents.codexHookConfig pkgs;
+
   # Which harnesses this host's agent VM carries state for. Named here
   # rather than in the module because this host is what decides which
   # harness features are attached in the first place (`modules/host/apc.nix`
@@ -41,7 +45,7 @@ in
     # the guest boundary after boot.
     projectRoots = agents.sandboxWritableRootsFor home;
     inherit (vmContributions) stateDirs localStateDirs guestEnvironment;
-    # Codex only runs hooks it considers managed, and the only source that
+    # Codex automatically trusts hooks it considers managed; the source that
     # qualifies is the system config layer. The guest runs no Home Manager,
     # so the harness feature cannot place this itself; this host attaches
     # codex, so it is the one that contributes the file. Same reasoning as
