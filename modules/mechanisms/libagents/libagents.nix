@@ -11,8 +11,7 @@
 
   - `tools` / `toolsMarkdown` — the CLI tool set every harness's shell
     fragment advertises, and its rendering as a markdown bullet list.
-  - `fragments` — reusable preamble text blocks (`shell`, `rtk`, `headroom`,
-    `memory`). Each is plain text; harnesses are responsible for
+  - `fragments` — reusable preamble text blocks (`shell`, `rtk`, `memory`). Each is plain text; harnesses are responsible for
     concatenating the fragments they want and injecting the result at
     whatever depth their own module (`--append-system-prompt`,
     `developer_instructions=`, ...) requires.
@@ -158,22 +157,14 @@ let
 
       Run `tldr <program>` to see usage examples.
     '';
-    headroom = ''
-      ## Headroom shaping
-
-      Multi-line Bash output (e.g. `cat` or `git status --porcelain`) may render condensed, indistinguishable from truncated or wrapped output. Don't re-run the command hoping for improved visibility: if a compression marker prefer `headroom_retrieve` with the hash if a compression marker is visible, otherwise you can do a precise read using a raw `nl -ba <file>`
-
-      You don't need to audit every edit you make unless you have reason to suspect it may have silently failed (e.g. a plausibly indistinct edit in large file, or working with complicated syntax/whitespace).
-    '';
-
     rtk = ''
-      ## RTK Rules
+      ## RTK
 
-      Rust Token Killer reduces CLI context usage in a similar way. It's always safe to use: if rtk has no filter for a command, it passes through unchanged.
-
-      - Always prefix shell commands with rtk, except exact-content reads used to prepare an edit, verify a patch, or when debugging. Those reads must use the raw command to preserve punctuation and whitespace.
-      - In command chains, prefix each segment: `rtk git add . && rtk git commit -m "msg"`
-      - `rtk proxy <cmd>` runs a command without filtering but tracks usage
+      Use raw commands by default. Use RTK for noisy human-readable searches,
+      directory listings, status summaries, and routine build or test logs.
+      Keep source reads, diffs, machine-readable output, and failure diagnostics
+      unfiltered. Use RTK on structured configuration dumps only for a summary,
+      never when exact values or syntax are needed.
     '';
 
     memory = ''
@@ -287,8 +278,6 @@ let
         }
       ];
     };
-
-    headroom.stateDirs = [ ".headroom" ];
 
     # DSH profiles and plugins must be visible on both sides. Its shipped
     # SQLite query index is in-memory; durable SQLite state would instead

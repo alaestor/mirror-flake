@@ -13,7 +13,6 @@ let
     "claude"
     "codex"
     "deepseek"
-    "headroom"
   ];
   # noblesse offloads its builds here.
   remoteBuildUser = "nixremote";

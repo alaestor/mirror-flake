@@ -63,6 +63,17 @@ The allowed work trees follow the same single-source rule. Harness wrappers use
 `flake.lib.agents.sandboxWritableRootsFor` for their admission check, and the
 host uses that list as the VM's fixed `projectRoots` shares.
 
+## Session configuration
+
+The wrappers configure prompts and tools directly in the vendor CLI. They do
+not rewrite API requests or tool output to compress context. RTK is available
+for selected noisy commands; exact source, diffs, and machine-readable output
+must remain unfiltered.
+
+Claude starts with an explicit MCP configuration rather than inheriting stale
+registrations from its auth-bearing state. Its native tool-search and extended
+context settings belong to the Claude wrapper, not to a proxy.
+
 ## The context guard
 
 Auto-compaction summarizes for narrative continuity and loses the detail needed

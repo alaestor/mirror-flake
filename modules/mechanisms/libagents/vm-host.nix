@@ -438,7 +438,7 @@
           type = lib.types.listOf lib.types.str;
           default = [ ];
           example = lib.literalExpression ''
-            self.lib.agents.stateDirsFor "/home/user" [ "claude" "headroom" ]
+            self.lib.agents.stateDirsFor "/home/user" [ "claude" ]
           '';
           description = ''
             Host directories holding an agent's live state — sessions,

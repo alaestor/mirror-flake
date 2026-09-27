@@ -37,10 +37,8 @@
       # the build instead.
       minimumClaudeVersion = "2.0.42";
       claudeVersionOk = !lib.versionOlder claudePackage.version minimumClaudeVersion;
-      headroomPackage = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.headroom;
       cliTools = agents.tools pkgs;
-      shellInstructions =
-        agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
+      shellInstructions = agents.fragments.shell pkgs + "\n" + agents.fragments.rtk;
 
       memoryInstructions = agents.fragments.memory;
 
@@ -182,13 +180,14 @@
         auto) permission_mode="auto" ;;
         plan) permission_mode="plan" ;;
         bypass) permission_mode="bypassPermissions" ;;
-        memory) headroom_args+=( --memory ) ;;
-        graph|code-graph) headroom_args+=( --code-graph ) ;;
+        memory|graph|code-graph)
+          echo "cc: memory/graph selectors were removed" >&2
+          exit 2
+          ;;
         1m)
-          headroom_args+=( --1m )
           context_limit=1000000
           ;;
-        search|tool-search) headroom_args+=( --tool-search auto ) ;;
+        search|tool-search) tool_search="auto" ;;
         alltools|all-tools) tools="default" ;;
         skill|skills) skills=1 ;;
         noagentsmd) agents_md=0 ;;
@@ -198,29 +197,8 @@
         verbose|verbose-tools) lean_tools=0 ;;
       '';
 
-      # `--mcp-config` + `--strict-mcp-config` (below) replace whatever
-      # `mcpServers` happens to be sitting in the live, auth-bearing
-      # `~/.claude/.claude.json` — that file is runtime state `claude mcp
-      # add` writes to, not something this module manages, and its entries
-      # apply to every session regardless of which wrapper started it (there
-      # is no per-wrapper distinction once a server lands there). Building the
-      # server list here instead means each wrapper's MCP set is exactly what
-      # declaration specifies, and `lib.getExe` keeps every command pointed
-      # at the flake's *current* package rather than a store path frozen at
-      # whatever version was live when someone last ran `claude mcp add`.
-      mcpServersBase = {
-        headroom = {
-          type = "stdio";
-          command = lib.getExe headroomPackage;
-          args = [
-            "mcp"
-            "serve"
-          ];
-        };
-      };
-      mkMcpConfig =
-        name: servers: pkgs.writeText "${name}-mcp-config.json" (builtins.toJSON { mcpServers = servers; });
-      mcpConfigPlain = mkMcpConfig "cc" mcpServersBase;
+      # Do not inherit stale MCP registrations from the live auth-bearing config.
+      mcpConfig = pkgs.writeText "cc-mcp-config.json" (builtins.toJSON { mcpServers = { }; });
 
       mkClaudeWrapper =
         name:
@@ -228,7 +206,6 @@
           inherit name;
           runtimeInputs = [
             claudePackage
-            headroomPackage
             pkgs.rtk
             pkgs.tlrc
           ]
@@ -285,17 +262,14 @@
             skills=0
             agents_md=1
             context_limit=200000
-            headroom_args=(
-              --code-memory none
-              --tool-search true
-            )
+            tool_search="true"
             claude_args=()
 
             ${agents.mkSelectorLoop {
               caseArms = claudeCaseArms;
               helpFlag = "--cc-help";
               helpLines = [
-                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [memory|graph|1m|search|skills|alltools] [--] [claude arguments...]"
+                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [1m|search|skills|alltools] [--] [claude arguments...]"
                 "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
                 "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
                 "${name} isolates sessions in the agent VM by default; run ${name}-native directly to bypass it entirely"
@@ -307,6 +281,24 @@
             }}
 
             [[ -z "$model" ]] || claude_args+=( --model "$model" )
+            if (( context_limit == 1000000 )); then
+              # Native Claude model suffixes select the extended context window.
+              export ANTHROPIC_MODEL="''${ANTHROPIC_MODEL:-opus}"
+              [[ "$ANTHROPIC_MODEL" == *"[1m]" ]] || ANTHROPIC_MODEL+="[1m]"
+              for (( i=0; i<''${#claude_args[@]}; i++ )); do
+                case "''${claude_args[i]}" in
+                  --model)
+                    if (( i + 1 < ''${#claude_args[@]} )); then
+                      (( i += 1 ))
+                      [[ "''${claude_args[i]}" == *"[1m]" ]] || claude_args[i]+="[1m]"
+                    fi
+                    ;;
+                  --model=*)
+                    [[ "''${claude_args[i]}" == *"[1m]" ]] || claude_args[i]+="[1m]"
+                    ;;
+                esac
+              done
+            fi
             [[ -z "$effort" ]] || claude_args+=( --effort "$effort" )
             [[ -z "$permission_mode" ]] || claude_args+=( --permission-mode "$permission_mode" )
 
@@ -330,12 +322,8 @@
             fi
             claude_args+=( --append-system-prompt "$append_prompt" )
 
-            # Fully replaces whatever `mcpServers` the live `~/.claude/.claude.json`
-            # happens to hold — see `mcpServersBase` above.
-            claude_args+=(
-              --strict-mcp-config
-              --mcp-config ${lib.escapeShellArg (toString mcpConfigPlain)}
-            )
+            claude_args+=( --strict-mcp-config --mcp-config ${lib.escapeShellArg (toString mcpConfig)} )
+            export ENABLE_TOOL_SEARCH="$tool_search"
 
             # `--autocompact` has no `off`; parking it at the maximum keeps
             # Claude Code from attempting a proactive compaction the PreCompact
@@ -355,12 +343,7 @@
             # scale its thresholds to the session's actual window.
             export CC_CONTEXT_LIMIT="$context_limit"
 
-            session=(
-              ${lib.getExe headroomPackage} wrap claude
-              "''${headroom_args[@]}" -- "''${claude_args[@]}"
-            )
-
-            exec "''${session[@]}"
+            exec ${lib.getExe claudePackage} "''${claude_args[@]}"
           '';
 
           # `cc` sandboxes `cc-native` unconditionally —

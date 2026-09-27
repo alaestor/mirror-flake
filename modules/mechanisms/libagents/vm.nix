@@ -1,7 +1,7 @@
 /**
     # flake.lib.agents.mkAgentVm
 
-    The VM layer. Must never mention `~/.claude`, headroom, or a model name — that's
+    The VM layer. Must never mention harness state paths, proxy names, or model names — that's
     the harness layer's job (`libagents.nix`, `selector-loop.nix`). This layer
     only knows about shares, networking, channels, and the guest's own NixOS
     configuration; it must never be handed a harness's prompt text or tool

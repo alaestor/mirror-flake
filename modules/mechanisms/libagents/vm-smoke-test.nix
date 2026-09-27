@@ -35,7 +35,6 @@ let
     "claude"
     "codex"
     "deepseek"
-    "headroom"
   ];
 in
 {

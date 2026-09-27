@@ -1,6 +1,5 @@
 /**
-  Codex CLI wired through the Headroom proxy, with model-specific
-  instruction files.
+  Codex CLI with shared agent tools, prompts, and model selectors.
 */
 { inputs, self, ... }:
 {
@@ -14,9 +13,7 @@
     let
       agents = self.lib.agents;
       cfg = config.codex;
-      proxy = config.services.headroom-proxy;
       codexPackage = config.programs.codex.package;
-      headroomPackage = proxy.package;
 
       instructionFiles = {
         small = self.data.path "programs/codex/codex-instructions-gpt-5-small.md";
@@ -29,12 +26,7 @@
 
       cliTools = agents.tools pkgs;
 
-      # Codex previously ran its own, slightly drifted RTK prose and lacked
-      # the headroom-shaping paragraph entirely; both now come from the
-      # shared fragments verbatim (claude-code.nix's wording), which is the
-      # one intentional behaviour change in this move.
-      preprompt =
-        agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
+      preprompt = agents.fragments.shell pkgs + "\n" + agents.fragments.rtk;
 
       promptLayers = {
         common = {
@@ -52,17 +44,8 @@
       resolvedPrompts = {
         plain = mkResolvedPrompt "plain";
       };
-      proxyUrl = "http://${proxy.address}:${toString proxy.port}/v1";
       baseOverrides = [
-        "openai_base_url=${builtins.toJSON proxyUrl}"
         "developer_instructions=${builtins.toJSON resolvedPrompts.plain.preamble}"
-        "mcp_servers.headroom.command=${builtins.toJSON (lib.getExe headroomPackage)}"
-        "mcp_servers.headroom.args=${
-          builtins.toJSON [
-            "mcp"
-            "serve"
-          ]
-        }"
       ];
       mkOverrideArgs =
         values:
@@ -93,7 +76,7 @@
         name:
         agents.mkHarnessWrappers pkgs {
           inherit name;
-          runtimeInputs = cliBase ++ cliTools ++ [ pkgs.systemd ];
+          runtimeInputs = cliBase ++ cliTools;
           nativeText = ''
             # Harmless if Codex never exports its own `find` shell function
             # the way Claude does — the guard then just wraps plain
@@ -138,25 +121,6 @@
               ];
               argsVar = "passthrough";
             }}
-
-            if ! systemctl --user --quiet is-active headroom-proxy.service; then
-              if systemctl --user --quiet cat headroom-proxy.service >/dev/null 2>&1; then
-                systemctl --user start headroom-proxy.service
-              else
-                # The agent VM intentionally runs no Home Manager, so create
-                # the equivalent service in its user manager. The transient
-                # unit is shared by concurrent Codex sessions in this guest.
-                systemd-run --user --quiet --collect \
-                  --unit=headroom-proxy.service \
-                  --property=Restart=on-failure \
-                  --property=RestartSec=2 \
-                  --setenv=HEADROOM_OUTPUT_SHAPER=${if proxy.shape-output then "1" else "0"} \
-                  ${lib.getExe headroomPackage} proxy \
-                    --host ${lib.escapeShellArg proxy.address} \
-                    --port ${toString proxy.port} \
-                  || systemctl --user --quiet is-active headroom-proxy.service
-              fi
-            fi
 
             codex_args=()
             ${mkOverrideArgs baseOverrides}
@@ -221,7 +185,6 @@
     in
     {
       imports = [
-        inputs.self.modules.homeManager.headroom
         inputs.self.modules.homeManager.agents-prompt-preview
       ];
 
@@ -236,8 +199,6 @@
       };
 
       config = {
-        services.headroom-proxy.enable = lib.mkDefault true;
-
         home.packages =
           let
             cxWrappers = mkCodexWrapper "cx";
