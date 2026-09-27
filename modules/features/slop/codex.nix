@@ -36,20 +36,11 @@
       preprompt =
         agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
 
-      serena = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
-
-      serenaInstructions = agents.fragments.serena;
-
-      # `variant` is "plain" or "serena", matching `withSerena` in
-      # `mkCodexWrapper` below. Codex has no `system` depth of its own here —
-      # `model_instructions_file` is a separate runtime selector
-      # (full/small/`cfg.modelInstructionsFile`), not part of this layer set.
       promptLayers = {
         common = {
           preamble.add = [ preprompt ];
           context.replace = [ agents.context ];
         };
-        byVariant.serena.preamble.add = [ serenaInstructions ];
       };
       mkResolvedPrompt =
         variant:
@@ -60,45 +51,7 @@
         };
       resolvedPrompts = {
         plain = mkResolvedPrompt "plain";
-        serena = mkResolvedPrompt "serena";
       };
-      bashLanguageServerWithShellcheck = pkgs.writeShellApplication {
-        name = "bash-language-server-with-shellcheck";
-        runtimeInputs = [ pkgs.nodejs ];
-        text = ''
-          export SHELLCHECK_PATH=${lib.getExe pkgs.shellcheck}
-          exec ${lib.getExe pkgs.bash-language-server} "$@"
-        '';
-      };
-      mkNodeLanguageServerWrapper =
-        name: executable:
-        pkgs.writeShellApplication {
-          inherit name;
-          runtimeInputs = [ pkgs.nodejs ];
-          text = ''
-            exec ${executable} "$@"
-          '';
-        };
-      jsonLanguageServer = mkNodeLanguageServerWrapper "json-language-server" (
-        lib.getExe' pkgs.vscode-langservers-extracted "vscode-json-language-server"
-      );
-      yamlLanguageServer = mkNodeLanguageServerWrapper "yaml-language-server" (
-        lib.getExe' pkgs.yaml-language-server "yaml-language-server"
-      );
-      serenaHome = "${config.home.homeDirectory}/.serena-cxs";
-      serenaConfig = pkgs.writeText "serena-cxs-config.yml" ''
-        projects: []
-        ls_specific_settings:
-          bash:
-            ls_path: ${lib.getExe bashLanguageServerWithShellcheck}
-          json:
-            ls_path: ${lib.getExe jsonLanguageServer}
-          markdown:
-            ls_path: ${lib.getExe pkgs.marksman}
-          yaml:
-            ls_path: ${lib.getExe yamlLanguageServer}
-      '';
-
       proxyUrl = "http://${proxy.address}:${toString proxy.port}/v1";
       baseOverrides = [
         "openai_base_url=${builtins.toJSON proxyUrl}"
@@ -108,21 +61,6 @@
           builtins.toJSON [
             "mcp"
             "serve"
-          ]
-        }"
-      ];
-      serenaOverrides = [
-        "developer_instructions=${builtins.toJSON resolvedPrompts.serena.preamble}"
-        "mcp_servers.serena.startup_timeout_sec=15"
-        "mcp_servers.serena.command=${builtins.toJSON (lib.getExe serena)}"
-        "mcp_servers.serena.env.SERENA_HOME=${builtins.toJSON serenaHome}"
-        "mcp_servers.serena.args=${
-          builtins.toJSON [
-            "start-mcp-server"
-            "--project-from-cwd"
-            "--context=codex"
-            "--open-web-dashboard"
-            "False"
           ]
         }"
       ];
@@ -152,7 +90,7 @@
       '';
 
       mkCodexWrapper =
-        name: withSerena:
+        name:
         agents.mkHarnessWrappers pkgs {
           inherit name;
           runtimeInputs = cliBase ++ cliTools ++ [ pkgs.systemd ];
@@ -221,7 +159,7 @@
             fi
 
             codex_args=()
-            ${mkOverrideArgs (baseOverrides ++ lib.optionals withSerena serenaOverrides)}
+            ${mkOverrideArgs baseOverrides}
 
             if [[ -n "$model" ]]; then
               codex_args+=( --model "$model" )
@@ -248,11 +186,13 @@
             exec ${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
           '';
 
-          sandbox = native: agents.mkVmSandbox pkgs {
-            inherit name native;
-            helpFlag = "--cx-help";
-            herdrAgent = "codex";
-          };
+          sandbox =
+            native:
+            agents.mkVmSandbox pkgs {
+              inherit name native;
+              helpFlag = "--cx-help";
+              herdrAgent = "codex";
+            };
         };
 
       normalizeSettingsValue =
@@ -300,20 +240,12 @@
 
         home.packages =
           let
-            cxWrappers = mkCodexWrapper "cx" false;
-            cxsWrappers = mkCodexWrapper "cxs" true;
+            cxWrappers = mkCodexWrapper "cx";
           in
           [
             cxWrappers.native
             cxWrappers.wrapped
-            cxsWrappers.native
-            cxsWrappers.wrapped
           ];
-        home.file.".serena-cxs/serena_config.yml" = {
-          force = true;
-          source = serenaConfig;
-        };
-
         agents.promptPreview.codex = resolvedPrompts;
 
         programs.codex = {

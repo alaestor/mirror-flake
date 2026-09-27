@@ -36,50 +36,49 @@ let
     "codex"
     "deepseek"
     "headroom"
-    "serena"
   ];
 in
 {
   flake.nixosConfigurations.agent-vm-smoke-test = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules = [
-        (
-          { pkgs, ... }:
-          {
-            imports = [
-              (self.lib.agents.mkAgentVm {
-                name = "agent-vm-smoke-test";
-                hostKey = self.lib.agents.mkAgentVmHostKey pkgs "agent-vm-smoke-test";
-        hostUser = "user";
-        projectRoots = [
-          "/home/user/Projects"
-          "/mnt/Vault/.dotfiles/flake"
-        ];
-        authorizedKeys = [ self.data.vars.sshClientPublicKeys.apc ];
+      (
+        { pkgs, ... }:
+        {
+          imports = [
+            (self.lib.agents.mkAgentVm {
+              name = "agent-vm-smoke-test";
+              hostKey = self.lib.agents.mkAgentVmHostKey pkgs "agent-vm-smoke-test";
+              hostUser = "user";
+              projectRoots = [
+                "/home/user/Projects"
+                "/mnt/Vault/.dotfiles/flake"
+              ];
+              authorizedKeys = [ self.data.vars.sshClientPublicKeys.apc ];
 
-        # The same state directories the declared VM gets on `apc`,
-        # so the shared-config acceptance checks can be run against the
-        # throwaway guest instead of the deployed one. Named through
-        # `flake.lib.agents` — the smoke test is a caller, and callers are
-        # allowed to know what a harness keeps where; the VM layer is not.
-          inherit (vmContributions) stateDirs localStateDirs guestEnvironment;
+              # The same state directories the declared VM gets on `apc`,
+              # so the shared-config acceptance checks can be run against the
+              # throwaway guest instead of the deployed one. Named through
+              # `flake.lib.agents` — the smoke test is a caller, and callers are
+              # allowed to know what a harness keeps where; the VM layer is not.
+              inherit (vmContributions) stateDirs localStateDirs guestEnvironment;
 
-        # Both channels, so the smoke test stays the one guest
-        # everything is verified against. The host end of these lives on the
-        # host configuration (`flake.modules.nixos.agent-vm`), so this VM's
-        # channels only work on a host that has that module enabled.
-        channels = {
-          nixDaemon.enable = true;
-          gpgAgent = {
-            enable = true;
-            certificates = [ self.data.vars.identities.administrative.pgp.certificate ];
-            ultimatelyTrusted = [ self.data.vars.identities.administrative.pgp.fingerprint ];
-          };
-        };
-              })
-            ];
-          }
-        )
+              # Both channels, so the smoke test stays the one guest
+              # everything is verified against. The host end of these lives on the
+              # host configuration (`flake.modules.nixos.agent-vm`), so this VM's
+              # channels only work on a host that has that module enabled.
+              channels = {
+                nixDaemon.enable = true;
+                gpgAgent = {
+                  enable = true;
+                  certificates = [ self.data.vars.identities.administrative.pgp.certificate ];
+                  ultimatelyTrusted = [ self.data.vars.identities.administrative.pgp.fingerprint ];
+                };
+              };
+            })
+          ];
+        }
+      )
     ];
   };
 }

@@ -38,14 +38,9 @@
       minimumClaudeVersion = "2.0.42";
       claudeVersionOk = !lib.versionOlder claudePackage.version minimumClaudeVersion;
       headroomPackage = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.headroom;
-      serenaPackage = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.serena;
-      # Matches `stateDirs.serena` (`libagents.nix`) — serena's own default
-      # `SERENA_HOME` when nothing overrides it. Set explicitly here so this
-      # file states the fact rather than leaning on serena's undocumented
-      # default staying what it is.
-      serenaHome = "${config.home.homeDirectory}/.serena";
       cliTools = agents.tools pkgs;
-      shellInstructions = agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
+      shellInstructions =
+        agents.fragments.shell pkgs + "\n" + agents.fragments.headroom + "\n" + agents.fragments.rtk;
 
       memoryInstructions = agents.fragments.memory;
 
@@ -56,10 +51,6 @@
       # The prompt contains dynamic environment data we inject via our wrapper
       miniPrompt = self.data.path "programs/claude/claude-instructions-mini.md";
 
-      # Nothing here varies by model or variant today (`withSerena` only
-      # changes headroom_args, not prompt text) — `byVariant`/`byModel` stay
-      # empty. Kept as layers anyway so a future addition has somewhere to go
-      # without restructuring; see `flake.lib.agents.mkPrompt`.
       promptLayers = {
         common = {
           system = miniPrompt;
@@ -181,30 +172,30 @@
       # Case arms handed to `agents.mkSelectorLoop`; `--cc-help`/`--`/catch-all
       # are the loop's own job, not the harness's — see selector-loop.nix.
       claudeCaseArms = ''
-            haiku|sonnet|opus) model="$1" ;;
-            lo|low) effort="low" ;;
-            med|medium) effort="medium" ;;
-            hi|high) effort="high" ;;
-            max) effort="max" ;;
-            user|manual) permission_mode="manual" ;;
-            edits|acceptEdits) permission_mode="acceptEdits" ;;
-            auto) permission_mode="auto" ;;
-            plan) permission_mode="plan" ;;
-            bypass) permission_mode="bypassPermissions" ;;
-            memory) headroom_args+=( --memory ) ;;
-            graph|code-graph) headroom_args+=( --code-graph ) ;;
-            1m)
-              headroom_args+=( --1m )
-              context_limit=1000000
-              ;;
-            search|tool-search) headroom_args+=( --tool-search auto ) ;;
-            alltools|all-tools) tools="default" ;;
-            skill|skills) skills=1 ;;
-            noagentsmd) agents_md=0 ;;
-            full|full-prompt) prompt="full" ;;
-            mini|mini-prompt) prompt="mini" ;;
-            lean|lean-tools) lean_tools=1 ;;
-            verbose|verbose-tools) lean_tools=0 ;;
+        haiku|sonnet|opus) model="$1" ;;
+        lo|low) effort="low" ;;
+        med|medium) effort="medium" ;;
+        hi|high) effort="high" ;;
+        max) effort="max" ;;
+        user|manual) permission_mode="manual" ;;
+        edits|acceptEdits) permission_mode="acceptEdits" ;;
+        auto) permission_mode="auto" ;;
+        plan) permission_mode="plan" ;;
+        bypass) permission_mode="bypassPermissions" ;;
+        memory) headroom_args+=( --memory ) ;;
+        graph|code-graph) headroom_args+=( --code-graph ) ;;
+        1m)
+          headroom_args+=( --1m )
+          context_limit=1000000
+          ;;
+        search|tool-search) headroom_args+=( --tool-search auto ) ;;
+        alltools|all-tools) tools="default" ;;
+        skill|skills) skills=1 ;;
+        noagentsmd) agents_md=0 ;;
+        full|full-prompt) prompt="full" ;;
+        mini|mini-prompt) prompt="mini" ;;
+        lean|lean-tools) lean_tools=1 ;;
+        verbose|verbose-tools) lean_tools=0 ;;
       '';
 
       # `--mcp-config` + `--strict-mcp-config` (below) replace whatever
@@ -212,9 +203,9 @@
       # `~/.claude/.claude.json` — that file is runtime state `claude mcp
       # add` writes to, not something this module manages, and its entries
       # apply to every session regardless of which wrapper started it (there
-      # is no `cc`/`ccs` distinction once a server lands there). Building the
+      # is no per-wrapper distinction once a server lands there). Building the
       # server list here instead means each wrapper's MCP set is exactly what
-      # `withSerena` says it is, and `lib.getExe` keeps every command pointed
+      # declaration specifies, and `lib.getExe` keeps every command pointed
       # at the flake's *current* package rather than a store path frozen at
       # whatever version was live when someone last ran `claude mcp add`.
       mcpServersBase = {
@@ -227,30 +218,12 @@
           ];
         };
       };
-      mcpServersSerena = mcpServersBase // {
-        serena = {
-          type = "stdio";
-          command = lib.getExe serenaPackage;
-          args = [
-            "start-mcp-server"
-            "--project-from-cwd"
-            "--context=claude-code"
-            "--open-web-dashboard"
-            "False"
-          ];
-          env = {
-            SERENA_HOME = serenaHome;
-          };
-        };
-      };
       mkMcpConfig =
-        name: servers:
-        pkgs.writeText "${name}-mcp-config.json" (builtins.toJSON { mcpServers = servers; });
+        name: servers: pkgs.writeText "${name}-mcp-config.json" (builtins.toJSON { mcpServers = servers; });
       mcpConfigPlain = mkMcpConfig "cc" mcpServersBase;
-      mcpConfigSerena = mkMcpConfig "ccs" mcpServersSerena;
 
       mkClaudeWrapper =
-        name: withSerena:
+        name:
         agents.mkHarnessWrappers pkgs {
           inherit name;
           runtimeInputs = [
@@ -313,9 +286,8 @@
             agents_md=1
             context_limit=200000
             headroom_args=(
-              --code-memory ${if withSerena then "serena" else "none"}
+              --code-memory none
               --tool-search true
-              ${lib.optionalString withSerena "--serena-instructions"}
             )
             claude_args=()
 
@@ -359,10 +331,10 @@
             claude_args+=( --append-system-prompt "$append_prompt" )
 
             # Fully replaces whatever `mcpServers` the live `~/.claude/.claude.json`
-            # happens to hold — see `mcpServersBase`/`mcpServersSerena` above.
+            # happens to hold — see `mcpServersBase` above.
             claude_args+=(
               --strict-mcp-config
-              --mcp-config ${lib.escapeShellArg (toString (if withSerena then mcpConfigSerena else mcpConfigPlain))}
+              --mcp-config ${lib.escapeShellArg (toString mcpConfigPlain)}
             )
 
             # `--autocompact` has no `off`; parking it at the maximum keeps
@@ -391,7 +363,7 @@
             exec "''${session[@]}"
           '';
 
-          # `cc`/`ccs` sandbox `cc-native`/`ccs-native` unconditionally —
+          # `cc` sandboxes `cc-native` unconditionally —
           # there is no runtime opt-out selector any more; running the
           # `-native` package directly is the only bypass. `--cc-help` is
           # special-cased ahead of the sandbox check so it works from any
@@ -406,15 +378,16 @@
           # Unlike bubblewrap's per-invocation `--extra-bind`, virtiofs
           # shares are fixed at guest boot, so there is nothing to bind here
           # — only a membership check against what was already shared.
-          sandbox = native: agents.mkVmSandbox pkgs {
-            inherit name native;
-            helpFlag = "--cc-help";
-            herdrAgent = "claude";
-          };
+          sandbox =
+            native:
+            agents.mkVmSandbox pkgs {
+              inherit name native;
+              helpFlag = "--cc-help";
+              herdrAgent = "claude";
+            };
         };
 
-      ccWrappers = mkClaudeWrapper "cc" false;
-      ccsWrappers = mkClaudeWrapper "ccs" true;
+      ccWrappers = mkClaudeWrapper "cc";
     in
     {
       imports = [ inputs.self.modules.homeManager.agents-prompt-preview ];
@@ -436,8 +409,6 @@
       home.packages = [
         ccWrappers.native
         ccWrappers.wrapped
-        ccsWrappers.native
-        ccsWrappers.wrapped
       ];
 
       agents.promptPreview.claude.plain = resolvedPrompt;

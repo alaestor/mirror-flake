@@ -14,7 +14,6 @@ let
     "codex"
     "deepseek"
     "headroom"
-    "serena"
   ];
   # noblesse offloads its builds here.
   remoteBuildUser = "nixremote";
@@ -36,7 +35,7 @@ in
   agent-vm = {
     enable = true;
     # Same two roots `claude-code.nix`'s bubblewrap sandbox has always
-    # allowed (`sandboxWritableRoots`): `cc`/`ccs` run through
+    # allowed (`sandboxWritableRoots`): `cc` run through
     # `agent-vm-session`) needs the guest to be able to see whatever the
     # caller's `$PWD` is, and unlike bubblewrap's per-invocation bind mounts,
     # virtiofs shares are fixed at boot, so this has to name the trees up

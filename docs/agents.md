@@ -205,7 +205,7 @@ general case: an agent forwarded into the guest can use whatever the forwarded
 sockets can do.
 
 It also does not cover every agent-adjacent tool on a host, by design. It
-exists for agentic CLI harnesses run through wrappers (`cc`/`ccs`/`cx`/`cxs`),
+exists for agentic CLI harnesses run through wrappers (`cc`/`cx`),
 where the whole point is reducing blast radius for a process that runs
 unattended. Zed's built-in agent (`modules/programs/zed.nix`'s
 `trust_all_worktrees`, `modules/aspects/ai-coding-local.nix`'s

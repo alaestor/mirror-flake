@@ -12,7 +12,7 @@
   - `tools` / `toolsMarkdown` — the CLI tool set every harness's shell
     fragment advertises, and its rendering as a markdown bullet list.
   - `fragments` — reusable preamble text blocks (`shell`, `rtk`, `headroom`,
-    `memory`, `serena`). Each is plain text; harnesses are responsible for
+    `memory`). Each is plain text; harnesses are responsible for
     concatenating the fragments they want and injecting the result at
     whatever depth their own module (`--append-system-prompt`,
     `developer_instructions=`, ...) requires.
@@ -107,7 +107,6 @@ let
       }
     '';
 
-
   # Leaf artifacts from this author's personal package overlay (`alpkgs`),
   # kept a separate package boundary from the consumer's `pkgs` — same
   # pattern as `preferences/alaestor.nix` and `app-config/mpv.nix`.
@@ -183,27 +182,6 @@ let
       Per-project memory index is `.../projects/<project>/memory/MEMORY.md`, along-side the memory files it indexes; its links are relative to that directory.
     '';
 
-    serena = ''
-      # Serena — Symbol-First Code Navigation
-
-      Serena's MCP tools expose the project's code symbol graph backed by a
-      language server. Prefer these tools over reading whole files: return only
-      the code you need, cutting context usage sharply. Read a file end-to-end
-      only when the symbol view is insufficient (non-code files, or when you
-      need surrounding glue).
-
-      ## Preferred workflow
-
-      - `get_symbols_overview(<file>)` — list a file's top-level symbols before opening it.
-      - `find_symbol(<name>)` — fetch a symbol's definition/body instead of reading the file.
-      - `find_referencing_symbols(<name>)` — find call sites/usages instead of grepping.
-      - `find_declaration(<name>)` — jump to where a symbol is defined.
-
-      ## Rule
-
-      Reach for a symbol tool first; fall back to reading the whole file only when
-      the symbol view does not answer the question.
-    '';
   };
 
   # Recursively scans `root` for `SKILL.md`-bearing directories, keyed by
@@ -299,10 +277,9 @@ let
       };
     };
 
-    # `.serena-cxs` is Codex's private Serena instance. Codex itself must stay
-    # on a guest-local filesystem because its SQLite databases use WAL.
+    # Codex must stay on a guest-local filesystem because its SQLite databases
+    # use WAL.
     codex = {
-      stateDirs = [ ".serena-cxs" ];
       localStateDirs = [
         {
           directory = ".codex";
@@ -312,7 +289,6 @@ let
     };
 
     headroom.stateDirs = [ ".headroom" ];
-    serena.stateDirs = [ ".serena" ];
 
     # DSH profiles and plugins must be visible on both sides. Its shipped
     # SQLite query index is in-memory; durable SQLite state would instead
@@ -323,9 +299,7 @@ let
   vmContributionsFor =
     home: names:
     let
-      selected = map (
-        name: harnesses.${name} or (throw "unknown agent harness `${name}`")
-      ) names;
+      selected = map (name: harnesses.${name} or (throw "unknown agent harness `${name}`")) names;
     in
     {
       stateDirs = map (directory: "${home}/${directory}") (
@@ -433,7 +407,9 @@ let
 
       ${beforeExec}
       ${lib.optionalString (herdrAgent != null) "export HERDR_AGENT=${lib.escapeShellArg herdrAgent}"}
-      exec agent-vm-session ${lib.optionalString (forward != null) "--forward ${lib.escapeShellArg forward} "}-- \
+      exec agent-vm-session ${
+        lib.optionalString (forward != null) "--forward ${lib.escapeShellArg forward} "
+      }-- \
         ${pkgs.coreutils}/bin/env --chdir="$cwd" \
         ${lib.getExe native} "$@"
     '';
