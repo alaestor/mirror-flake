@@ -59,6 +59,7 @@
       # are the loop's own job, not the harness's — see selector-loop.nix.
       codexCaseArms = ''
         guard) context_guard=true ;;
+        mem|memory) memory_enabled=true ;;
         luna) model="gpt-6-luna" ;;
         terra) model="gpt-6-terra" ;;
         sol) model="gpt-6-sol" ;;
@@ -115,12 +116,14 @@
             sandbox_mode="danger-full-access"
             passthrough=()
             context_guard=false
+            memory_enabled=false
 
             ${agents.mkSelectorLoop {
               caseArms = codexCaseArms;
               helpFlag = "--cx-help";
               helpLines = [
-                "usage: ${name} [luna|terra|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard] [--] [codex arguments...]"
+                "usage: ${name} [luna|terra|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard|mem|memory] [--] [codex arguments...]"
+                "mem/memory enables shared project and global Cognee memory; the local LLM must be available"
                 "guard opts into context handoffs and compaction blocking; normal compaction is the default"
               ];
               argsVar = "passthrough";
@@ -140,6 +143,24 @@
             }
             codex_args+=( -c "''${guard_state//GUARD_ENABLED/$context_guard}" )
             ${mkOverrideArgs baseOverrides}
+            memory_mcp=${lib.escapeShellArg ("mcp_servers.cognee={command=${builtins.toJSON (lib.getExe config.services.cognee-memory.mcpBridge)},enabled=MEMORY_ENABLED,tool_call_timeout_sec=300}")}
+            codex_args+=( -c "''${memory_mcp//MEMORY_ENABLED/$memory_enabled}" )
+            if [[ "$memory_enabled" == true ]]; then
+              ${
+                if config.services.cognee-memory.enable then
+                  ''
+                    ${lib.getExe config.services.cognee-memory.sessionPrepare}
+                  ''
+                else
+                  ''
+                    echo 'cognee: memory is disabled in this configuration' >&2
+                    exit 1
+                  ''
+              }
+              COGNEE_MEMORY_PROJECT="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
+              export COGNEE_MEMORY_PROJECT
+              codex_args+=( -c ${lib.escapeShellArg ("developer_instructions=${builtins.toJSON (resolvedPrompts.plain.preamble + "\n" + agents.cogneeInstructions)}")} )
+            fi
 
             if [[ -n "$model" ]]; then
               codex_args+=( --model "$model" )
@@ -172,6 +193,9 @@
               inherit name native;
               helpFlag = "--cx-help";
               herdrAgent = "codex";
+              beforeExec = agents.cogneeSandboxText pkgs config;
+              sessionArgsVar = "session_args";
+              sessionEnvironmentVar = "session_environment";
             };
         };
 
@@ -203,6 +227,7 @@
       imports = [
         inputs.self.modules.homeManager.tokview
         inputs.self.modules.homeManager.agents-prompt-preview
+        inputs.self.modules.homeManager.cognee-memory
       ];
 
       # Calling `codex features list` shows current feature flags.
@@ -217,6 +242,7 @@
 
       config = {
         services.tokview.enable = lib.mkDefault true;
+        services.cognee-memory.enable = lib.mkDefault true;
         home.packages =
           let
             cxWrappers = mkCodexWrapper "cx";

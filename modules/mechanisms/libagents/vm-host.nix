@@ -59,6 +59,10 @@
   `StopWhenUnneeded`'s lack of a grace period) that shaped it. Harness
   wrappers call this entry point to enter the guest.
 
+  `--reverse-forward <ssh -R spec>` carries a host endpoint into guest
+  loopback for the session. Its consumer chooses the ports and capability;
+  the isolation mechanism treats it as an opaque forwarding specification.
+
   `agent-vm-stop` (`mkStopScript`, next to `mkSessionScript`) is the manual
   counterpart: drops the linger-hold reference immediately rather than
   waiting out `lifecycle.lingerSeconds`, for a human who knows they are done
@@ -214,6 +218,9 @@
             # `GatewayPorts` only chooses the default bind for specs that
             # omit one, so it is deliberately left unset here — and how far
             # that reaches is the host's firewall policy to decide.
+            # `--reverse-forward` mirrors this for a host endpoint reached
+            # from guest loopback. Consumers choose an independent guest port
+            # per session so one scope's exit cannot break another's forward.
             forwards=()
             while [[ $# -gt 0 ]]; do
               case "$1" in
@@ -225,12 +232,20 @@
                   forwards+=( -L "$2" )
                   shift 2
                   ;;
+                --reverse-forward)
+                  if [[ $# -lt 2 ]]; then
+                    echo "agent-vm-session: --reverse-forward needs an ssh -R specification" >&2
+                    exit 2
+                  fi
+                  forwards+=( -R "$2" )
+                  shift 2
+                  ;;
                 *) break ;;
               esac
             done
 
             if [[ $# -eq 0 ]]; then
-              echo "usage: agent-vm-session [--forward <bind:port:host:hostport>]... -- <command to run inside ${cfg.name}>" >&2
+              echo "usage: agent-vm-session [--forward|--reverse-forward <bind:port:host:hostport>]... -- <command to run inside ${cfg.name}>" >&2
               exit 2
             fi
 

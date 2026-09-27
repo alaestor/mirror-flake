@@ -97,6 +97,38 @@ entry point as the agent wrappers; it does not mount or copy the database onto
 the host. The host attaching the harnesses contributes Tokview's local-state
 record alongside theirs.
 
+## Opt-in shared memory
+
+`mem` or `memory`, before `--`, enables Cognee for that invocation of `cc`,
+`cx`, or their `-native` counterparts. Without the selector, no memory service
+is started and no Cognee tools are enabled. Launch fails if the configured
+host-local LLM or memory service is unavailable.
+
+Cognee runs as an on-demand host user service. Its SQLite, vector and graph
+databases and model caches stay on the host; none are added to guest shares.
+The MCP adapter exposes only text `remember` and `recall`, not arbitrary host
+file ingestion. Both harnesses use the same store. Remember defaults to the
+current project's scope, with global scope available for cross-project facts;
+recall searches both by default. Project identity is the canonical repository
+root, or the working directory outside a repository. These scopes organize
+memory, not authorization between mutually untrusted sessions.
+
+Native sessions connect directly to the host loopback endpoint. Wrapped
+sessions prepare the host service before entering isolation, then use a
+loopback-only reverse SSH forward on a per-session guest port. Parallel
+sessions do not share a forward's lifecycle, and ordinary sessions add no
+memory forward. The generic isolation entry point owns forwarding; the
+memory feature owns the endpoint and storage.
+
+The host user configuration selects the LLM model and endpoint. No real API
+credential is required by this local setup. Embeddings run locally through
+FastEmbed and download their model on first use. Memory tools are available
+to the agent, not an automatic transcript logger; never store secrets.
+
+Stop the host service with `systemctl --user stop cognee-memory.service`.
+The next opted-in launch starts it again. Inspect failures with
+`journalctl --user -u cognee-memory.service`.
+
 ## The context guard
 
 Normal vendor compaction is the default. The `guard` selector opts a session

@@ -29,6 +29,13 @@ let
         programs.claude-code.package = mockClient "claude";
         programs.codex.package = mockClient "codex";
         services.tokview.enable = false;
+        services.cognee-memory.sessionPrepare = pkgs.writeShellScriptBin "memory-prepare-fixture" ''
+          if [[ "''${AGENT_TEST_MEMORY_UNAVAILABLE:-0}" == 1 ]]; then
+            echo 'cognee: local LLM unavailable' >&2
+            exit 1
+          fi
+          echo prepare >> "$AGENT_TEST_MEMORY"
+        '';
       }
     ];
   };
@@ -88,6 +95,8 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
 
   export AGENT_TEST_ARGS="$PWD/args"
   export AGENT_TEST_URL="$PWD/environment"
+  export AGENT_TEST_MEMORY="$PWD/memory-events"
+  touch "$AGENT_TEST_MEMORY"
   ${wrapper "cc-native"}/bin/cc-native sonnet 1m search skills plan -- 'literal prompt'
   grep -Fx 'sonnet[1m]' "$AGENT_TEST_ARGS"
   grep -F 'EnterPlanMode' "$AGENT_TEST_ARGS"
@@ -136,5 +145,36 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
   ${wrapper "cx-native"}/bin/cx-native -- guard
   grep -Fx ${pkgs.lib.escapeShellArg (guardState "false")} "$AGENT_TEST_ARGS"
   grep -Fx 'guard' "$AGENT_TEST_ARGS"
+  test ! -s "$AGENT_TEST_MEMORY"
+  ${wrapper "cc-native"}/bin/cc-native mem
+  python3 - <<'PY'
+  import json, pathlib
+  args = pathlib.Path('args').read_text().splitlines()
+  config = json.loads(pathlib.Path(args[args.index('--mcp-config') + 1]).read_text())
+  assert set(config['mcpServers']) == {'cognee'}
+  assert 'Cognee memory is enabled' in pathlib.Path('args').read_text()
+  assert 'mem' not in args
+  PY
+  ${wrapper "cc-native"}/bin/cc-native memory guard
+  grep -Fx 'guard=1' "$AGENT_TEST_URL"
+  ${wrapper "cx-native"}/bin/cx-native mem
+  grep -E '^mcp_servers.cognee=.*enabled=true' "$AGENT_TEST_ARGS"
+  ${wrapper "cx-native"}/bin/cx-native memory guard
+  grep -Fx ${pkgs.lib.escapeShellArg (guardState "true")} "$AGENT_TEST_ARGS"
+  test "$(wc -l < "$AGENT_TEST_MEMORY")" -eq 4
+  ${wrapper "cx-native"}/bin/cx-native -- mem
+  grep -Fx 'mem' "$AGENT_TEST_ARGS"
+  grep -E '^mcp_servers.cognee=.*enabled=false' "$AGENT_TEST_ARGS"
+  ${wrapper "cc-native"}/bin/cc-native -- memory
+  test "$(wc -l < "$AGENT_TEST_MEMORY")" -eq 4
+  for executable in ${wrapper "cc-native"}/bin/cc-native ${wrapper "cx-native"}/bin/cx-native; do
+    echo untouched > "$AGENT_TEST_ARGS"
+    if AGENT_TEST_MEMORY_UNAVAILABLE=1 "$executable" mem 2> error; then
+      echo 'memory launch unexpectedly succeeded without its LLM' >&2
+      exit 1
+    fi
+    grep -Fx untouched "$AGENT_TEST_ARGS"
+    grep -Fx 'cognee: local LLM unavailable' error
+  done
   touch "$out"
 ''

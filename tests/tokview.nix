@@ -33,7 +33,9 @@ let
   configuration = inputs.unstable-home-manager.lib.homeManagerConfiguration {
     pkgs = pkgs.extend (
       _final: _prev: {
-        systemd = mockSystemd;
+        systemd = mockSystemd // {
+          inherit (_prev.systemd) override;
+        };
       }
     );
     modules = [
@@ -47,6 +49,7 @@ let
         };
         programs.claude-code.package = mockClient "claude";
         programs.codex.package = mockClient "codex";
+        services.cognee-memory.package = pkgs.writeShellScriptBin "python" "exit 1";
         services.tokview = {
           proxyPort = 48000;
           dashboardPort = 48001;
@@ -59,7 +62,11 @@ let
   contributions = inputs.self.lib.agents.vmContributionsFor "/home/token-fixture" [ "tokview" ];
 in
 assert cfg.services.tokview.enable;
-assert builtins.attrNames cfg.systemd.user.services == [ "tokview" ];
+assert
+  builtins.attrNames cfg.systemd.user.services == [
+    "cognee-memory"
+    "tokview"
+  ];
 assert contributions.stateDirs == [ ];
 assert map (entry: entry.path) contributions.localStateDirs == [ "/home/token-fixture/.tokview" ];
 pkgs.runCommand "tokview-integration-test"

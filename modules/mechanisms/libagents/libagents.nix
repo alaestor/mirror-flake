@@ -377,6 +377,8 @@ let
       herdrAgent ? null,
       forward ? null,
       beforeExec ? "",
+      sessionArgsVar ? null,
+      sessionEnvironmentVar ? null,
     }:
     let
       sandboxWritableRoots = sandboxWritableRootsFor "$HOME";
@@ -416,8 +418,9 @@ let
       ${lib.optionalString (herdrAgent != null) "export HERDR_AGENT=${lib.escapeShellArg herdrAgent}"}
       exec agent-vm-session ${
         lib.optionalString (forward != null) "--forward ${lib.escapeShellArg forward} "
-      }-- \
+      }${lib.optionalString (sessionArgsVar != null) ''"''${${sessionArgsVar}[@]}" ''}-- \
         ${pkgs.coreutils}/bin/env --chdir="$cwd" \
+        ${lib.optionalString (sessionEnvironmentVar != null) ''"''${${sessionEnvironmentVar}[@]}" ''}\
         ${lib.getExe native} "$@"
     '';
 
