@@ -99,11 +99,20 @@ record alongside theirs.
 
 ## The context guard
 
-Auto-compaction summarizes for narrative continuity and loses the detail needed
-to resume work. Every harness instead runs one shared guard
-(`flake.lib.agents.contextGuard`) that watches the session's own transcript and,
-past a threshold below the point the harness would compact on its own, asks the
-agent to write a handoff and then blocks further work once it exists.
+Normal vendor compaction is the default. The `guard` selector opts a session
+into shared context protection: `cc guard` or `cx guard`, including their native
+counterparts. Use `-- guard` to pass the word to the vendor CLI instead.
+
+The opt-in guard (`flake.lib.agents.contextGuard`) watches the session's own
+transcript and, past a threshold below the point the harness would compact on
+its own, asks the agent to write a handoff and then blocks further work once
+it exists. Claude's
+wrapper delays proactive compaction only when opted in. Its registered hooks
+are otherwise inert, using an explicitly reset process-local flag. Codex keeps
+the four guard handlers disabled in user configuration and overrides only
+their enablement through session flags. This avoids sharing daemon environment
+state and leaves unrelated hooks alone. Resuming without `guard` disables the
+guard for that invocation; opt-in is not persisted to future launches.
 
 The guard is a harness fact but lives in the library rather than in a harness
 feature, because the two sides register it from different module classes: Claude
@@ -123,10 +132,10 @@ against the session's own start rather than by a path it computed.
 The same script also renders Claude Code's status line, invoked with
 `statusline` instead of a harness name. It is not a hook: the status-line
 payload reports the live context window, so it leads the transcript the hook
-path reads. It counts down to the guard's threshold rather than the harness's
-own compaction point, since the handoff is what actually interrupts the
-session. Keeping it in the guard is deliberate — an indicator that predicts an
-event must share the constant that triggers it, or the two drift apart.
+path reads. When guarded, it counts down to the handoff threshold; otherwise
+it shows ordinary context remaining. Keeping it in the guard is deliberate —
+an indicator that predicts an event must share the constant that triggers it,
+or the two drift apart.
 
 It also reports the plan's 5-hour and weekly quota windows, which the same
 payload carries. Those are absent for API-key, Bedrock, and Vertex auth and

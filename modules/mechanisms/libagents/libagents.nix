@@ -226,6 +226,15 @@ let
   # prompt, and a Nix-managed config is never writable for trust to be
   # recorded into. `[features] hooks` gates managed hooks too, so it must stay
   # enabled in the user config.
+  # Keys identify only our handlers in the trusted system config. Session
+  # overrides survive daemon transport without relying on its environment.
+  codexGuardHookKeys = map (event: "/etc/codex/config.toml:${event}:0:0") [
+    "post_tool_use"
+    "stop"
+    "session_start"
+    "pre_compact"
+  ];
+
   codexHookConfig =
     pkgs:
     let
@@ -486,6 +495,7 @@ in
       collectSkills
       context
       contextGuard
+      codexGuardHookKeys
       codexHookConfig
       mkPrompt
       harnesses

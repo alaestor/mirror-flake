@@ -155,7 +155,7 @@
       ];
       skillTools = [ "Skill" ];
       # Auto-compaction summarizes for narrative continuity and loses the
-      # details needed to resume work. This guard replaces it: a single
+      # details needed to resume work. The opt-in guard replaces it: a single
       # threshold, sitting just under Claude Code's own auto-compact reserve
       # (~83% of the window), so the agent writes a handoff and the turn
       # stops right where native compaction would otherwise have kicked in.
@@ -170,6 +170,7 @@
       # Case arms handed to `agents.mkSelectorLoop`; `--cc-help`/`--`/catch-all
       # are the loop's own job, not the harness's — see selector-loop.nix.
       claudeCaseArms = ''
+        guard) context_guard=1 ;;
         haiku|sonnet|opus) model="$1" ;;
         lo|low) effort="low" ;;
         med|medium) effort="medium" ;;
@@ -262,6 +263,7 @@
             skills=0
             agents_md=1
             context_limit=200000
+            context_guard=0
             tool_search="true"
             claude_args=()
 
@@ -269,7 +271,8 @@
               caseArms = claudeCaseArms;
               helpFlag = "--cc-help";
               helpLines = [
-                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [1m|search|skills|alltools] [--] [claude arguments...]"
+                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [1m|search|skills|alltools|guard] [--] [claude arguments...]"
+                "guard opts into context handoffs and compaction blocking; normal compaction is the default"
                 "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
                 "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
                 "${name} isolates sessions in the agent VM by default; run ${name}-native directly to bypass it entirely"
@@ -328,7 +331,11 @@
             # `--autocompact` has no `off`; parking it at the maximum keeps
             # Claude Code from attempting a proactive compaction the PreCompact
             # guard would only have to block. The guard stops the turn first.
-            claude_args+=( --autocompact 1M )
+            if (( context_guard )); then
+              claude_args+=( --autocompact 1M )
+            fi
+            # Set explicitly so nested wrappers cannot inherit an opt-in.
+            export AGENT_CONTEXT_GUARD="$context_guard"
 
             # Every tool description ships in a terse and a verbose variant,
             # picked by a gate that only Opus passes: for the default set the
@@ -415,11 +422,8 @@
           # The away recap spends a background model call to restate a session
           # we were present for. Equivalent to `CLAUDE_CODE_ENABLE_AWAY_SUMMARY`.
           awaySummaryEnabled = lib.mkDefault false;
-          # The stock indicator counts down to a compaction that never comes —
-          # `--autocompact 1M` parks it out of reach. This counts down to the
-          # guard's handoff threshold instead, which is what actually
-          # interrupts the session, and reads the live context rather than the
-          # transcript the hooks lag behind.
+          # Guarded sessions count down to handoff; ordinary sessions show
+          # remaining context. Both use live usage rather than transcript lag.
           statusLine = {
             type = "command";
             command = "${lib.getExe (agents.contextGuard pkgs)} statusline";

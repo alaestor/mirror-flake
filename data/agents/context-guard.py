@@ -148,17 +148,22 @@ def statusline(payload):
     the transcript the hook path reads -- so this number leads the one the
     guard acts on instead of lagging it by a message or two.
 
-    The countdown targets the guard's own threshold rather than the harness's
-    compaction point, because the handoff is what actually interrupts the
-    session. Reaching 0% here is the moment the guard starts asking. Sharing
-    THRESHOLD_FRACTION with the guard is why this lives in the same file: two
-    scripts would drift, and an indicator that disagrees with the event it
+    Guarded sessions count down to the handoff threshold; ordinary sessions
+    show remaining context. Sharing THRESHOLD_FRACTION with the guard is why
+    this lives in the same file: two scripts would drift, and an indicator
+    that disagrees with the event it
     predicts is worse than none.
     """
     window = payload.get("context_window") or {}
     used = window.get("total_input_tokens") or 0
-    limit = env_int("CC_CONTEXT_LIMIT", window.get("context_window_size") or DEFAULT_LIMIT)
-    threshold = env_int("AGENT_CONTEXT_THRESHOLD", int(limit * THRESHOLD_FRACTION))
+    guarded = os.environ.get("AGENT_CONTEXT_GUARD") == "1"
+    limit = window.get("context_window_size") or env_int("CC_CONTEXT_LIMIT", DEFAULT_LIMIT)
+    if guarded:
+        limit = env_int("CC_CONTEXT_LIMIT", limit)
+    threshold = (
+        env_int("AGENT_CONTEXT_THRESHOLD", int(limit * THRESHOLD_FRACTION))
+        if guarded else limit
+    )
     model = (payload.get("model") or {}).get("display_name") or ""
 
     if not used or threshold <= 0:
@@ -172,7 +177,7 @@ def statusline(payload):
     parts = [
         f"\033[2m{model}\033[0m",
         f"\033[2m{used // 1000}k/{threshold // 1000}k\033[0m",
-        f"\033[{colour}m{remaining:.0f}% until handoff\033[0m",
+        f"\033[{colour}m{remaining:.0f}% {'until handoff' if guarded else 'context remaining'}\033[0m",
     ]
 
     quota = plan_usage(payload)
@@ -382,6 +387,11 @@ def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
     harness = HARNESSES.get(mode)
     if harness is None and mode != "statusline":
+        sys.exit(0)
+
+    # Codex selects these handlers through per-session hook state, not daemon
+    # environment. Claude hooks remain registered but are inert unless opted in.
+    if mode == "claude" and os.environ.get("AGENT_CONTEXT_GUARD") != "1":
         sys.exit(0)
 
     try:

@@ -58,6 +58,7 @@
       # Case arms handed to `agents.mkSelectorLoop`; `--cx-help`/`--`/catch-all
       # are the loop's own job, not the harness's — see selector-loop.nix.
       codexCaseArms = ''
+        guard) context_guard=true ;;
         luna) model="gpt-6-luna" ;;
         terra) model="gpt-6-terra" ;;
         sol) model="gpt-6-sol" ;;
@@ -113,17 +114,31 @@
             approval_policy="never"
             sandbox_mode="danger-full-access"
             passthrough=()
+            context_guard=false
 
             ${agents.mkSelectorLoop {
               caseArms = codexCaseArms;
               helpFlag = "--cx-help";
               helpLines = [
-                "usage: ${name} [luna|terra|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [--] [codex arguments...]"
+                "usage: ${name} [luna|terra|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard] [--] [codex arguments...]"
+                "guard opts into context handoffs and compaction blocking; normal compaction is the default"
               ];
               argsVar = "passthrough";
             }}
 
             codex_args=()
+            # CLI dotted paths do not parse quoted keys. Pass an inline table
+            # so dots in config.toml remain part of each handler's identity.
+            guard_state=${
+              lib.escapeShellArg (
+                "hooks.state={"
+                + lib.concatMapStringsSep ", " (
+                  key: "${builtins.toJSON key}={enabled=GUARD_ENABLED}"
+                ) agents.codexGuardHookKeys
+                + "}"
+              )
+            }
+            codex_args+=( -c "''${guard_state//GUARD_ENABLED/$context_guard}" )
             ${mkOverrideArgs baseOverrides}
 
             if [[ -n "$model" ]]; then
@@ -219,6 +234,14 @@
           skills = agents.collectSkills skillsRoot;
           settings = lib.mkMerge [
             defaultSettings
+            {
+              hooks.state = builtins.listToAttrs (
+                map (key: {
+                  name = key;
+                  value.enabled = false;
+                }) agents.codexGuardHookKeys
+              );
+            }
             (lib.optionalAttrs (cfg.modelInstructionsFile != null) {
               model_instructions_file = lib.mkDefault cfg.modelInstructionsFile;
             })

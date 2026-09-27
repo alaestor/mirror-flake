@@ -21,7 +21,8 @@ native entry point. Neither starts Serena or compresses tool output.
 The first follow-up should be to define what `full` guarantees, then fix the
 Codex implementation to meet it. Manual compaction behavior should also agree.
 Tool and skill switches can share intent without pretending the vendors expose
-identical controls. Context-guard opt-out remains deferred.
+identical controls. Both wrappers default to normal compaction and accept
+`guard` to opt into the shared context guard for one invocation.
 
 Tokview's native and VM databases are separate for both harnesses. This is an
 isolation constraint, not a Claude/Codex discrepancy.
