@@ -433,9 +433,8 @@ let
 
       ${beforeExec}
       ${lib.optionalString (herdrAgent != null) "export HERDR_AGENT=${lib.escapeShellArg herdrAgent}"}
-      exec agent-vm-session \
-        ${lib.optionalString (forward != null) "--forward ${lib.escapeShellArg forward} \\"}
-        -- bash -c 'cd "$1" && shift && exec "$@"' bash "$cwd" \
+      exec agent-vm-session ${lib.optionalString (forward != null) "--forward ${lib.escapeShellArg forward} "}-- \
+        ${pkgs.coreutils}/bin/env --chdir="$cwd" \
         ${lib.getExe native} "$@"
     '';
 
