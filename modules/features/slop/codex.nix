@@ -26,7 +26,7 @@
 
       cliTools = agents.tools pkgs;
 
-      preprompt = agents.fragments.shell pkgs + "\n" + agents.fragments.rtk;
+      preprompt = agents.fragments.shell pkgs + "\n" + agents.fragments.rtk + "\n" + agents.fragments.memory;
 
       promptLayers = {
         common = {
@@ -143,6 +143,9 @@
             }
             codex_args+=( -c "''${guard_state//GUARD_ENABLED/$context_guard}" )
             ${mkOverrideArgs baseOverrides}
+            project_memories="$(${lib.getExe (agents.projectMemory pkgs)} list)"
+            session_instructions=${lib.escapeShellArg resolvedPrompts.plain.preamble}
+            [[ -z "$project_memories" ]] || session_instructions+=$'\n\n# Available project memories\n'"$project_memories"
             memory_mcp=${lib.escapeShellArg ("mcp_servers.cognee={command=${builtins.toJSON (lib.getExe config.services.cognee-memory.mcpBridge)},enabled=MEMORY_ENABLED}")}
             codex_args+=( -c "''${memory_mcp//MEMORY_ENABLED/$memory_enabled}" )
             if [[ "$memory_enabled" == true ]]; then
@@ -159,8 +162,9 @@
               }
               COGNEE_MEMORY_PROJECT="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
               export COGNEE_MEMORY_PROJECT
-              codex_args+=( -c ${lib.escapeShellArg ("developer_instructions=${builtins.toJSON (resolvedPrompts.plain.preamble + "\n" + agents.cogneeInstructions)}")} )
+              session_instructions+=$'\n'${lib.escapeShellArg agents.cogneeInstructions}
             fi
+            codex_args+=( -c "developer_instructions=$(jq -Rn --arg text "$session_instructions" '$text')" )
 
             if [[ -n "$model" ]]; then
               codex_args+=( --model "$model" )

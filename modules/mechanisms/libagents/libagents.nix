@@ -139,7 +139,16 @@ let
     ++ (with alpkgsFor pkgs; [
       readability-cli
       archify-cli
-    ]);
+    ])
+    ++ [ (projectMemory pkgs) ];
+
+  projectMemory =
+    pkgs:
+    pkgs.writeShellApplication {
+      name = "project-memory";
+      runtimeInputs = with pkgs; [ git taplo jq coreutils ];
+      text = builtins.readFile (self.data.path "agents/project-memory.sh");
+    };
 
   toolsMarkdown =
     pkgs:
@@ -168,9 +177,15 @@ let
     '';
 
     memory = ''
-      # Memory
+      # Project memory
 
-      Per-project memory index is `.../projects/<project>/memory/MEMORY.md`, along-side the memory files it indexes; its links are relative to that directory.
+      The session starts with a listing of filenames and triggers from
+      `.agents/memory/*.toml` in the project root, when any exist. Open a
+      relevant memory with `project-memory read <name>`; that prints only its
+      content. A trigger says when to read a memory, not what the content says. Use
+      `project-memory new|edit|delete <name>` to maintain memories. Do not put
+      secrets or transient session notes here. Git tracking is the project's
+      choice.
     '';
 
   };
@@ -500,6 +515,7 @@ in
       contextGuard
       codexGuardHookKeys
       codexHookConfig
+      projectMemory
       mkPrompt
       harnesses
       vmContributionsFor

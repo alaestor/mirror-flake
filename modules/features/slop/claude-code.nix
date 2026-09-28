@@ -65,15 +65,9 @@
         layers = promptLayers;
       };
 
-      # Claude Code derives the memory directory from the project root, slugged
-      # by replacing `/` and `.` with `-`; `/mnt/Vault/.dotfiles/flake` becomes
-      # `-mnt-Vault--dotfiles-flake`. Reproduced here because the mini prompt
-      # points at the directory by name and the stock text is gone.
       environmentBlock = ''
         cc_environment_block() {
-          local root slug status_text
-          root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
-          slug="''${root//[\/.]/-}"
+          local status_text
 
           printf '# Environment\n'
           printf ' - Primary working directory: %s\n' "$PWD"
@@ -82,9 +76,6 @@
           printf ' - Platform: %s\n' "$(uname -s | tr '[:upper:]' '[:lower:]')"
           printf ' - Shell: bash\n'
           printf ' - OS Version: %s %s\n' "$(uname -s)" "$(uname -r)"
-          printf ' - Persistent memory directory: %s\n' \
-            "$HOME/.claude/projects/$slug/memory"
-
           git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
 
           status_text="$(git status --porcelain 2>/dev/null)"
@@ -342,6 +333,8 @@
             # flags — only the last one takes effect — so every appended
             # block has to be concatenated into a single call.
             append_prompt=${lib.escapeShellArg resolvedPrompt.preamble}
+            project_memories="$(${lib.getExe (agents.projectMemory pkgs)} list)"
+            [[ -z "$project_memories" ]] || append_prompt+=$'\n\n# Available project memories\n'"$project_memories"
             if (( memory_enabled )); then
               append_prompt+=$'\n\n'${lib.escapeShellArg agents.cogneeInstructions}
             fi
@@ -438,6 +431,7 @@
       ];
 
       home.sessionVariables = claudeEnvironment;
+      programs.claude-code.settings.autoMemoryEnabled = false;
 
       home.packages = [
         ccWrappers.native

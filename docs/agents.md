@@ -99,6 +99,22 @@ record alongside theirs.
 
 ## Opt-in shared memory
 
+Project notes use `.agents/memory/<name>.toml` at the repository root. The
+`project-memory` command works in either harness, with or without Cognee. Each
+file has a short `trigger` describing when to open it and a Markdown `content`
+stored as a multiline TOML literal string. At session start the wrappers add
+only filenames and triggers to the prompt, capped at 30 entries and 200
+characters per trigger. Agents read relevant content with
+`project-memory read <name>`; the command returns content alone. Use
+`project-memory new|edit|delete <name>` to maintain files. The command uses
+`$EDITOR` and validates TOML before replacing an existing memory. It does not
+maintain an index. Projects decide whether to track `.agents/memory/` in Git;
+this repository ignores dot-directories by default. Keep secrets and session
+handoffs out of project memory. Claude's own auto-memory is disabled in its
+Home Manager settings, so it cannot silently create a competing store.
+
+Cognee remains a separate opt-in store:
+
 `mem` or `memory`, before `--`, enables Cognee for that invocation of `cc`,
 `cx`, or their `-native` counterparts. Without the selector, no memory service
 is started and no Cognee tools are enabled. Launch fails if the configured
