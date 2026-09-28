@@ -106,8 +106,10 @@ host-local LLM or memory service is unavailable.
 
 Cognee runs as an on-demand host user service. Its SQLite, vector and graph
 databases and model caches stay on the host; none are added to guest shares.
-The MCP adapter exposes only text `remember` and `recall`, not arbitrary host
-file ingestion. Both harnesses use the same store. Remember defaults to the
+The MCP adapter exposes text `remember` and `recall`, plus single-item
+`forget` by `data_id`; it does not expose arbitrary host file ingestion or
+dataset-wide deletion. Forget requires an explicit project or global scope
+and permanently removes that item. Both harnesses use the same store. Remember defaults to the
 current project's scope, with global scope available for cross-project facts;
 recall searches both by default. Project identity is the canonical repository
 root, or the working directory outside a repository. These scopes organize
@@ -120,9 +122,11 @@ sessions do not share a forward's lifecycle, and ordinary sessions add no
 memory forward. The generic isolation entry point owns forwarding; the
 memory feature owns the endpoint and storage.
 
-The host user configuration selects the LLM model and endpoint. No real API
-credential is required by this local setup. Embeddings run locally through
-FastEmbed and download their model on first use. Memory tools are available
+The host user configuration selects the LLM endpoint. The service uses the
+first model advertised by `/models` when it starts; an opted-in launch restarts
+it if that model changes. No real API credential is required by this local
+setup. Embeddings run locally through FastEmbed and download their model on
+first use. Memory tools are available
 to the agent, not an automatic transcript logger; never store secrets.
 
 Stop the host service with `systemctl --user stop cognee-memory.service`.

@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from uuid import UUID
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -44,7 +45,7 @@ async def main():
         calls = []
 
         async def remember(content, **options):
-            assert content.filename == "memory.txt"
+            assert content.filename.startswith("memory-") and content.filename.endswith(".txt")
             calls.append((await content.read(), options))
 
         sdk = SimpleNamespace(
@@ -54,13 +55,15 @@ async def main():
                 SimpleNamespace(name=server.datasets("/repo/a", "project")[0]),
             ])),
             recall=AsyncMock(return_value=[{"text": "verified fact"}]),
+            forget=AsyncMock(return_value={"items_removed": 1}),
             SearchType=SimpleNamespace(CHUNKS="chunks"),
         )
         app = web.Application(client_max_size=128 * 1024)
         app[server.SDK], app[server.LOCK] = sdk, asyncio.Lock()
         app.add_routes([web.get("/health", server.health),
                         web.post("/remember", server.remember),
-                        web.post("/recall", server.recall)])
+                        web.post("/recall", server.recall),
+                        web.post("/forget", server.forget)])
         async with TestClient(TestServer(app)) as client:
             assert (await client.get("/health")).status == 200
             state["inference"] = False
@@ -83,6 +86,22 @@ async def main():
             response = await client.post("/recall", json={"project": "/repo/b", "query": "fact", "scope": "project"})
             assert response.status == 200 and await response.json() == []
             sdk.recall.assert_not_awaited()
+            data_id = "a08d0560-dd0b-42c1-89e3-257459aa6f9f"
+            response = await client.post("/forget", json={"project": "/repo/a", "scope": "project", "data_id": data_id})
+            assert response.status == 200 and await response.json() == {"items_removed": 1}
+            assert sdk.forget.await_args.kwargs == {
+                "data_id": UUID(data_id), "dataset": server.datasets("/repo/a", "project")[0]
+            }
+            for body in (
+                {"project": "/repo/a", "scope": "all", "data_id": data_id},
+                {"project": "/repo/a", "scope": "project", "data_id": "bad"},
+                {"project": "/repo/a", "data_id": data_id},
+            ):
+                assert (await client.post("/forget", json=body)).status == 400
+            assert sdk.forget.await_count == 1
+            response = await client.post("/forget", json={"project": "/repo/b", "scope": "project", "data_id": data_id})
+            assert response.status == 404
+            assert sdk.forget.await_count == 1
     assert server.datasets("/repo/a", "project") != server.datasets("/repo/b", "project")
 
 

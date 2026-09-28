@@ -96,7 +96,7 @@
         "gwenviewrc"."ImageView" = { "AnimationMethod" = "DocumentView::NoAnimation"; "NavigationEndNotification" = "NavigationEndNotification::AlwaysWarn"; };
         "gwenviewrc"."ThumbnailView"."ListVideos" = false;
         "dolphinrc"."ContentDisplay"."UsePermissionsFormat" = "NumericFormat";
-        "dolphinrc"."General" = { "ViewMode" = 1; "SortingChoice" = "CaseInsensitiveSorting"; "ShowHideHiddenFiles" = true; "RememberOpenedTabs" = false; };
+        "dolphinrc"."General" = { "ViewMode" = 2; "SortingChoice" = "CaseInsensitiveSorting"; "ShowHideHiddenFiles" = true; "RememberOpenedTabs" = false; };
         "kdeglobals"."KFileDialog Settings" = {
           "Allow Expansion" = false; "Automatically select filename extension" = false;
           "Breadcrumb Navigation" = false; "Decoration position" = 2;
@@ -108,6 +108,7 @@
         };
         "okular-generator-popplerrc"."PDF Printing"."PrintScaleMode" = 1;
       };
+
       # Dolphin stores this setting in its filesystem state rather than config.
       dataFile."dolphin/view_properties/global/.directory".Settings.HiddenFilesShown = true;
     };

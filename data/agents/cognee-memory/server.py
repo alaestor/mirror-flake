@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+from uuid import UUID, uuid4
 
 from aiohttp import ClientSession, ClientTimeout, web
 from starlette.datastructures import UploadFile
@@ -46,7 +47,7 @@ async def llm_available():
 
 async def health(request):
     available = await llm_available()
-    return web.json_response({"ready": available}, status=200 if available else 503)
+    return web.json_response({"ready": available, "model": os.environ["COGNEE_LLM_MODEL"]}, status=200 if available else 503)
 
 
 async def remember(request):
@@ -60,7 +61,7 @@ async def remember(request):
     if not isinstance(text, str) or not text.strip():
         raise web.HTTPBadRequest(text="text is required")
     # Binary input forces text ingestion, even when the content is a URL or path.
-    content = UploadFile(io.BytesIO(text.encode()), filename="memory.txt")
+    content = UploadFile(io.BytesIO(text.encode()), filename=f"memory-{uuid4()}.txt")
     async with request.app[LOCK]:
         await request.app[SDK].remember(
             content, dataset_name=selected[0], self_improvement=False, extractor="llm"
@@ -86,6 +87,25 @@ async def recall(request):
     return web.json_response(json.loads(json.dumps(
         results, default=lambda value: value.model_dump(mode="json") if hasattr(value, "model_dump") else str(value)
     )))
+
+
+async def forget(request):
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise web.HTTPBadRequest(text="JSON object is required")
+    selected = datasets(body.get("project"), body.get("scope"))
+    if len(selected) != 1:
+        raise web.HTTPBadRequest(text="forget requires project or global scope")
+    try:
+        data_id = UUID(body.get("data_id"))
+    except (TypeError, ValueError, AttributeError):
+        raise web.HTTPBadRequest(text="valid data_id UUID is required") from None
+    async with request.app[LOCK]:
+        existing = {dataset.name for dataset in await request.app[SDK].datasets.list_datasets()}
+        if selected[0] not in existing:
+            raise web.HTTPNotFound(text="memory scope not found")
+        result = await request.app[SDK].forget(data_id=data_id, dataset=selected[0])
+    return web.json_response(result)
 
 
 SDK = web.AppKey("sdk", object)
@@ -115,7 +135,7 @@ async def cleanup(app):
 
 if __name__ == "__main__":
     app = web.Application(client_max_size=128 * 1024)
-    app.add_routes([web.get("/health", health), web.post("/remember", remember), web.post("/recall", recall)])
+    app.add_routes([web.get("/health", health), web.post("/remember", remember), web.post("/recall", recall), web.post("/forget", forget)])
     app.on_startup.append(initialize)
     app.on_cleanup.append(cleanup)
     web.run_app(app, host="127.0.0.1", port=int(os.environ["COGNEE_MEMORY_PORT"]), access_log=None)

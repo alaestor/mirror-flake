@@ -1,6 +1,6 @@
 /**
   Opt-in text memory shared by coding harnesses. Cognee owns host-local storage;
-  stdio MCP clients expose only remember/recall, not host file ingestion.
+  stdio MCP clients expose only text memory and single-item deletion, not host file ingestion.
   The user service starts on demand and is not wanted by a login target.
 */
 {
@@ -68,9 +68,9 @@
       daemon = pkgs.writeShellScript "cognee-memory-daemon" ''
         export COGNEE_MEMORY_PORT=${toString cfg.port}
         export COGNEE_LLM_ENDPOINT=${lib.escapeShellArg cfg.llmEndpoint}
-        export COGNEE_LLM_MODEL=${lib.escapeShellArg cfg.llmModel}
+        export COGNEE_LLM_MODEL="$(${pkgs.curl}/bin/curl --silent --fail --max-time 5 "$COGNEE_LLM_ENDPOINT/models" | ${pkgs.jq}/bin/jq --exit-status --raw-output '.data[0].id | select(type == "string" and length > 0)')" || exit 1
         export LLM_PROVIDER=openai
-        export LLM_MODEL=${lib.escapeShellArg "openai/${cfg.llmModel}"}
+        export LLM_MODEL="openai/$COGNEE_LLM_MODEL"
         export LLM_ENDPOINT="$COGNEE_LLM_ENDPOINT"
         # Cognee/OpenAI require a nonempty value; this is not a credential.
         export LLM_API_KEY=local
@@ -102,11 +102,18 @@
         ];
         text = ''
           if [[ "''${COGNEE_MEMORY_REMOTE:-0}" != 1 ]]; then
-            if ! curl --silent --fail --max-time 5 ${lib.escapeShellArg "${cfg.llmEndpoint}/models"} \
-              | jq --exit-status --arg model ${lib.escapeShellArg cfg.llmModel} \
-                'any(.data[]; .id == $model)' >/dev/null 2>&1; then
+            model="$(curl --silent --fail --max-time 5 ${lib.escapeShellArg "${cfg.llmEndpoint}/models"} \
+              | jq --exit-status --raw-output '.data[0].id | select(type == "string" and length > 0)')" || {
               echo 'cognee: local LLM unavailable at ${cfg.llmEndpoint}' >&2
               exit 1
+            }
+            if systemctl --user --quiet is-active cognee-memory.service; then
+              active_model="$(curl --silent --fail --max-time 5 ${url}/health | jq --raw-output '.model // empty' || true)"
+              if [[ "$active_model" != "$model" ]]; then
+                systemctl --user restart cognee-memory.service >/dev/null 2>&1 || {
+                  echo 'cognee: memory service failed to restart' >&2; exit 1;
+                }
+              fi
             fi
             if ! systemctl --user --quiet is-active cognee-memory.service; then
               if systemctl --user --quiet cat cognee-memory.service >/dev/null 2>&1; then
@@ -159,12 +166,7 @@
         llmEndpoint = lib.mkOption {
           type = lib.types.str;
           default = "http://localhost:1234/v1";
-          description = "Host-local OpenAI-compatible LLM endpoint, without a trailing slash.";
-        };
-        llmModel = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "Model identifier advertised by the local LLM endpoint; set it in the host's user configuration.";
+          description = "Host-local OpenAI-compatible LLM endpoint, without a trailing slash; the first advertised model is used.";
         };
         stateDirectory = lib.mkOption {
           type = lib.types.str;

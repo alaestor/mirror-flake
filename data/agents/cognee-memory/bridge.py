@@ -33,6 +33,11 @@ def make_server(url, project):
         """Retrieve relevant prior facts and decisions. By default search this project and global memory, shared by Claude and Codex."""
         return await call("recall", query=query, scope=scope)
 
+    @server.tool()
+    async def forget(data_id: str, scope: Literal["project", "global"]) -> dict:
+        """Permanently delete one memory item by its recall data_id from the explicit project or global scope. Never deletes a whole scope."""
+        return await call("forget", data_id=data_id, scope=scope)
+
     return server
 
 

@@ -28,7 +28,6 @@ in
 {
   services.cognee-memory = {
     llmEndpoint = "http://localhost:1234/v1";
-    llmModel = "qwen3.8-27b@q4_k_m";
   };
   # A browser reaching `ds` by this host's tailnet name sends that name as
   # `Host`, and the web UI's `/api` fence rejects every authority it was not

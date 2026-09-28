@@ -24,7 +24,7 @@ class API(http.server.BaseHTTPRequestHandler):
         self.send_response(503 if unavailable else 200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        result = {"data": [{"id": "wrong-model" if wrong_model else "test-model"}]} if self.path == "/v1/models" else {"ready": not unavailable and not wrong_health}
+        result = {"data": [{"id": "wrong-model" if wrong_model else "test-model"}]} if self.path == "/v1/models" else {"ready": not unavailable and not wrong_health, "model": "test-model"}
         self.wfile.write(json.dumps(result).encode())
 
     def do_POST(self):
@@ -33,7 +33,7 @@ class API(http.server.BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        result = {"stored": True} if self.path == "/remember" else [{"text": "Cedar Labs is in Oslo"}]
+        result = {"stored": True} if self.path == "/remember" else ({"items_removed": 1} if self.path == "/forget" else [{"text": "Cedar Labs is in Oslo"}])
         self.wfile.write(json.dumps(result).encode())
 
     def log_message(self, *args):
@@ -49,13 +49,15 @@ async def mcp_test():
     async with stdio_client(StdioServerParameters(command=sys.argv[2], env=environment)) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            assert {tool.name for tool in (await session.list_tools()).tools} == {"remember", "recall"}
+            assert {tool.name for tool in (await session.list_tools()).tools} == {"remember", "recall", "forget"}
             for scope in ("project", "global"):
                 result = await session.call_tool("remember", {"text": "A verified fact", "scope": scope})
                 assert not result.isError, result
             result = await session.call_tool("recall", {"query": "Where is Cedar Labs?"})
             assert not result.isError, result
             assert "Oslo" in str(result)
+            result = await session.call_tool("forget", {"data_id": "a08d0560-dd0b-42c1-89e3-257459aa6f9f", "scope": "project"})
+            assert not result.isError, result
             count = len(requests)
             result = await session.call_tool("remember", {"text": "test", "scope": "all"})
             assert result.isError
@@ -77,13 +79,14 @@ try:
     before = Path("events").read_text()
     wrong_model = True
     result = prepare()
-    assert result.returncode == 1 and "local LLM unavailable" in result.stderr
+    assert result.returncode == 0
+    assert Path("events").read_text().splitlines()[-1] == "restart"
     wrong_model = False
     unavailable = True
     for environment in ({}, {"COGNEE_MEMORY_REMOTE": "1"}):
         result = prepare(**environment)
         assert result.returncode == 1 and "local LLM unavailable" in result.stderr
-    assert Path("events").read_text() == before
+    assert Path("events").read_text() == before + "restart\n"
     unavailable = False
     wrong_health = True
     result = prepare(COGNEE_MEMORY_REMOTE="1")
@@ -92,7 +95,8 @@ try:
     asyncio.run(mcp_test())
     assert all(body["project"] == "/fixture/repository" for _, body in requests)
     assert [body["scope"] for path, body in requests if path == "/remember"] == ["project", "global"]
-    assert requests[-1][1]["scope"] == "all"
+    assert [body["scope"] for path, body in requests if path == "/recall"] == ["all"]
+    assert [body["scope"] for path, body in requests if path == "/forget"] == ["project"]
 finally:
     for server in servers:
         server.shutdown()

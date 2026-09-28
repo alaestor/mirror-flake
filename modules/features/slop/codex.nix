@@ -143,7 +143,7 @@
             }
             codex_args+=( -c "''${guard_state//GUARD_ENABLED/$context_guard}" )
             ${mkOverrideArgs baseOverrides}
-            memory_mcp=${lib.escapeShellArg ("mcp_servers.cognee={command=${builtins.toJSON (lib.getExe config.services.cognee-memory.mcpBridge)},enabled=MEMORY_ENABLED,tool_call_timeout_sec=300}")}
+            memory_mcp=${lib.escapeShellArg ("mcp_servers.cognee={command=${builtins.toJSON (lib.getExe config.services.cognee-memory.mcpBridge)},enabled=MEMORY_ENABLED}")}
             codex_args+=( -c "''${memory_mcp//MEMORY_ENABLED/$memory_enabled}" )
             if [[ "$memory_enabled" == true ]]; then
               ${

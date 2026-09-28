@@ -7,6 +7,7 @@ let
         case "$*" in
           *is-active*) test -f "$AGENT_TEST_RUNNING" ;;
           *cat*) [[ "''${AGENT_TEST_TRANSIENT:-0}" != 1 ]] ;;
+          *restart*) echo restart >> "$AGENT_TEST_EVENTS"; touch "$AGENT_TEST_RUNNING" ;;
           *start*) echo start >> "$AGENT_TEST_EVENTS"; touch "$AGENT_TEST_RUNNING" ;;
           *) exit 2 ;;
         esac
@@ -43,7 +44,6 @@ let
             package = pkgs.writeShellScriptBin "python" "exit 1";
             port = 48010;
             llmEndpoint = "http://127.0.0.1:48011/v1";
-            llmModel = "test-model";
             stateDirectory = "/build/cognee-memory";
           };
         }
