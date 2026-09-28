@@ -27,6 +27,7 @@
     {
       home.packages = with pkgs; [
         (aspellWithDicts (d: [d.en d.en-computers d.en-science]))
+        bubblewrap
       ];
 
       programs.nushell = {
