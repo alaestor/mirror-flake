@@ -1,5 +1,8 @@
 { inputs, pkgs, ... }:
 let
+  agents = inputs.self.lib.agents;
+  directivePackage = agents.directives pkgs;
+  directiveHook = agents.codexDirectiveHook pkgs;
   mockClient =
     name:
     (pkgs.writeShellScriptBin name ''
@@ -11,6 +14,9 @@ let
       printf 'base_url=%s\ncontext_limit=%s\ntool_search=%s\nguard=%s\n' \
         "''${ANTHROPIC_BASE_URL:-}" "''${CC_CONTEXT_LIMIT:-}" \
         "''${ENABLE_TOOL_SEARCH:-}" "''${AGENT_CONTEXT_GUARD:-}" > "$AGENT_TEST_URL"
+      if [[ ${pkgs.lib.escapeShellArg name} == codex ]]; then
+        printf '%s\n' "''${AGENT_DIRECTIVES_BIN:-}" > "$AGENT_TEST_DIRECTIVES"
+      fi
     '')
     // {
       version = "2.1.280";
@@ -78,6 +84,17 @@ assert builtins.hasAttr "UserPromptSubmit" cfg.programs.claude-code.settings.hoo
 assert builtins.all (
   key: !cfg.programs.codex.settings.hooks.state.${key}.enabled
 ) inputs.self.lib.agents.codexGuardHookKeys;
+assert cfg.programs.codex.skills == agents.skills;
+assert cfg.programs.claude-code.skills == agents.skills;
+assert builtins.all (path: builtins.pathExists "${path}/SKILL.md") (builtins.attrValues agents.skills);
+assert builtins.attrNames agents.skills == [
+  "docs"
+  "general-testing"
+  "git-conventional-commits"
+  "git-howto-change-commit-message-history"
+  "nix-flake-component-flake-parts"
+  "unslop"
+];
 assert !(builtins.hasAttr ".serena-cxs/serena_config.yml" cfg.home.file);
 pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } ''
   for wrapper in ${
@@ -96,12 +113,12 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
 
   export AGENT_TEST_ARGS="$PWD/args"
   export AGENT_TEST_URL="$PWD/environment"
+  export AGENT_TEST_DIRECTIVES="$PWD/directives-path"
   export AGENT_TEST_MEMORY="$PWD/memory-events"
   touch "$AGENT_TEST_MEMORY"
-  ${wrapper "cc-native"}/bin/cc-native sonnet 1m search skills plan -- 'literal prompt'
+  ${wrapper "cc-native"}/bin/cc-native sonnet 1m search plan -- 'literal prompt'
   grep -Fx 'sonnet[1m]' "$AGENT_TEST_ARGS"
   grep -F 'EnterPlanMode' "$AGENT_TEST_ARGS"
-  grep -F 'Skill' "$AGENT_TEST_ARGS"
   grep -Fx 'literal prompt' "$AGENT_TEST_ARGS"
   grep -Fx 'context_limit=1000000' "$AGENT_TEST_URL"
   grep -Fx 'tool_search=auto' "$AGENT_TEST_URL"
@@ -127,6 +144,7 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
   fi
 
   ${wrapper "cx-native"}/bin/cx-native astra hi -- sol
+  test "$(cat "$AGENT_TEST_DIRECTIVES")" = ${pkgs.lib.escapeShellArg (pkgs.lib.getExe directivePackage)}
   grep -Fx 'gpt-6-astra' "$AGENT_TEST_ARGS"
   grep -Fx 'model_reasoning_effort="high"' "$AGENT_TEST_ARGS"
   grep -Fx 'sol' "$AGENT_TEST_ARGS"
@@ -146,6 +164,47 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
   ${wrapper "cx-native"}/bin/cx-native -- guard
   grep -Fx ${pkgs.lib.escapeShellArg (guardState "false")} "$AGENT_TEST_ARGS"
   grep -Fx 'guard' "$AGENT_TEST_ARGS"
+  mkdir -p "$PWD/guest-home/.codex/skills"
+  ln -s /nix/store/old-source/data/agents/skills/procedure/handoff "$PWD/guest-home/.codex/skills/procedure-handoff"
+  ln -s /tmp/user-skill "$PWD/guest-home/.codex/skills/user-skill"
+  HOME="$PWD/guest-home" AGENT_VM_GUEST=1 ${wrapper "cx-native"}/bin/cx-native
+  test "$(cat "$AGENT_TEST_DIRECTIVES")" = ${pkgs.lib.escapeShellArg (pkgs.lib.getExe directivePackage)}
+  test ! -L "$PWD/guest-home/.codex/skills/procedure-handoff"
+  test -L "$PWD/guest-home/.codex/skills/user-skill"
+  ${pkgs.lib.concatMapStringsSep "\n" (name: ''
+    test "$(readlink "$PWD/guest-home/.codex/skills/${name}")" = ${pkgs.lib.escapeShellArg agents.skills.${name}}
+  '') (builtins.attrNames agents.skills)}
+  export XDG_STATE_HOME="$PWD/directive-state"
+  printf '%s' '{"hook_event_name":"UserPromptSubmit","prompt":"^^handoff"}' \
+    | AGENT_DIRECTIVES_BIN="$(cat "$AGENT_TEST_DIRECTIVES")" ${pkgs.lib.getExe directiveHook} > hook-output.json
+  python3 - <<'PY'
+  import json, pathlib, tomllib
+  response = json.loads(pathlib.Path('hook-output.json').read_text())
+  assert 'Write a local handoff' in response['hookSpecificOutput']['additionalContext']
+  config = tomllib.loads(pathlib.Path('${agents.codexHookConfig pkgs}').read_text())
+  command = config['hooks']['UserPromptSubmit'][0]['hooks'][0]['command']
+  assert command == '${pkgs.lib.getExe directiveHook}'
+  PY
+  mkdir -p "$PWD/profile-home/.nix-profile/bin"
+  ln -s ${pkgs.lib.getExe directivePackage} "$PWD/profile-home/.nix-profile/bin/agent-directives"
+  printf '%s' '{"hook_event_name":"UserPromptSubmit","prompt":"^^handoff"}' \
+    | env -u AGENT_DIRECTIVES_BIN HOME="$PWD/profile-home" ${pkgs.lib.getExe directiveHook} > fallback-output.json
+  python3 - <<'PY'
+  import json, pathlib
+  assert 'Write a local handoff' in json.loads(pathlib.Path('fallback-output.json').read_text())['hookSpecificOutput']['additionalContext']
+  PY
+  if env -u AGENT_DIRECTIVES_BIN HOME="$PWD/profile-home" AGENT_VM_GUEST=1 ${pkgs.lib.getExe directiveHook} </dev/null 2> hook-error; then
+    echo 'guest resolved a host Home Manager profile' >&2
+    exit 1
+  fi
+  grep -F 'no Home Manager directive package' hook-error
+  printf '#!/bin/sh\nexit 0\n' > "$PWD/writable-resolver"
+  chmod +x "$PWD/writable-resolver"
+  if AGENT_DIRECTIVES_BIN="$PWD/writable-resolver" ${pkgs.lib.getExe directiveHook} </dev/null 2> hook-error; then
+    echo 'directive hook ran a writable program' >&2
+    exit 1
+  fi
+  grep -F 'must resolve inside the Nix store' hook-error
   test ! -s "$AGENT_TEST_MEMORY"
   ${wrapper "cc-native"}/bin/cc-native mem
   python3 - <<'PY'

@@ -1,13 +1,8 @@
----
-name: handoff
-description: 'Instructions for writing a handoff document.'
-disable-model-invocation: true
----
-# Writing a Handoff
+# Session Handoff
 
-Write a local handoff to `.agents/handoff.md` in one pass, overwriting if it exists.
+Write a local handoff to the project's top-level `.agents/handoff.md` in one pass, overwriting if it exists.
 
-These guidelines are to help you strategize; they aren't hard and fast rules, or mandatory section headers.
+These guidelines are to help you strategize; they aren't hard rules or mandatory section headers.
 
 ## What to cover
 

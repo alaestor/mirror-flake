@@ -81,6 +81,10 @@
           inherit name;
           runtimeInputs = cliBase ++ cliTools;
           nativeText = ''
+            # The NixOS-managed hook is stable. Resolve its implementation
+            # from this Home Manager generation in both native and VM sessions.
+            export AGENT_DIRECTIVES_BIN=${lib.getExe (agents.directives pkgs)}
+
             # Harmless if Codex never exports its own `find` shell function
             # the way Claude does — the guard then just wraps plain
             # findutils. See `findGuardBashEnv`'s doc comment (`libagents.nix`).
@@ -97,11 +101,30 @@
               ${pkgs.coreutils}/bin/ln -sfn ${lib.escapeShellArg codexConfigFile} "$HOME/.codex/config.toml"
               ${pkgs.coreutils}/bin/ln -sfn ${lib.escapeShellArg codexContextFile} "$HOME/.codex/AGENTS.md"
               ${pkgs.coreutils}/bin/ln -sfn ${lib.escapeShellArg (self.data.path "programs/codex/default.rules")} "$HOME/.codex/rules/default.rules"
+              # The guest volume persists across generations. Remove only
+              # links created by the old skill registration; leave user skills.
+              for skill_name in \
+                general-testing git-conventional-commits \
+                git-howto-change-commit-message-history mp-domain-modeling \
+                mp-grill-me mp-grill-with-docs mp-grilling mp-wait-what \
+                nix-flake-component-flake-file nix-flake-component-flake-parts \
+                nix-flake-component-import-tree nix-flake-pattern-dendritic-flakes \
+                nix-flake-pattern-normal-flakes procedure-handoff procedure-pickup \
+                prose-docs prose-unslop speaking subagents-local-sequential \
+                subagents-manual
+              do
+                skill_link="$HOME/.codex/skills/$skill_name"
+                [[ -L "$skill_link" ]] || continue
+                skill_target="$(${pkgs.coreutils}/bin/readlink -- "$skill_link")"
+                [[ "$skill_target" == /nix/store/*/data/agents/skills/* ]] || continue
+                ${pkgs.coreutils}/bin/rm -- "$skill_link"
+              done
               ${lib.concatMapStringsSep "\n" (skillName: ''
-                ${pkgs.coreutils}/bin/ln -sfn ${
-                  lib.escapeShellArg (toString codexSkills.${skillName})
-                } "$HOME/.codex/skills/${skillName}"
-              '') (builtins.attrNames codexSkills)}
+                skill_link="$HOME/.codex/skills/${skillName}"
+                if [[ ! -e "$skill_link" && ! -L "$skill_link" ]]; then
+                  ${pkgs.coreutils}/bin/ln -s ${lib.escapeShellArg agents.skills.${skillName}} "$skill_link"
+                fi
+              '') (builtins.attrNames agents.skills)}
             fi
 
             model=""
@@ -222,10 +245,8 @@
         builtins.fromTOML (self.data.read "programs/codex/config.toml")
       )) [ "model_instructions_file" ];
       defaultSettings = lib.mapAttrsRecursive (_: lib.mkDefault) referenceSettings;
-      skillsRoot = self.data.path "agents/skills";
       codexConfigFile = (pkgs.formats.toml { }).generate "codex-config" config.programs.codex.settings;
       codexContextFile = pkgs.writeText "codex-AGENTS.md" config.programs.codex.context;
-      codexSkills = agents.collectSkills skillsRoot;
     in
     {
       imports = [
@@ -261,8 +282,8 @@
         programs.codex = {
           enable = lib.mkDefault true;
           context = resolvedPrompts.plain.context;
+          skills = agents.skills;
           rules.default = self.data.path "programs/codex/default.rules";
-          skills = agents.collectSkills skillsRoot;
           settings = lib.mkMerge [
             defaultSettings
             {

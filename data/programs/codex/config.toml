@@ -57,14 +57,6 @@ path = "/home/user/.agents/skills/speaking/SKILL.md"
 enabled = false
 
 [[skills.config]]
-path = "/home/user/.agents/skills/subagents/local-sequential/SKILL.md"
-enabled = false
-
-[[skills.config]]
-path = "/home/user/.agents/skills/subagents/manual/SKILL.md"
-enabled = false
-
-[[skills.config]]
 path = "/home/user/.codex/skills/.system/imagegen/SKILL.md"
 enabled = false
 

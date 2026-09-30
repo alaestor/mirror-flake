@@ -18,7 +18,7 @@ guest is trusted to restrict itself.
 
 | Layer | Export | Owns |
 |---|---|---|
-| Harness library | `flake.lib.agents` | Prompt fragments and resolution, tool lists, skills, selector-loop and wrapper factories, and per-harness VM contributions. |
+| Harness library | `flake.lib.agents` | Prompt fragments and resolution, tool lists, directives, selector-loop and wrapper factories, and per-harness VM contributions. |
 | Harness feature | `flake.modules.homeManager.<harness>` | One CLI: its packages, prompt depths, settings, and the `sandbox` seam that hands a session to the isolation boundary. |
 | VM layer | `flake.lib.agents.mkAgentVm` | A guest NixOS configuration: shares, guest identity, sshd, and the guest half of each channel. |
 | Host mechanism | `flake.modules.nixos.agent-vm` | The single VM instance, the host half of each channel, session lifecycle, and the `agent-vm-session` entry point. |
@@ -124,8 +124,14 @@ cannot write the log, it blocks rather than run an unlogged command. The VM
 shares this state directory with native sessions, so guest restarts do not
 discard the log.
 
-The shared definitions live in `data/agents/directives/default.nix`. Each
-entry names a packaged command and gives it a short description. The command
+The catalogue is discovered recursively from `data/agents/directives/macro/`
+and `data/agents/directives/script/`. A Markdown file under `macro/` injects
+its text and rejects arguments; a Nix file under `script/` returns a definition
+with a description and either a packaged command or an alias. Each filename
+becomes a directive name, regardless of its subdirectory. The loader in
+`data/agents/directives/default.nix` rejects duplicate basenames across both
+trees before constructing the catalogue. Put supporting files outside these
+two trees so they are not accidentally registered. The command
 receives the raw argument string as its only argument and runs in the prompt's
 working directory. It writes optional model context to stdout and a user note
 or error to stderr. It returns nonzero on failure. Hook and expansion calls run
@@ -141,9 +147,41 @@ returns its exit status. Pass optional raw arguments as one quoted shell
 argument, for example
 `agent-directives run example 'two words'`.
 
+Procedural directives such as `handoff` and `what` inject instructions
+rather than performing the work themselves. The agent must still write the
+handoff file or compose the revised answer.
+`pickup` differs: it reads the latest handoff and injects its contents. These
+workflows need no vendor skill. `grill` injects the interview procedure;
+`grill-with-docs` composes it with the `domain-modeling` macro, which includes
+its document formats in one file. Both live under `data/agents/directives/macro/`.
+Reading a `CONTEXT.md` for vocabulary does not invoke domain modeling; use its
+directive when deliberately changing the domain model or recording decisions.
+These composed directives do not call a vendor Skill tool. The two
+`subagents-*` procedures are also explicit directives, not skills.
+Deprecated Nix skills have no directive replacement. The unused `speaking`
+skill is absent because these harnesses do not provide a Speak tool.
+
+Both harnesses register six model-invocable skills: `docs`, `unslop`,
+`general-testing`,
+`git-conventional-commits`, `git-howto-change-commit-message-history`, and
+`nix-flake-component-flake-parts`. Their source files remain under
+`data/agents/skills/`; `flake.lib.agents.skills` selects only these six.
+They are not directive names. The Codex guest wrapper recreates their links
+on launch and removes links left by older generations without replacing
+user-owned skills.
+
 Both harnesses call the same resolver at `UserPromptSubmit`. Claude registers
 it through Home Manager; Codex registers it in managed system configuration,
-where a store-backed hook can run without a per-generation trust prompt.
+where a store-backed hook can run without a per-generation trust prompt. The
+Codex hook is a fixed shim, not a path to one directive generation. `cx-native`
+exports the current Home Manager package path before launching Codex, including
+inside the VM. Direct native `codex` may fall back to the host's Home Manager
+profile. The shim requires the executable to resolve inside `/nix/store` and
+fails if it cannot find one. It never follows a guest-writable shared pointer
+back to the host. Restart an already running VM for the initial shim deployment.
+After that, directive edits need only a Home Manager activation and a new Codex
+session; the running VM does not need a restart.
+
 The hook adapter sends stderr or its fallback receipt as `systemMessage` and
 stdout as `additionalContext`; the directive scripts need no harness-specific
 protocol. The successful `pickup` note contains an absolute path for copying.
@@ -153,8 +191,8 @@ interactive Codex displays it as a hook line.
 Codex's handler raises its context limit to 200 KB; the default truncates
 ordinary directive output. A wrapped session executes commands inside the
 shared VM. An explicitly native session does not gain that isolation, so only
-trusted Nix-packaged programs belong in the catalogue. Vendor skills remain
-separate and do not provide directive dispatch.
+trusted Nix-packaged programs belong in the catalogue. Vendor skills do not
+provide directive dispatch.
 
 ## Opt-in shared memory
 

@@ -1,7 +1,6 @@
 ---
 name: general-testing
-description: Comprehensive Testing - A Short Guide To Writing Good Tests
-disable-model-invocation: false
+description: Use when writing or reviewing tests to check behavior, negative cases, and integration failures.
 ---
 
 # Comprehensive Testing Requirements -- How to Write Good Tests

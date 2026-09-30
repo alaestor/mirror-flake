@@ -128,10 +128,18 @@ The VM layer must never name a harness fact, and the harness layer must never
 name a VM concept; exactly one module declares the shared guest, and harnesses
 and hosts contribute to it through typed options.
 
-Explicit prompt directives are Nix-packaged commands registered in
-`data/agents/directives/default.nix`. They run at `UserPromptSubmit`, may change
+Explicit prompt directives are discovered recursively from
+`data/agents/directives/macro/*.md` and `data/agents/directives/script/*.nix`.
+The first inject instructions; the second package commands or aliases.
+`data/agents/directives/default.nix` rejects duplicate basenames. Directives
+run at `UserPromptSubmit`, may change
 files, and can inject their stdout as context. Keep their dispatch out of
-vendor skill definitions; see `docs/agents.md` before extending them.
+vendor skill definitions; see `docs/agents.md` before extending them. The
+harnesses register a small, explicit set of model-invocable skills for
+documentation, prose, testing, Git, and flake-parts. Other migrated procedures run only
+when explicitly invoked as directives. Codex's NixOS-managed hook is a fixed
+shim; its current directive package comes from the Home Manager wrapper, so
+ordinary directive edits need a Home Manager activation, not a system rebuild.
 
 ### Hosted services and domains
 

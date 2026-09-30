@@ -108,20 +108,13 @@
       # the list being able to widen itself to wherever `$PWD` happens to be.
       sandboxWritableRoots = agents.sandboxWritableRootsFor "$HOME";
 
-      skillsRoot = self.data.path "agents/skills";
       # The tool catalogue rivals the preamble in size. `--tools` replaces it
-      # with a chosen subset, and the skill catalogue only loads alongside the
-      # `Skill` tool, so an entry dropped here takes its documentation with it.
+      # with a chosen subset.
       #
       # Kept: the four working tools and `WebSearch`, which has no shell
       # equivalent. Dropped: subagent and scheduling tools (`Agent`, `Task*`,
       # `Cron*`, `Monitor`, `SendMessage`), `WebFetch` (`curl` covers it), and
       # `Glob`/`Grep` (`rg`/`fd` cover them).
-      #
-      # `Skill` is behind the `skills` selector because typing `/<skill-name>`
-      # loads a skill whether or not the tool is present; the tool only lets
-      # the model reach for one unprompted, and it drags the whole catalogue
-      # in with it.
       #
       # For what any of this costs, ask the binary rather than guessing:
       # `nix run .#extract-system-prompt-claude -- --report --model sonnet`.
@@ -144,7 +137,6 @@
         "EnterPlanMode"
         "ExitPlanMode"
       ];
-      skillTools = [ "Skill" ];
       # Auto-compaction summarizes for narrative continuity and loses the
       # details needed to resume work. The opt-in guard replaces it: a single
       # threshold, sitting just under Claude Code's own auto-compact reserve
@@ -182,7 +174,6 @@
           ;;
         search|tool-search) tool_search="auto" ;;
         alltools|all-tools) tools="default" ;;
-        skill|skills) skills=1 ;;
         noagentsmd) agents_md=0 ;;
         full|full-prompt) prompt="full" ;;
         mini|mini-prompt) prompt="mini" ;;
@@ -257,7 +248,6 @@
             prompt="mini"
             lean_tools=1
             tools=${lib.escapeShellArg (lib.concatStringsSep "," defaultTools)}
-            skills=0
             agents_md=1
             context_limit=200000
             context_guard=0
@@ -269,14 +259,13 @@
               caseArms = claudeCaseArms;
               helpFlag = "--cc-help";
               helpLines = [
-                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [1m|search|skills|alltools|guard|mem|memory] [--] [claude arguments...]"
+                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [1m|search|alltools|guard|mem|memory] [--] [claude arguments...]"
                 "mem/memory enables shared project and global Cognee memory; the local LLM must be available"
                 "guard opts into context handoffs and compaction blocking; normal compaction is the default"
                 "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
                 "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
                 "${name} isolates sessions in the agent VM by default; run ${name}-native directly to bypass it entirely"
                 "VM sessions may only run in ${lib.concatStringsSep " and " sandboxWritableRoots}"
-                "skills adds the Skill tool and its catalogue; /<skill-name> works without it"
                 "noagentsmd skips injecting the project root's AGENTS.md, if any"
               ];
               argsVar = "claude_args";
@@ -325,7 +314,6 @@
 
             if [[ "$tools" != "default" ]]; then
               [[ "$permission_mode" != "plan" ]] || tools+=",${lib.concatStringsSep "," planTools}"
-              (( ! skills )) || tools+=",${lib.concatStringsSep "," skillTools}"
             fi
             [[ "$tools" == "default" ]] || claude_args+=( --tools "$tools" )
 
@@ -444,7 +432,7 @@
       programs.claude-code = {
         enable = lib.mkDefault true;
         context = resolvedPrompt.context;
-        skills = agents.collectSkills skillsRoot;
+        skills = agents.skills;
         settings = {
           includeCoAuthoredBy = lib.mkDefault false;
           skipDangerousModePermissionPrompt = lib.mkDefault true;

@@ -2,7 +2,6 @@
 name: nix-flake-component-flake-parts
 description: Define packages, apps, checks, dev shells, modules, and other flake outputs using flake-parts modules
 license: MIT
-disable-model-invocation: false
 ---
 
 # flake-parts

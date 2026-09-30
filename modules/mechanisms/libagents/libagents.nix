@@ -4,7 +4,7 @@
   Shared definitions consumed by every harness feature module
   (`modules/features/claude-code.nix`, `modules/features/codex.nix`, and any
   future addition). This is the harness *layer*: it knows about tool lists,
-  prompt fragments, skills and `AGENTS.md`. It must never mention vsock,
+  prompt fragments, skills, directives and `AGENTS.md`. It must never mention vsock,
   virtiofs, systemd units, or anything belonging to the VM layer
   (`modules/mechanisms/libagents/vm.nix`) — see the layering rule in
   `docs/agents.md`.
@@ -15,10 +15,9 @@
     concatenating the fragments they want and injecting the result at
     whatever depth their own module (`--append-system-prompt`,
     `developer_instructions=`, ...) requires.
-  - `collectSkills` — recursively scans a skills root for `SKILL.md`
-    directories, keyed by their path with `/` flattened to `-`.
   - `directives` — packages the shared directive catalogue and resolver CLI;
     both harnesses use it for `UserPromptSubmit`.
+  - `skills` — the selected model-invocable skills registered by both harnesses.
   - `context` — the shared `AGENTS.md` context text.
   - `stateDirs` / `stateDirsFor` — the `$HOME`-relative directories each
     harness and component keeps live state in, and a helper that makes them
@@ -192,34 +191,6 @@ let
 
   };
 
-  # Recursively scans `root` for `SKILL.md`-bearing directories, keyed by
-  # their path relative to `root` with `/` flattened to `-`. Moved verbatim
-  # (aside from taking `root` as a parameter instead of closing over it)
-  # from the identical copies in claude-code.nix and codex.nix.
-  collectSkills =
-    root:
-    let
-      go =
-        relativeDirectory:
-        let
-          directory = "${root}${lib.optionalString (relativeDirectory != "") "/${relativeDirectory}"}";
-        in
-        lib.concatMapAttrs (
-          entryName: entryType:
-          let
-            relativePath = if relativeDirectory == "" then entryName else "${relativeDirectory}/${entryName}";
-            entryPath = "${root}/${relativePath}";
-          in
-          if entryType != "directory" then
-            { }
-          else if builtins.pathExists "${entryPath}/SKILL.md" then
-            { ${builtins.replaceStrings [ "/" ] [ "-" ] relativePath} = entryPath; }
-          else
-            go relativePath
-        ) (builtins.readDir directory);
-    in
-    go "";
-
   context = self.data.read "agents/AGENTS.md";
 
   # Auto-compaction summarizes for narrative continuity and loses the details
@@ -237,6 +208,15 @@ let
     pkgs.writers.writePython3Bin "agent-context-guard" {
       flakeIgnore = [ "E501" ];
     } (self.data.read "agents/context-guard.py");
+
+  skills = {
+    docs = self.data.path "agents/skills/prose/docs";
+    unslop = self.data.path "agents/skills/prose/unslop";
+    general-testing = self.data.path "agents/skills/general-testing";
+    git-conventional-commits = self.data.path "agents/skills/git/conventional-commits";
+    git-howto-change-commit-message-history = self.data.path "agents/skills/git/howto-change-commit-message-history";
+    nix-flake-component-flake-parts = self.data.path "agents/skills/nix/flake-parts";
+  };
 
   # Directive programs are shared Nix packages, not vendor skills. The
   # resolver consumes a generated catalogue so its parser does not know how
@@ -285,6 +265,32 @@ let
     "pre_compact"
   ];
 
+  # The managed hook stays fixed across directive edits. cx-native exports the
+  # current Home Manager package path; the guest executes that same wrapper.
+  # Native Codex launched without cx may use the host's Home Manager profile,
+  # but the guest must never resolve through a host-writable shared path.
+  codexDirectiveHook =
+    pkgs:
+    pkgs.writeShellApplication {
+      name = "agent-directives-codex-hook";
+      text = ''
+        candidate="''${AGENT_DIRECTIVES_BIN:-}"
+        if [[ -z "$candidate" && "''${AGENT_VM_GUEST:-}" != 1 ]]; then
+          candidate="$HOME/.nix-profile/bin/agent-directives"
+        fi
+        if [[ ! -x "$candidate" ]]; then
+          printf 'Codex directive hook: no Home Manager directive package is available\n' >&2
+          exit 2
+        fi
+        resolved="$(${pkgs.coreutils}/bin/realpath -- "$candidate")"
+        if [[ "$resolved" != /nix/store/*/bin/agent-directives ]]; then
+          printf 'Codex directive hook: package must resolve inside the Nix store\n' >&2
+          exit 2
+        fi
+        exec "$resolved" hook codex
+      '';
+    };
+
   codexHookConfig =
     pkgs:
     let
@@ -306,7 +312,7 @@ let
       matcher = ""
       [[hooks.UserPromptSubmit.hooks]]
       type = "command"
-      command = "${lib.getExe (directives pkgs)} hook codex"
+      command = "${lib.getExe (codexDirectiveHook pkgs)}"
       additionalContextLimit = 200000
     '';
 
@@ -555,10 +561,11 @@ in
       tools
       toolsMarkdown
       fragments
-      collectSkills
       context
       contextGuard
+      skills
       directives
+      codexDirectiveHook
       codexGuardHookKeys
       codexHookConfig
       projectMemory

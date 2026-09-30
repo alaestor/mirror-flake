@@ -1,7 +1,6 @@
 ---
 name: git-howto-change-commit-message-history
 description: How agents can retroactively change a commit message
-disable-model-invocation: false
 ---
 
 Since I cannot use an interactive editor, I automated the rebase using environment variables:
