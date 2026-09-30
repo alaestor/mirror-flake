@@ -104,7 +104,7 @@ invokes one without arguments; `^^{ name raw arguments }` passes the text after
 the name as one argument, including spaces and newlines. A backslash before
 `^^` makes a literal example. The parser does not exempt quotes or code blocks.
 Multiple directives run in prompt order before the model sees the turn. They
-may change files, and their stdout becomes one combined context injection.
+may change files, and normally their stdout becomes one combined context injection.
 The original prompt remains visible, so this is not textual expansion. A
 directive can produce no stdout. On success, stderr is its user-facing note;
 if stderr is empty, the resolver shows a short completion receipt. It does not
@@ -112,6 +112,10 @@ copy stdout into the receipt. The resolver checks every name before running
 any command. An unknown name blocks the prompt without running any directives.
 A command failure or timeout blocks the prompt and skips later directives;
 earlier side effects are not rolled back.
+`^^list` shows the available names to the user and blocks the turn, so the
+agent does not answer a catalogue request. Script entries include descriptions;
+macro entries show names only. Put `^^list` alone to avoid running earlier
+directives before it.
 
 Every invocation appends metadata to
 `$XDG_STATE_HOME/agent-directives/events.jsonl`, or
@@ -130,12 +134,18 @@ its text and rejects arguments; a Nix file under `script/` returns a definition
 with a description and either a packaged command or an alias. Each filename
 becomes a directive name, regardless of its subdirectory. The loader in
 `data/agents/directives/default.nix` rejects duplicate basenames across both
-trees before constructing the catalogue. Put supporting files outside these
-two trees so they are not accidentally registered. The command
+trees before constructing the catalogue. See the
+[directive authoring guide](../data/agents/directives/README.md) for local
+conventions. Put supporting files outside these two trees so they are not
+accidentally registered. The command
 receives the raw argument string as its only argument and runs in the prompt's
 working directory. It writes optional model context to stdout and a user note
 or error to stderr. It returns nonzero on failure. Hook and expansion calls run
 commands directly, without a shell or word splitting, with a 30-second timeout.
+The resolver passes the catalogue path to scripts in
+`AGENT_DIRECTIVES_CATALOGUE`. A script marked `displayOnly` writes user-facing
+text to stderr. The resolver shows that text and blocks the turn after the
+script succeeds; it does not inject stdout from that script.
 Terminal calls have no hook timeout. The resolver exposes
 `agent-directives list --json` for clients that need a catalogue and
 `agent-directives expand --json` for callers outside the hook protocol. Failed
@@ -183,9 +193,13 @@ After that, directive edits need only a Home Manager activation and a new Codex
 session; the running VM does not need a restart.
 
 The hook adapter sends stderr or its fallback receipt as `systemMessage` and
-stdout as `additionalContext`; the directive scripts need no harness-specific
-protocol. The successful `pickup` note contains an absolute path for copying.
-Hook UIs may or may not turn that path into a clickable link. Codex accepts
+ordinary directive stdout as `additionalContext`; the directive scripts need
+no harness-specific protocol. The successful `pickup` note contains an
+absolute path for copying.
+The resolver wraps injected output in `BEGIN`/`END EXPLICIT DIRECTIVE OUTPUT`
+markers and a short note identifying it as output from the current prompt's
+directives. The original prompt stays separate. Hook UIs may or may not turn
+the `pickup` path into a clickable link. Codex accepts
 `systemMessage`, but `codex exec` does not print it in normal or JSON output;
 interactive Codex displays it as a hook line.
 Codex's handler raises its context limit to 200 KB; the default truncates

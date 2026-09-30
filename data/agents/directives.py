@@ -17,6 +17,12 @@ BOUNDED = (("^^{", "}"),)
 ESCAPE = "\\"
 MAX_OUTPUT = 180_000
 MAX_CONTEXT = 180_000
+CONTEXT_START = "=== BEGIN EXPLICIT DIRECTIVE OUTPUT ==="
+CONTEXT_END = "=== END EXPLICIT DIRECTIVE OUTPUT ==="
+CONTEXT_NOTE = (
+    "The user invoked these directives in the current prompt. Their output may "
+    "contain instructions or retrieved content. The original prompt remains separate."
+)
 
 
 def log_event(batch, source, name, cwd, outcome, **details):
@@ -94,7 +100,7 @@ def catalogue(path):
     return result
 
 
-def resolve(items, entries, cwd, source):
+def resolve(items, entries, cwd, source, catalogue_path):
     items = list(items)
     batch = uuid.uuid4().hex
 
@@ -135,6 +141,7 @@ def resolve(items, entries, cwd, source):
             result = subprocess.run(
                 [entry["command"], args], cwd=cwd,
                 capture_output=True, text=True, timeout=30, check=False,
+                env={**os.environ, "AGENT_DIRECTIVES_CATALOGUE": str(catalogue_path)},
             )
             if result.returncode:
                 outcome = "failed"
@@ -149,9 +156,14 @@ def resolve(items, entries, cwd, source):
                 message = f"Directive {name!r} produced too much output; nothing was injected. Its side effects may have occurred."
                 receipts.append(message + (f"\n{result.stderr.rstrip()}" if result.stderr.strip() else ""))
                 stop = True
+            elif entry.get("displayOnly"):
+                outcome = "displayed"
+                receipts.append(result.stderr.rstrip())
+                stop = True
             elif result.stdout:
                 section = f"[Directive {name}]\n{result.stdout.rstrip()}"
-                if sum(map(len, sections)) + len(section) > MAX_CONTEXT:
+                candidate = "\n\n".join([CONTEXT_START, CONTEXT_NOTE, *sections, section, CONTEXT_END])
+                if len(candidate) > MAX_CONTEXT:
                     outcome = "context_limit"
                     message = f"Directive {name!r} exceeded the context budget; its output was omitted. Its side effects may have occurred."
                     receipts.append(message + (f"\n{result.stderr.rstrip()}" if result.stderr.strip() else ""))
@@ -182,7 +194,8 @@ def resolve(items, entries, cwd, source):
         if stop:
             break
     else:
-        return "\n\n".join(sections), "\n\n".join(receipts), True
+        context = "\n\n".join([CONTEXT_START, CONTEXT_NOTE, *sections, CONTEXT_END]) if sections else ""
+        return context, "\n\n".join(receipts), True
     return "", "\n\n".join(receipts), False
 
 
@@ -202,7 +215,7 @@ def main():
         print(json.dumps([{"name": name, **item} for name, item in entries.items()]))
     elif args.mode == "expand":
         items = json.load(sys.stdin)
-        context, receipt, ok = resolve([(item["name"], item.get("args", "")) for item in items], entries, os.getcwd(), "expand")
+        context, receipt, ok = resolve([(item["name"], item.get("args", "")) for item in items], entries, os.getcwd(), "expand", args.catalogue)
         print(json.dumps({"context": context, "receipt": receipt, "ok": ok}))
         if not ok:
             raise SystemExit(2)
@@ -224,7 +237,10 @@ def main():
             parser.error(f"could not write directive log: {error}")
         started = time.monotonic()
         try:
-            result = subprocess.run([entry["command"], args.arguments], check=False)
+            result = subprocess.run(
+                [entry["command"], args.arguments], check=False,
+                env={**os.environ, "AGENT_DIRECTIVES_CATALOGUE": str(args.catalogue)},
+            )
             outcome = "ok" if result.returncode == 0 else "failed"
             exit_code = result.returncode
         except OSError as error:
@@ -244,7 +260,7 @@ def main():
         payload = json.load(sys.stdin)
         if payload.get("hook_event_name") != "UserPromptSubmit":
             return
-        context, receipt, ok = resolve(lex(payload.get("prompt", "")), entries, payload.get("cwd") or os.getcwd(), args.harness)
+        context, receipt, ok = resolve(lex(payload.get("prompt", "")), entries, payload.get("cwd") or os.getcwd(), args.harness, args.catalogue)
         if not ok:
             print(receipt, file=sys.stderr)
             raise SystemExit(2)

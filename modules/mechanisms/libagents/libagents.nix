@@ -230,8 +230,9 @@ let
           name: definition:
           {
             inherit name;
-            inherit (definition) description;
+            inherit (definition) description kind;
           }
+          // lib.optionalAttrs (definition ? displayOnly) { inherit (definition) displayOnly; }
           // (
             if definition ? alias then
               { inherit (definition) alias; }

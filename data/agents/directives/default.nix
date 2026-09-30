@@ -40,13 +40,13 @@ let
     walk directory;
   macros = map (entry: {
     inherit (entry) name;
-    value = mkMacro entry.name "Inject ${lib.replaceStrings [ "-" ] [ " " ] entry.name} instructions" (
+    value = (mkMacro entry.name "Inject ${lib.replaceStrings [ "-" ] [ " " ] entry.name} instructions" (
       builtins.readFile entry.path
-    );
+    )) // { kind = "macro"; };
   }) (discover "${root}/macro" ".md");
   scripts = map (entry: {
     inherit (entry) name;
-    value = import entry.path { inherit pkgs mkMacro; };
+    value = (import entry.path { inherit pkgs mkMacro; }) // { kind = "script"; };
   }) (discover "${root}/script" ".nix");
   entries = macros ++ scripts;
   names = map (entry: entry.name) entries;

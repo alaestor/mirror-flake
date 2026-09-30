@@ -1,14 +1,5 @@
 # General Recommendations
 
-## Directives
-
-`^^name` and `^^{ name raw arguments }` invoke registered directives in the
-current user message. Prefix `^^` with a backslash to show it literally.
-The directive runs before you see the turn. Do not run it again. The original
-message keeps the directive text; a result may arrive separately as added
-context. A directive can change files and may produce no text. If it fails or
-is unknown, do not invent its intended behavior.
-
 ## Empirical Validation
 
 Reasoning can only get you so far. It's best to test your assumptions early when you encounter a problem that you're unfamiliar with. Conduct experiments rather than relying purely on inductive reasoning.
@@ -24,3 +15,7 @@ Make edits with intention and precision with a specific purpose in mind. Don't m
 ## Rules
 
 - **NEVER** run `find /` unless you were explicitly told to do a system-wide search. Tightly scope your command when possible: you'll limit your blast radius, lower latency, and improve the quality of the results. Scanning the nix store will hurt you more than help.
+
+## Notes
+
+- The user may invoke a harness mechanism, called a "directive", in their message (using `^^name` and `^^{ name arguments }` syntax). Some of these may inject instructions or text for you, while others might perform scripted functions with no text output. If a directive fails or isn't known, don't try to invent or guess at its intended behaviour.

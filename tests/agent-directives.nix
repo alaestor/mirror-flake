@@ -53,7 +53,7 @@ pkgs.runCommand "agent-directives-test" { nativeBuildInputs = [ pkgs.python3 ]; 
   catalogue = json.loads(subprocess.run(
       [real, 'list', '--json'], text=True, capture_output=True, check=True,
   ).stdout)
-  assert {'pickup', 'handoff', 'what', 'grill',
+  assert {'pickup', 'handoff', 'what', 'grill', 'list',
           'domain-modeling', 'grill-with-docs',
           'subagents-local',
           'subagents-manual'} <= {item['name'] for item in catalogue}
@@ -91,6 +91,9 @@ pkgs.runCommand "agent-directives-test" { nativeBuildInputs = [ pkgs.python3 ]; 
   specific = output['hookSpecificOutput']
   assert set(specific) == {'hookEventName', 'additionalContext'}
   assert specific['hookEventName'] == 'UserPromptSubmit'
+  assert specific['additionalContext'].startswith('=== BEGIN EXPLICIT DIRECTIVE OUTPUT ===\n')
+  assert specific['additionalContext'].endswith('\n=== END EXPLICIT DIRECTIVE OUTPUT ===')
+  assert 'The user invoked these directives in the current prompt.' in specific['additionalContext']
   assert specific['additionalContext'].index('[Directive reply]') < specific['additionalContext'].index('[Directive say]')
   assert 'arg=<one  two\nthree>' in specific['additionalContext']
   tabbed = json.loads(call('hook', 'claude', payload={
@@ -131,6 +134,23 @@ pkgs.runCommand "agent-directives-test" { nativeBuildInputs = [ pkgs.python3 ]; 
 
   # The packaged command executes a real directive in the selected project.
   for harness in ('claude', 'codex'):
+      listed = subprocess.run([real, 'hook', harness], input=json.dumps({
+          'hook_event_name': 'UserPromptSubmit', 'prompt': '^^list ^^handoff',
+      }), text=True, capture_output=True)
+      assert listed.returncode == 2 and listed.stdout == ""
+      assert '**handoff**\n' in listed.stderr
+      assert '**list** [List available directives]' in listed.stderr
+      assert '**pickup** [Read the latest handoff into this turn]' in listed.stderr
+      assert '**handoff** [' not in listed.stderr
+      assert 'handoff instructions loaded' not in listed.stderr
+      assert 'BEGIN EXPLICIT DIRECTIVE OUTPUT' not in listed.stderr
+      bad_list = subprocess.run([real, 'hook', harness], input=json.dumps({
+          'hook_event_name': 'UserPromptSubmit', 'prompt': '^^{ list extra }',
+      }), text=True, capture_output=True)
+      assert bad_list.returncode == 2 and 'list takes no arguments' in bad_list.stderr
+      terminal_list = subprocess.run([real, 'run', 'list'], text=True, capture_output=True, check=True)
+      assert terminal_list.stdout == ""
+      assert '**list** [List available directives]' in terminal_list.stderr
       result = subprocess.run([real, 'hook', harness], input=json.dumps({
           'hook_event_name': 'UserPromptSubmit', 'prompt': '^^handoff'
       }), text=True, capture_output=True, check=True)
