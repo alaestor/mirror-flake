@@ -160,27 +160,27 @@ def --wrapped bu [...args: string] {
 }
 
 # Print up to `limit` spelling suggestions for each misspelled word.
-def spell-check [...words: string --limit: int = 5] {
-  for word in $words {
-    let matches = (
-      $word
-        | aspell -a
-        | lines
-        | skip 1
-        | where { str starts-with "& " }
-        | parse --regex '^& \S+ \d+ \d+: (?P<suggestions>.*)$'
-    )
-
-    if not ($matches | is-empty) {
-      print $word
-      print (
-        $matches.0.suggestions
-          | split row ", "
-          | first $limit
-      )
-    }
-  }
-}
+#def spell-check [...words: string --limit: int = 5] {
+#  for word in $words {
+#    let matches = (
+#      $word
+#        | aspell -a
+#        | lines
+#        | skip 1
+#        | where { str starts-with "& " }
+#        | parse --regex '^& \S+ \d+ \d+: (?P<suggestions>.*)$'
+#    )
+#
+#    if not ($matches | is-empty) {
+#      print $word
+#      print (
+#        $matches.0.suggestions
+#          | split row ", "
+#          | first $limit
+#      )
+#    }
+#  }
+#}
 
 # ssh without verifying fingerprint or adding to knownhosts
 #def sshu [...args] {

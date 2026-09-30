@@ -12,9 +12,6 @@
   inputs = {
   agenix = {
     inputs = {
-      home-manager = {
-        follows = "unstable-home-manager";
-      };
       nixpkgs = {
         follows = "unstable-nixpkgs";
       };

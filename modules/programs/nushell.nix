@@ -26,7 +26,7 @@
     in
     {
       home.packages = with pkgs; [
-        (aspellWithDicts (d: [d.en d.en-computers d.en-science]))
+        #(aspellWithDicts (d: [d.en d.en-science]))
         bubblewrap
       ];
 
@@ -49,7 +49,7 @@
         shellAliases = {
           ll = lib.mkDefault "ls -la";
           lsrm = lib.mkDefault "lsblkrm";
-          a = lib.mkDefault "spell-check";
+          #a = lib.mkDefault "spell-check";
         };
         extraConfig = lib.mkAfter ''
           ${shortcuts}
