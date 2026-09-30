@@ -436,6 +436,7 @@
       home.packages = [
         ccWrappers.native
         ccWrappers.wrapped
+        (agents.directives pkgs)
       ];
 
       agents.promptPreview.claude.plain = resolvedPrompt;
@@ -458,6 +459,16 @@
             command = "${lib.getExe (agents.contextGuard pkgs)} statusline";
           };
           hooks = {
+            UserPromptSubmit = [
+              {
+                hooks = [
+                  {
+                    type = "command";
+                    command = "${lib.getExe (agents.directives pkgs)} hook claude";
+                  }
+                ];
+              }
+            ];
             # PostToolUse is the only event that fires mid-turn often enough to
             # catch the ceiling before a long turn overruns it.
             PostToolUse = [ { hooks = guardCommand; } ];

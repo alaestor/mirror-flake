@@ -128,6 +128,11 @@ The VM layer must never name a harness fact, and the harness layer must never
 name a VM concept; exactly one module declares the shared guest, and harnesses
 and hosts contribute to it through typed options.
 
+Explicit prompt directives are Nix-packaged commands registered in
+`data/agents/directives/default.nix`. They run at `UserPromptSubmit`, may change
+files, and can inject their stdout as context. Keep their dispatch out of
+vendor skill definitions; see `docs/agents.md` before extending them.
+
 ### Hosted services and domains
 
 Read `docs/serve.md` before changing `modules/serve/` or a host's serve/domain composition. Service modules behave like opinionated NixOS features, but export as `flake.modules.nixos.serve-<name>` and must expose `serve.<name>.enable = lib.mkEnableOption ...`; importing one must not activate it. Domain modules export as `flake.modules.nixos.domain-<name>`, import their curated service set, and add reverse-proxy routes and public firewall openings only for explicitly enabled services. Shared proxy infrastructure such as `serve-caddy` is imported once by the host. A host may instead import a service directly, in which case the host owns any ingress policy.

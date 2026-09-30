@@ -97,6 +97,65 @@ entry point as the agent wrappers; it does not mount or copy the database onto
 the host. The host attaching the harnesses contributes Tokview's local-state
 record alongside theirs.
 
+## Explicit directives
+
+Directives are named programs invoked by the user's current prompt. `^^name`
+invokes one without arguments; `^^{ name raw arguments }` passes the text after
+the name as one argument, including spaces and newlines. A backslash before
+`^^` makes a literal example. The parser does not exempt quotes or code blocks.
+Multiple directives run in prompt order before the model sees the turn. They
+may change files, and their stdout becomes one combined context injection.
+The original prompt remains visible, so this is not textual expansion. A
+directive can produce no stdout. On success, stderr is its user-facing note;
+if stderr is empty, the resolver shows a short completion receipt. It does not
+copy stdout into the receipt. The resolver checks every name before running
+any command. An unknown name blocks the prompt without running any directives.
+A command failure or timeout blocks the prompt and skips later directives;
+earlier side effects are not rolled back.
+
+Every invocation appends metadata to
+`$XDG_STATE_HOME/agent-directives/events.jsonl`, or
+`~/.local/state/agent-directives/events.jsonl` when `XDG_STATE_HOME` is unset.
+The JSONL records time, source, directive name, working directory, outcome,
+and duration. Unknown names are recorded as `<unknown>`. It does not store raw
+arguments, stdout, or stderr. New log files have mode `0600`. The runner
+records a start before executing a command and an outcome afterward; if it
+cannot write the log, it blocks rather than run an unlogged command. The VM
+shares this state directory with native sessions, so guest restarts do not
+discard the log.
+
+The shared definitions live in `data/agents/directives/default.nix`. Each
+entry names a packaged command and gives it a short description. The command
+receives the raw argument string as its only argument and runs in the prompt's
+working directory. It writes optional model context to stdout and a user note
+or error to stderr. It returns nonzero on failure. Hook and expansion calls run
+commands directly, without a shell or word splitting, with a 30-second timeout.
+Terminal calls have no hook timeout. The resolver exposes
+`agent-directives list --json` for clients that need a catalogue and
+`agent-directives expand --json` for callers outside the hook protocol. Failed
+expansion returns `ok = false` and exits with status 2. Hook failures likewise
+exit 2 with the blocking reason on stderr, which both harnesses use to reject
+the prompt. The same package works at a terminal:
+`agent-directives run pickup` writes the command's raw stdout and stderr and
+returns its exit status. Pass optional raw arguments as one quoted shell
+argument, for example
+`agent-directives run example 'two words'`.
+
+Both harnesses call the same resolver at `UserPromptSubmit`. Claude registers
+it through Home Manager; Codex registers it in managed system configuration,
+where a store-backed hook can run without a per-generation trust prompt.
+The hook adapter sends stderr or its fallback receipt as `systemMessage` and
+stdout as `additionalContext`; the directive scripts need no harness-specific
+protocol. The successful `pickup` note contains an absolute path for copying.
+Hook UIs may or may not turn that path into a clickable link. Codex accepts
+`systemMessage`, but `codex exec` does not print it in normal or JSON output;
+interactive Codex displays it as a hook line.
+Codex's handler raises its context limit to 200 KB; the default truncates
+ordinary directive output. A wrapped session executes commands inside the
+shared VM. An explicitly native session does not gain that isolation, so only
+trusted Nix-packaged programs belong in the catalogue. Vendor skills remain
+separate and do not provide directive dispatch.
+
 ## Opt-in shared memory
 
 Project notes use `.agents/memory/<name>.toml` at the repository root. The

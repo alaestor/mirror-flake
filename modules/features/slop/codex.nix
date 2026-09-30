@@ -254,6 +254,7 @@
           [
             cxWrappers.native
             cxWrappers.wrapped
+            (agents.directives pkgs)
           ];
         agents.promptPreview.codex = resolvedPrompts;
 

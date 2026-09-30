@@ -17,6 +17,8 @@
     `developer_instructions=`, ...) requires.
   - `collectSkills` — recursively scans a skills root for `SKILL.md`
     directories, keyed by their path with `/` flattened to `-`.
+  - `directives` — packages the shared directive catalogue and resolver CLI;
+    both harnesses use it for `UserPromptSubmit`.
   - `context` — the shared `AGENTS.md` context text.
   - `stateDirs` / `stateDirsFor` — the `$HOME`-relative directories each
     harness and component keeps live state in, and a helper that makes them
@@ -236,6 +238,39 @@ let
       flakeIgnore = [ "E501" ];
     } (self.data.read "agents/context-guard.py");
 
+  # Directive programs are shared Nix packages, not vendor skills. The
+  # resolver consumes a generated catalogue so its parser does not know how
+  # any particular directive is implemented.
+  directives =
+    pkgs:
+    let
+      definitions = import (self.data.path "agents/directives/default.nix") { inherit pkgs; };
+      catalogue = pkgs.writeText "agent-directives.json" (builtins.toJSON (
+        lib.mapAttrsToList (
+          name: definition:
+          {
+            inherit name;
+            inherit (definition) description;
+          }
+          // (
+            if definition ? alias then
+              { inherit (definition) alias; }
+            else
+              { command = lib.getExe definition.command; }
+          )
+        ) definitions
+      ));
+      resolver = pkgs.writers.writePython3Bin "agent-directives-resolver" {
+        flakeIgnore = [ "E501" ];
+      } (self.data.read "agents/directives.py");
+    in
+    pkgs.writeShellApplication {
+      name = "agent-directives";
+      text = ''
+        exec ${lib.getExe resolver} --catalogue ${catalogue} "$@"
+      '';
+    };
+
   # Codex hook registration. Managed hooks -- those from the system config
   # layer -- are the only ones that run without an interactive `/hooks` trust
   # prompt, and a Nix-managed config is never writable for trust to be
@@ -267,6 +302,12 @@ let
       ${event "Stop"}
       ${event "SessionStart"}
       ${event "PreCompact"}
+      [[hooks.UserPromptSubmit]]
+      matcher = ""
+      [[hooks.UserPromptSubmit.hooks]]
+      type = "command"
+      command = "${lib.getExe (directives pkgs)} hook codex"
+      additionalContextLimit = 200000
     '';
 
   # Verified against the live system (`ls ~`). Paths are
@@ -280,6 +321,10 @@ let
   # file granularity and two generations over one tree rename each other's
   # `settings.json` out of the way.
   harnesses = {
+    # Directive audit entries must survive guest restarts and be shared with
+    # native sessions without writing into the project work tree.
+    directives.stateDirs = [ ".local/state/agent-directives" ];
+
     # `.claude.json` is relocated into `.claude` by this environment value,
     # because virtiofs shares directories rather than individual files.
     claude = {
@@ -513,6 +558,7 @@ in
       collectSkills
       context
       contextGuard
+      directives
       codexGuardHookKeys
       codexHookConfig
       projectMemory

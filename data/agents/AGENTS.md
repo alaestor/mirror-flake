@@ -1,5 +1,14 @@
 # General Recommendations
 
+## Directives
+
+`^^name` and `^^{ name raw arguments }` invoke registered directives in the
+current user message. Prefix `^^` with a backslash to show it literally.
+The directive runs before you see the turn. Do not run it again. The original
+message keeps the directive text; a result may arrive separately as added
+context. A directive can change files and may produce no text. If it fails or
+is unknown, do not invent its intended behavior.
+
 ## Empirical Validation
 
 Reasoning can only get you so far. It's best to test your assumptions early when you encounter a problem that you're unfamiliar with. Conduct experiments rather than relying purely on inductive reasoning.

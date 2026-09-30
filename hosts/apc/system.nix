@@ -10,6 +10,7 @@ let
   home = "/home/${username}";
   agents = inputs.self.lib.agents;
   vmContributions = agents.vmContributionsFor home [
+    "directives"
     "claude"
     "codex"
     "deepseek"

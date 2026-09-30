@@ -74,6 +74,7 @@ assert
     "cxs-native"
   ]);
 assert builtins.all (event: builtins.hasAttr event cfg.programs.claude-code.settings.hooks) events;
+assert builtins.hasAttr "UserPromptSubmit" cfg.programs.claude-code.settings.hooks;
 assert builtins.all (
   key: !cfg.programs.codex.settings.hooks.state.${key}.enabled
 ) inputs.self.lib.agents.codexGuardHookKeys;
