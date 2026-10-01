@@ -483,7 +483,9 @@ let
       # system-level config file or why.
       environment.etc = lib.mapAttrs (_: source: { inherit source; }) guestEtc;
 
-      environment.enableAllTerminfo = true;
+      # WORKAROUND(err): rxvt-unicode package fails to build
+      # TODO(err): delete if workaround works
+      # environment.enableAllTerminfo = true;
       # The credential path never enters the store. The materialization service
       # fails closed: sshd is required by it and cannot generate an unpinned key.
       systemd.tmpfiles.rules =
