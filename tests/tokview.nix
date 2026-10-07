@@ -119,9 +119,9 @@ pkgs.runCommand "tokview-integration-test"
     cmp before after
 
     rm "$AGENT_TEST_RUNNING"
-    AGENT_TEST_TRANSIENT=1 ${wrapper "cx-native"}/bin/cx-native terra
+    AGENT_TEST_TRANSIENT=1 ${wrapper "cx-native"}/bin/cx-native sol
     grep -Fx transient "$AGENT_TEST_EVENTS"
-    grep -Fx 'gpt-6-terra' "$AGENT_TEST_ARGS"
+    grep -Fx 'gpt-6.1-sol' "$AGENT_TEST_ARGS"
 
     echo untouched > "$AGENT_TEST_ARGS"
     touch unhealthy

@@ -61,8 +61,7 @@
         guard) context_guard=true ;;
         mem|memory) memory_enabled=true ;;
         luna) model="gpt-6-luna" ;;
-        terra) model="gpt-6-terra" ;;
-        sol) model="gpt-6-sol" ;;
+        sol) model="gpt-6.1-sol" ;;
         astra) model="gpt-6-astra" ;;
         lo|low) effort="low" ;;
         med|medium) effort="medium" ;;
@@ -145,7 +144,7 @@
               caseArms = codexCaseArms;
               helpFlag = "--cx-help";
               helpLines = [
-                "usage: ${name} [luna|terra|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard|mem|memory] [--] [codex arguments...]"
+                "usage: ${name} [luna|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard|mem|memory] [--] [codex arguments...]"
                 "mem/memory enables shared project and global Cognee memory; the local LLM must be available"
                 "guard opts into context handoffs and compaction blocking; normal compaction is the default"
               ];

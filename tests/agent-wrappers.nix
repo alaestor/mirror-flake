@@ -143,6 +143,15 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
     exit 1
   fi
 
+  ${wrapper "cx-native"}/bin/cx-native sol
+  grep -Fx 'gpt-6.1-sol' "$AGENT_TEST_ARGS"
+  ${wrapper "cx-native"}/bin/cx-native terra
+  grep -Fx 'terra' "$AGENT_TEST_ARGS"
+  if grep -Fx 'gpt-6-terra' "$AGENT_TEST_ARGS"; then
+    echo 'retired terra selector unexpectedly selected a model' >&2
+    exit 1
+  fi
+
   ${wrapper "cx-native"}/bin/cx-native astra hi -- sol
   test "$(cat "$AGENT_TEST_DIRECTIVES")" = ${pkgs.lib.escapeShellArg (pkgs.lib.getExe directivePackage)}
   grep -Fx 'gpt-6-astra' "$AGENT_TEST_ARGS"
