@@ -153,11 +153,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1791300959,
-        "narHash": "sha256-aoRmynDOaMponxpsYRTM8MPPamIn/x3VNcIbPLrLA4w=",
+        "lastModified": 1791372118,
+        "narHash": "sha256-itNxdxKOiULQ67fSI0+1FBnRKbH0dtW6aBvq/GQ4Nk8=",
         "owner": "Moraxyc",
         "repo": "deepseek-harness.nix",
-        "rev": "df67da4eec711fb62b29a63accc47d75a462eefb",
+        "rev": "c19a93e280dc124dad02ea0603c676c2bfecb794",
         "type": "github"
       },
       "original": {
@@ -857,11 +857,11 @@
     },
     "stable-nixpkgs": {
       "locked": {
-        "lastModified": 1791254437,
-        "narHash": "sha256-MtUTNbeLCAWGgY7Bt9adNUEkiY5Uv7POO1gP8ClVhQY=",
-        "rev": "b25309931cfda5f0b8805f462a29897eeae50168",
+        "lastModified": 1791353474,
+        "narHash": "sha256-sZnm/oZb7SP+/h4qN22+Um6rN+H7Y4jTVl0rv4ZjrGo=",
+        "rev": "2efa67fd26b6df417c33e4603185c701f260dd83",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/26.05/nixos-26.05.11275.b25309931cfd/nixexprs.tar.zst"
+        "url": "https://releases.nixos.org/nixos/26.05/nixos-26.05.11527.2efa67fd26b6/nixexprs.tar.zst"
       },
       "original": {
         "id": "nixpkgs",
@@ -927,11 +927,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791293500,
-        "narHash": "sha256-3hwJd2/vG/VYV1P/g7oDgdbNsWODhN5F//Od+hPMm2k=",
+        "lastModified": 1791306979,
+        "narHash": "sha256-KuLePuhwJM9NLt/gTLHzXaOoSZKGoB3m7NfXjiQ98HY=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "0e11b7bcba1d74ef8ea10bfdfb1e1a5811a21087",
+        "rev": "fae6e9e42c3b762ab47635cddcfaf6f52374a61b",
         "type": "github"
       },
       "original": {
@@ -994,11 +994,11 @@
     },
     "vpn-confinement": {
       "locked": {
-        "lastModified": 1789394839,
-        "narHash": "sha256-trdjVJKmDBbzgbP8pd+R7iKbGkdRu0nmXgQlBR/hEiU=",
+        "lastModified": 1791310298,
+        "narHash": "sha256-SpqEEuyrkzTqjIHwHrZE+Rs6ez2tzIeYkSY67zp6fcQ=",
         "ref": "refs/heads/master",
-        "rev": "a21f66ccd9f644c3770ccdf287cb380c00192628",
-        "revCount": 79,
+        "rev": "cc37bcf5000e237709e725a9cda010a5cbce3111",
+        "revCount": 82,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/mirror-VPN-Confinement"
       },
