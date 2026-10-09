@@ -5,7 +5,6 @@ let
   ffmpeg-hdr =
     (pkgs.ffmpeg-headless.override {
       withUnfree = false;
-      withTensorflow = false;
       withSmallBuild = false;
       withDebug = false;
       withSrt = false;
