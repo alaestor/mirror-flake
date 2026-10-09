@@ -272,7 +272,6 @@ in
       "wheel"
       "kvm"
       "ydotool"
-      "input"
       "uinput"
     ];
   };
