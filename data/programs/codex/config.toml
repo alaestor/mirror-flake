@@ -1,5 +1,8 @@
 model = "gpt-6-sol"
 model_reasoning_effort = "low"
+# Native auto-compaction at 65% of the advertised 272,000-token window,
+# shared by sol, luna, and astra. Revisit if their context windows change.
+model_auto_compact_token_limit = 176800
 approvals_reviewer = "auto_review"
 # Sessions isolate through the agent VM, so Codex's own sandbox and approval
 # prompts only add friction; this is the counterpart to Claude Code's

@@ -88,6 +88,7 @@ assert builtins.all (
 ) inputs.self.lib.agents.codexGuardHookKeys;
 assert cfg.programs.codex.skills == agents.skills;
 assert cfg.programs.codex.settings.features.multi_agent_v2;
+assert cfg.programs.codex.settings.model_auto_compact_token_limit == 176800;
 assert builtins.attrNames codexRoles == builtins.attrNames profiles.roles;
 assert builtins.all (name:
   codexRoles.${name}.description == profiles.roles.${name}.description
@@ -197,6 +198,7 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
       'reviewer': 'gpt-6.1-sol',
   }
   assert config['features']['multi_agent_v2'] is True
+  assert config['model_auto_compact_token_limit'] == 176800
   assert set(config['agents']) == set(expected)
   for name, model in expected.items():
       entry = config['agents'][name]
