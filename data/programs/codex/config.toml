@@ -7,7 +7,7 @@ approvals_reviewer = "auto_review"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
-model_instructions_file = "/home/user/.agents/codex/codex-instructions-gpt-5-small.md"
+model_instructions_file = "/home/user/.agents/codex/codex-instructions-small.md"
 
 include_apps_instructions = false
 include_collaboration_mode_instructions = false
@@ -21,7 +21,7 @@ code_mode_host = true
 hooks = true
 enable_request_compression = false
 multi_agent = false
-multi_agent_v2 = false
+multi_agent_v2 = true
 apps = false
 tool_suggest = true
 plugins = false

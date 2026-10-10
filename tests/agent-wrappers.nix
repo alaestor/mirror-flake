@@ -46,6 +46,8 @@ let
     ];
   };
   cfg = configuration.config;
+  profiles = import (inputs.self.data.path "agents/subagent-profiles.nix");
+  codexRoles = cfg.programs.codex.settings.agents;
   wrappers = builtins.filter (
     package:
     builtins.elem package.name [
@@ -85,6 +87,11 @@ assert builtins.all (
   key: !cfg.programs.codex.settings.hooks.state.${key}.enabled
 ) inputs.self.lib.agents.codexGuardHookKeys;
 assert cfg.programs.codex.skills == agents.skills;
+assert cfg.programs.codex.settings.features.multi_agent_v2;
+assert builtins.attrNames codexRoles == builtins.attrNames profiles.roles;
+assert builtins.all (name:
+  codexRoles.${name}.description == profiles.roles.${name}.description
+) (builtins.attrNames profiles.roles);
 assert cfg.programs.claude-code.skills == agents.skills;
 assert builtins.all (path: builtins.pathExists "${path}/SKILL.md") (builtins.attrValues agents.skills);
 assert builtins.attrNames agents.skills == [
@@ -180,6 +187,29 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
   test "$(cat "$AGENT_TEST_DIRECTIVES")" = ${pkgs.lib.escapeShellArg (pkgs.lib.getExe directivePackage)}
   test ! -L "$PWD/guest-home/.codex/skills/procedure-handoff"
   test -L "$PWD/guest-home/.codex/skills/user-skill"
+  python3 - <<'PY'
+  import pathlib, tomllib
+  config = tomllib.loads(pathlib.Path('guest-home/.codex/config.toml').read_text())
+  expected = {
+      'fact-finder': 'gpt-6-luna',
+      'mechanical-implementer': 'gpt-6-luna',
+      'complex-implementer': 'gpt-6.1-sol',
+      'reviewer': 'gpt-6.1-sol',
+  }
+  assert config['features']['multi_agent_v2'] is True
+  assert set(config['agents']) == set(expected)
+  for name, model in expected.items():
+      entry = config['agents'][name]
+      assert entry['description']
+      role_path = pathlib.Path(entry['config_file'])
+      assert str(role_path).startswith('/nix/store/')
+      role = tomllib.loads(role_path.read_text())
+      assert role['model'] == model, name
+      assert role['model_reasoning_effort'] == 'medium', name
+      assert 'Do not spawn further agents' in role['developer_instructions'], name
+      assert '# Shell' in role['developer_instructions'], name
+      assert 'Available project memories' not in role['developer_instructions'], name
+  PY
   ${pkgs.lib.concatMapStringsSep "\n" (name: ''
     test "$(readlink "$PWD/guest-home/.codex/skills/${name}")" = ${pkgs.lib.escapeShellArg agents.skills.${name}}
   '') (builtins.attrNames agents.skills)}

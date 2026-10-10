@@ -74,6 +74,36 @@ Claude starts with an explicit MCP configuration rather than inheriting stale
 registrations from its auth-bearing state. Its native tool-search and extended
 context settings belong to the Claude wrapper, not to a proxy.
 
+### Subagent roles
+
+`data/agents/subagent-profiles.nix` owns shared role descriptions, worker instructions,
+and delegation policy. Keep vendor names, model choices, and reasoning levels
+out of that file. `data/programs/codex/agents.nix` maps those roles to Codex
+presets and adds Codex-specific context and role-selection guidance. Claude
+integration is not implemented yet.
+
+The Codex feature generates store-backed role TOML files and registers their
+paths under `programs.codex.settings.agents`. Role instructions include the
+shared tool preamble because Codex role overrides replace developer instructions
+rather than appending them. Both native and VM sessions reference the same store
+files through their managed configuration; no guest role-directory links are
+needed. Home Manager activation and a new session pick up changes.
+
+Delegation contains context-heavy work and provides independent review, rather
+than splitting ordinary implementation into small assignments. Task briefs must
+state the objective, constraints, edit authority, ownership, and expected evidence.
+Workers do not delegate further. The primary agent retains integration and final
+validation. Reviewers receive no copied conversation history or implementer
+rationale, only the objective and relevant requirements and constraints. Other
+roles default to fresh context as well.
+
+Model and reasoning presets are explicit policy. The orchestrator must not
+substitute models or escalate automatically; it reports insufficient results so
+the user can revise the presets. Context isolation, read-only roles, and this
+escalation policy are prompt requirements, not security boundaries. The VM remains
+the isolation boundary. If the runtime does not expose role selection, report the
+limitation rather than silently falling back to a generic worker.
+
 ## Token observability
 
 The Tokview feature owns one on-demand user service per environment. Both

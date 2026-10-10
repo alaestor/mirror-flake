@@ -16,7 +16,7 @@
       codexPackage = config.programs.codex.package;
 
       instructionFiles = {
-        small = self.data.path "programs/codex/codex-instructions-gpt-5-small.md";
+        small = self.data.path "programs/codex/codex-instructions-small.md";
       };
 
       cliBase = with pkgs; [
@@ -26,7 +26,17 @@
 
       cliTools = agents.tools pkgs;
 
-      preprompt = agents.fragments.shell pkgs + "\n" + agents.fragments.rtk + "\n" + agents.fragments.memory;
+      subagents = import (self.data.path "programs/codex/agents.nix") {
+        profiles = import (self.data.path "agents/subagent-profiles.nix");
+      };
+      toolPreamble = agents.fragments.shell pkgs + "\n" + agents.fragments.rtk + "\n" + agents.fragments.memory;
+      preprompt = toolPreamble + "\n\n# Subagent policy\n" + subagents.orchestration;
+      roleFiles = lib.mapAttrs (name: role:
+        (pkgs.formats.toml { }).generate "codex-agent-${name}.toml" {
+          inherit (role) model model_reasoning_effort;
+          developer_instructions = toolPreamble + "\n\n" + role.developer_instructions;
+        }
+      ) subagents.roles;
 
       promptLayers = {
         common = {
@@ -286,6 +296,10 @@
           settings = lib.mkMerge [
             defaultSettings
             {
+              agents = lib.mapAttrs (name: role: {
+                description = lib.mkDefault role.description;
+                config_file = lib.mkDefault (toString roleFiles.${name});
+              }) subagents.roles;
               hooks.state = builtins.listToAttrs (
                 map (key: {
                   name = key;
