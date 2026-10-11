@@ -229,7 +229,7 @@ in
   # front/rear beside left-click and sniper. Other inputs pass through.
   boot.kernelModules = [ "uinput" ];
   systemd.services.apc-mouse-remap = {
-    description = "Map G502 X extra buttons to numpad 7, 8, 9";
+    description = "Map G502 X extra buttons to F13, F14, F15";
     wantedBy = [ "multi-user.target" ];
     after = [ "systemd-udevd.service" ];
     startLimitIntervalSec = 0;
@@ -242,18 +242,18 @@ in
         "persist=reopen"
         "--map"
         "btn:forward"
-        "key:kp7"
+        "key:f13"
         "--map"
         "btn:back"
-        "key:kp8"
+        "key:f14"
         "--map"
         "btn:task"
-        "key:kp9"
+        "key:f15"
         "--output"
-        "key:kp7"
-        "key:kp8"
-        "key:kp9"
-        "name=APC G502 X keypad"
+        "key:f13"
+        "key:f14"
+        "key:f15"
+        "name=APC G502 X function keys"
         "repeat"
         "--output"
         "name=APC G502 X mouse"
