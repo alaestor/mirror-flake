@@ -1,0 +1,117 @@
+--- a/tui/src/chatwidget/status_surfaces.rs
++++ b/tui/src/chatwidget/status_surfaces.rs
+@@ -754,9 +754,30 @@
+             StatusLineItem::ContextRemaining => self
+                 .status_line_context_remaining_percent()
+                 .map(|remaining| format!("Context {remaining}% left")),
+-            StatusLineItem::ContextUsed => self
+-                .status_line_context_used_percent()
+-                .map(|used| format!("Context {used}% used")),
++            StatusLineItem::ContextUsed => {
++                // Without an explicit compaction budget, retain the upstream display.
++                match self
++                    .config
++                    .model_auto_compact_token_limit
++                    .filter(|limit| *limit > 0)
++                {
++                    Some(limit) if !self.token_usage_pending => {
++                        let tokens = self
++                            .token_info
++                            .as_ref()
++                            .map_or(0, |info| info.last_token_usage.tokens_in_context_window());
++                        Some(format!(
++                            "ctx {:.1} / {:.1} Kt",
++                            tokens.max(0) as f64 / 1000.0,
++                            limit as f64 / 1000.0
++                        ))
++                    }
++                    Some(_) => None,
++                    None => self
++                        .status_line_context_used_percent()
++                        .map(|used| format!("Context {used}% used")),
++                }
++            }
+             StatusLineItem::FiveHourLimit => {
+                 let (window, is_secondary) = self
+                     .rate_limit_snapshots_by_limit_id
+--- a/tui/src/chatwidget/tests/status_and_layout.rs
++++ b/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -5889,3 +5889,35 @@
+         normalize_snapshot_paths(term.backend().vt100().screen().contents())
+     );
+ }
++
++#[tokio::test]
++async fn configured_compaction_budget_uses_live_context_not_session_usage() {
++    let (mut chat, _, _) = make_chatwidget_manual(None).await;
++    chat.config.model_auto_compact_token_limit = Some(176_800);
++    chat.token_info = Some(TokenUsageInfo {
++        total_token_usage: TokenUsage {
++            total_tokens: 900_000,
++            ..Default::default()
++        },
++        last_token_usage: TokenUsage {
++            total_tokens: 88_400,
++            ..Default::default()
++        },
++        model_context_window: Some(272_000),
++    });
++    assert_eq!(
++        chat.status_line_value(StatusLineItem::ContextUsed),
++        Some("ctx 88.4 / 176.8 Kt".to_string())
++    );
++    chat.token_info
++        .as_mut()
++        .unwrap()
++        .last_token_usage
++        .total_tokens = 12_345;
++    assert_eq!(
++        chat.status_line_value(StatusLineItem::ContextUsed),
++        Some("ctx 12.3 / 176.8 Kt".to_string())
++    );
++    chat.token_usage_pending = true;
++    assert_eq!(chat.status_line_value(StatusLineItem::ContextUsed), None);
++}
+--- a/tui/src/bottom_pane/chat_composer/footer_state.rs
++++ b/tui/src/bottom_pane/chat_composer/footer_state.rs
+@@ -133,6 +133,19 @@
+     }
+
+     pub(super) fn footer_hint_height(&self, width: u16, options: ComposerRenderOptions<'_>) -> u16 {
++        // Remove routine hints, but preserve explicit help and transient notices.
++        if options.separate_status_line
++            && self.footer.status_line_enabled
++            && options.footer.is_none()
++            && !self.show_warning_notice(options)
++            && self.custom_footer_height().is_none()
++            && matches!(
++                self.footer_mode(),
++                FooterMode::ComposerEmpty | FooterMode::ComposerHasDraft
++            )
++        {
++            return 0;
++        }
+         if self.show_warning_notice(options) || self.shortcuts_above_composer(options) {
+             return 1;
+         }
+--- a/tui/src/bottom_pane/chat_composer/status_surface_tests.rs
++++ b/tui/src/bottom_pane/chat_composer/status_surface_tests.rs
+@@ -446,3 +446,18 @@
+     }
+     insta::assert_snapshot!(snapshots.join("\n---\n"));
+ }
++
++#[test]
++fn routine_hint_row_is_hidden_but_explicit_help_is_preserved() {
++    let mut composer = composer();
++    let options = ComposerRenderOptions {
++        separate_status_line: true,
++        ..Default::default()
++    };
++    assert_eq!(composer.footer_hint_height(100, options), 0);
++    composer.footer.mode = FooterMode::ShortcutOverlay;
++    assert!(composer.footer_hint_height(100, options) > 0);
++    composer.set_status_line_enabled(false);
++    composer.footer.mode = FooterMode::ComposerEmpty;
++    assert!(composer.footer_hint_height(100, options) > 0);
++}

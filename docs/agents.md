@@ -290,6 +290,22 @@ Stop the host service with `systemctl --user stop cognee-memory.service`.
 The next opted-in launch starts it again. Inspect failures with
 `journalctl --user -u cognee-memory.service`.
 
+## Codex status display
+
+The Codex Home Manager feature applies a small package patch by default.
+Its `context-used` item displays, for example, `ctx 42.5 / 200.0 Kt`: live context tokens
+and the explicitly configured compaction budget, each in thousands. This is
+not cumulative session usage. Without an explicit budget, the item retains
+the upstream percentage display. The denominator is the configured budget;
+model-specific clamps can trigger compaction earlier if that budget exceeds
+the model's supported limit.
+
+The patch also removes routine hints beneath the status line while keeping
+explicit shortcut help and transient notices. Set `codex.patchedStatusLine =
+false` to restore the upstream package and percentage display. Package
+overrides take precedence over this default. When upgrading Codex, validate
+patch application and the affected TUI behavior before activating it.
+
 ## The context guard
 
 Normal vendor compaction is the default. The `guard` selector opts a session

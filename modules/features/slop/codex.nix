@@ -274,6 +274,12 @@
         description = "Default model instruction file used by Codex and cx; null leaves it unset.";
       };
 
+      options.codex.patchedStatusLine = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Show live context tokens against the configured compaction budget and hide routine footer hints. Disable to restore the upstream Codex package.";
+      };
+
       config = {
         services.tokview.enable = lib.mkDefault true;
         services.cognee-memory.enable = lib.mkDefault true;
@@ -290,6 +296,17 @@
 
         programs.codex = {
           enable = lib.mkDefault true;
+          package = lib.mkIf cfg.patchedStatusLine (
+            lib.mkDefault (
+              pkgs.codex.overrideAttrs (old: {
+                patches = (old.patches or [ ]) ++ [
+                  (pkgs.writeText "codex-context-budget.patch" (
+                    self.data.read "programs/codex/patches/context-budget.patch"
+                  ))
+                ];
+              })
+            )
+          );
           context = resolvedPrompts.plain.context;
           skills = agents.skills;
           rules.default = self.data.path "programs/codex/default.rules";
