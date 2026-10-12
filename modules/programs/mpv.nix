@@ -6,6 +6,14 @@
     {
       home.packages = [ (inputs.self.wrappers.mpv.wrap { inherit pkgs; }) ];
 
+      # NoDisplay only hides menus; Hidden also removes the MIME handler.
+      xdg.dataFile."applications/umpv.desktop".text = ''
+        [Desktop Entry]
+        Type=Application
+        Name=umpv
+        Hidden=true
+      '';
+
       xdg.mimeApps = {
         enable = lib.mkDefault true;
         defaultApplications = lib.mkDefault (builtins.listToAttrs (map (name: {
