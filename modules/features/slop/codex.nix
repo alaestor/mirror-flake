@@ -276,7 +276,7 @@
 
       options.codex.patchedStatusLine = lib.mkOption {
         type = lib.types.bool;
-        default = true;
+        default = false;
         description = "Show live context tokens against the configured compaction budget and hide routine footer hints. Disable to restore the upstream Codex package.";
       };
 
