@@ -90,7 +90,7 @@ import nfo
 
 def process(here, output_root, overwrite):
     output = output_root / "Example"
-    output.mkdir()
+    output.mkdir(parents=True)
     common.esort(["episode 10", "episode 2"])
     (output / "episode.mkv").symlink_to(here / "episode.mkv")
     nfo.write_episode(output / "episode.nfo", "Episode", 1, 1)
@@ -103,6 +103,30 @@ def process(here, output_root, overwrite):
         show = self.destination / "Shows/Example"
         self.assertEqual((show / "episode.mkv").resolve(), episode.resolve())
         self.assertEqual(ET.parse(show / "episode.nfo").findtext("title"), "Episode")
+
+    def test_legacy_show_rule_can_import_jellybuilder_common(self) -> None:
+        episode = self.touch("Shows/Example/episode.mkv")
+        self.touch(
+            "Shows/Example/jellylink.py",
+            """
+from jellybuilder_common import PATH_NAS, PATH_LOCAL, esort
+
+def process(here, output_root, overwrite):
+    assert PATH_NAS.name == "source"
+    assert PATH_LOCAL.name == "destination"
+    assert [value for _, value in esort(["episode 10", "episode 2"])] == ["episode 2", "episode 10"]
+    output = output_root / "Example"
+    output.mkdir()
+    (output / "episode.mkv").symlink_to(here / "episode.mkv")
+""",
+        )
+
+        jellybuilder.process_shows(self.source, self.destination, overwrite=False)
+
+        self.assertEqual(
+            (self.destination / "Shows/Example/episode.mkv").resolve(), episode.resolve()
+        )
+        self.assertFalse((self.destination / "Shows/Shows").exists())
 
 
 if __name__ == "__main__":

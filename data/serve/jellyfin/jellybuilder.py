@@ -324,6 +324,18 @@ def _legacy_common(source_root: Path, destination_root: Path) -> types.SimpleNam
     )
 
 
+def _legacy_common_module(source_root: Path, destination_root: Path) -> types.ModuleType:
+    """Build the importable compatibility module used by show rules."""
+    module = types.ModuleType("jellybuilder_common")
+    module.PATH_NAS = source_root
+    module.PATH_LOCAL = destination_root
+    module.chainglob = chainglob
+    module.esort = esort
+    module.find_relative_files = find_relative_files
+    module.remove_dangling_symlinks = remove_dangling_symlinks
+    return module
+
+
 def _run_jellylink(
     script: Path,
     destination: Path,
@@ -333,8 +345,11 @@ def _run_jellylink(
 ) -> None:
     LOGGER.info("Processing show rules: %s", script.parent)
     nfo_module = _legacy_nfo_module()
+    common_module = _legacy_common_module(source_root, destination_root)
     previous_nfo = sys.modules.get("nfo")
+    previous_common = sys.modules.get("jellybuilder_common")
     sys.modules["nfo"] = nfo_module
+    sys.modules["jellybuilder_common"] = common_module
     try:
         namespace = runpy.run_path(
             script,
@@ -349,6 +364,10 @@ def _run_jellylink(
             raise ValueError(f"No callable process function defined in {script}")
         process(script.parent, destination, overwrite)
     finally:
+        if previous_common is None:
+            del sys.modules["jellybuilder_common"]
+        else:
+            sys.modules["jellybuilder_common"] = previous_common
         if previous_nfo is None:
             del sys.modules["nfo"]
         else:
