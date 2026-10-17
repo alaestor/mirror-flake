@@ -267,7 +267,7 @@ let
           { add speed -0.25
           } add speed 0.25
           r add sub-margin-y 8
-          SHIFT+r add sub-pos -8
+          SHIFT+r add sub-margin-y -8
       '';
 
       configDir."script-opts/modernx.conf".content = ''
