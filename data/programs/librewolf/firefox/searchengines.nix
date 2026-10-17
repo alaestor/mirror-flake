@@ -87,7 +87,7 @@
   (n "m"     "Mojeek"               [{ template = "https://www.mojeek.com/search?q={searchTerms}&theme=dark&arc=none&t=20&tn=10&newtab=1&si=2&lb=en&qss=Bing%2CBrave%2CGoogle%2CQwant%2CStartpage%2CYandex"; }])
   (n "q"     "Quant"                [{ template = "https://www.qwant.com?q={searchTerms}&client=opensearch"; }])
   (n "s"     "SearXNG"              [{ template = "https://searxng.site/searxng/search"; params = [ { name = "q"; value = "{searchTerms}"; } ]; }])
-  (a "g"     "google") # google images is pretty useless so I'm omitting it
+  (n "g"     "Google"               [{ template = "https://www.google.com/search?q={searchTerms}"; }]) # google images is pretty useless so I'm omitting it
 # Programming
   # nix stuff
   (n "np"    "Nix Packages"         [{ template = "https://search.nixos.org/packages"; params = [ { name = "type"; value = "packages"; } { name = "query"; value = "{searchTerms}"; } ];}])
