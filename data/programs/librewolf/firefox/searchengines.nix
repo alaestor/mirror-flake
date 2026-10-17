@@ -89,12 +89,14 @@
   (n "s"     "SearXNG"              [{ template = "https://searxng.site/searxng/search"; params = [ { name = "q"; value = "{searchTerms}"; } ]; }])
   (n "g"     "Google"               [{ template = "https://www.google.com/search?q={searchTerms}"; }]) # google images is pretty useless so I'm omitting it
 # Programming
+  (n "gh"    "Github"               [{ template = "https://github.com/search?q={searchTerms}"; }])
   # nix stuff
   (n "np"    "Nix Packages"         [{ template = "https://search.nixos.org/packages"; params = [ { name = "type"; value = "packages"; } { name = "query"; value = "{searchTerms}"; } ];}])
   (n "npv"   "Nix Package Versions" [{ template = "https://lazamar.co.uk/nix-versions/?channel=nixos-unstable&package={searchTerms}"; }])
   (n "no"    "Nix Options"          [{ template = "https://search.nixos.org/options?query={searchTerms}"; }])
   (n "nh"    "Nix Hub"              [{ template = "https://www.nixhub.io/search?q=searchTerms}"; }])
   (n "nw"    "NixOS Wiki"           [{ template = "https://wiki.nixos.org/w/index.php?search={searchTerms}"; }])
+  (n "ni"    "Nixpkgs Issues"       [{ template = "https://github.com/NixOS/nixpkgs/issues?q=is%3Aissue+state%3Aopen+{searchTerms}"; }])
   # windows
   (n "msd"   "Microsoft Learn Docs" [{ template = "https://learn.microsoft.com/en-us/search/?terms={searchTerms}"; }])
   # python
@@ -107,8 +109,9 @@
   (n "yt"    "Youtube"              [{ template = "https://www.youtube.com/results?search_query={searchTerms}"; }])
   (n "mal"   "My Anime List"        [{ template = "http://myanimelist.net/anime.php?q={searchTerms}"; }])
   (n "nya"   "Nyaa.si"              [{ template = "https://nyaa.si/?q={searchTerms}&f=0&c=0_0&s=seeders&o=desc"; }])
-  (n "to"    "Anime Tosho"          [{ template = "https://animetosho.org/search?q={searchTerms}"; }])
+  (n "to"    "Anime Tosho New"          [{ template = "https://animetosho.net/search?q={searchTerms}"; }])
   (n "bh"    "bthub"                [{ template = "https://bthub.cc/en/search/kw-{searchTerms}-1.html"; }])
+  (n "im"    "IMDb"                 [{ template = "https://www.imdb.com/find/?q={searchTerms}"; }])
 # Applications, gaming, stores
   (n "am"    "Amazon (CA)"          [{ template = "https://www.amazon.ca/s?k={searchTerms}"; }])
   (n "amus"  "Amazon (US)"          [{ template = "https://www.amazon.com/s?k={searchTerms}"; }])
