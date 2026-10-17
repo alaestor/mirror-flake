@@ -6,6 +6,9 @@
   expected to declare `RequiresMountsFor` against their data root so only the
   consumer fails when a share is absent, and order themselves after
   `nas-detach.service` so they stop before shutdown detaches the shares.
+
+  With scripted networking, enabled shares also order network.target after
+  interface address configuration, keeping addresses until NFS has stopped.
 */
 { self, ... }:
 {
@@ -112,6 +115,16 @@
           (mkFileSystem "pocket")
           (mkFileSystem "services")
         ];
+
+        # Scripted address units otherwise stop alongside NFS consumers,
+        # removing connectivity while those consumers still flush data.
+        # NetworkManager and networkd already order their own teardown;
+        # cover the scripted units too, without pulling absent devices in.
+        systemd.targets.network.after = lib.mkIf (!config.networking.useNetworkd) (
+          map (interface: "network-addresses-${interface.name}.service") (
+            lib.attrValues config.networking.interfaces
+          )
+        );
 
         # A share can still be busy when systemd tries to unmount it: an
         # interactive shell may sit with its working directory inside one, and
