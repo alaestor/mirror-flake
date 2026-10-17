@@ -58,7 +58,7 @@ def print-link-warnings [root: path, revision: string] {
 
   let unpushed = (^git -C $root rev-list --count '@{upstream}..HEAD' | complete)
   if $unpushed.exit_code == 0 and ($unpushed.stdout | str trim) != "0" {
-    print --stderr $"warning: HEAD has ($unpushed.stdout | str trim) unpushed commit(s); remote links may not resolve yet"
+    print --stderr $"warning: HEAD has ($unpushed.stdout | str trim) unpushed commit\(s\); remote links may not resolve yet"
   }
 }
 
