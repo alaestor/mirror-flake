@@ -2,7 +2,7 @@
 {
   nixos = [
     ./hardware.nix
-    inputs.self.modules.nixos.lxqt
+    #inputs.self.modules.nixos.lxqt
     inputs.self.modules.nixos.auto-login
     (import ./networking.nix { lan = fleet.lan; })
     (import ./system.nix {
