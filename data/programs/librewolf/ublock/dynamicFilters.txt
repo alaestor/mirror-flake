@@ -73,6 +73,8 @@ translate.google.ca gstatic.com * noop
 www.google.ca google.com * noop
 www.google.ca gstatic.com * noop
 www.google.com gstatic.com * noop
+www.imdb.com awswaf.com * noop
+www.imdb.com media-amazon.com * noop
 accounts.intuit.com intuitcdn.net * noop
 qbo.intuit.com intuitcdn.net * noop
 kagi.com cdn-kagi.com * noop
