@@ -23,6 +23,11 @@
       };
 
       config = lib.mkIf cfg.enable {
+
+        boot.kernelParams = lib.mkDefault [ "split_lock_detect=off" ];
+
+        boot.kernel.sysctl."kernel.split_lock_mitigate" = lib.mkDefault 0;
+
         programs.steam = {
           enable = true;
           remotePlay.openFirewall = cfg.remotePlay.openFirewall;
