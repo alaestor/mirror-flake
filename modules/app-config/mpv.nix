@@ -55,7 +55,7 @@ let
           cache=yes
           cache-on-disk=no
           correct-downscaling=yes
-          cscale=ewa_lanczos
+          cscale=bilinear
           cscale-antiring=0
           deband=no
           deband-grain=5
@@ -65,10 +65,10 @@ let
           demuxer-max-back-bytes=1GiB
           demuxer-max-bytes=1GiB
           demuxer-mkv-subtitle-preroll
-          dither=error-diffusion
+          dither=fruit
           dither-depth=auto
-          dscale=mitchell
-          dscale-antiring=0.600000
+          dscale=bilinear
+          dscale-antiring=0
           embeddedfonts=yes
           fullscreen=no
           glsl-shaders-clr
@@ -87,8 +87,8 @@ let
           osc=no
           osd-font=Noto Sans
           reset-on-next-file=audio-delay,mute,pause,speed,sub-delay,video-aspect-override,video-pan-x,video-pan-y,video-rotate,video-zoom
-          scale=ewa_hanning
-          scale-antiring=0.600000
+          scale=bilinear
+          scale-antiring=0
           scale-radius=3.238315
           screenshot-dir=~/Pictures/mpv
           screenshot-format=jpg
@@ -183,9 +183,20 @@ let
           glsl-shaders-append=${shaders.default}/KrigBilateral.glsl
 
           [generic]
+          dither=error-diffusion
           cscale=ewa_lanczos
           dscale=mitchell
           scale=ewa_hanning
+          scale-antiring=0.600000
+          dscale-antiring=0.600000
+
+          [light]
+          dither=fruit
+          cscale=bilinear
+          dscale=bilinear
+          scale=bilinear
+          scale-antiring=0
+          dscale-antiring=0
 
           [super]
           cscale=ewa_lanczos
@@ -208,7 +219,7 @@ let
           8 add saturation 1
           = add audio-delay +0.05
           CLOSE_WIN quit
-          CTRL+0 show-text "Profile: hanning (default)"; no-osd change-list glsl-shaders clr all; apply-profile generic
+          CTRL+0 show-text "Shaderless (LOW)"; no-osd change-list glsl-shaders clr all; apply-profile light
           CTRL+1 show-text "Profile: superRes"; no-osd apply-profile super
           CTRL+2 show-text "Profile: general purpose [FSRCNNX16/SSimDown/KrigBilat]"; no-osd apply-profile fsrcnnx
           CTRL+3 show-text "Profile: anime [ArtCNN_C4F32]"; no-osd apply-profile art
@@ -217,6 +228,7 @@ let
           CTRL+6 show-text "Profile: Anime4K A (HQ) - For Very Blurry/Compressed"; no-osd apply-profile anime4k_a
           CTRL+7 show-text "Profile: Anime4K B (HQ) - For Blurry/Ringing"; no-osd apply-profile anime4k_b
           CTRL+8 show-text "Profile: Anime4K C (HQ) - For Crisp/Sharp"; no-osd apply-profile anime4k_c
+          CTRL+9 show-text "Shaderless (HIGH)"; no-osd change-list glsl-shaders clr all; apply-profile generic
           CTRL+LEFT seek -0.01 keyframes
           CTRL+RIGHT seek +0.001 keyframes
           CTRL+WHEEL_DOWN add video-zoom -0.1
