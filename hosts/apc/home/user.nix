@@ -74,7 +74,6 @@ in
       ]
       ++ (with inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}; [
         readability-cli
-        archify-cli
         jellium-desktop
       ]);
   };

@@ -139,7 +139,6 @@ let
     ])
     ++ (with alpkgsFor pkgs; [
       readability-cli
-      archify-cli
     ])
     ++ [ (projectMemory pkgs) ];
 

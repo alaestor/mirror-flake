@@ -63,11 +63,11 @@
         "uv2nix": "uv2nix_2"
       },
       "locked": {
-        "lastModified": 1792698182,
-        "narHash": "sha256-aJX1+PRmDHFHYFA0doc1f3d7p6N7h0EDqqUF5upcVdE=",
+        "lastModified": 1792891352,
+        "narHash": "sha256-hsNcg/Mou6yUsWcSapPIxhqw8z+mSnonm2fwV0KLmHg=",
         "ref": "refs/heads/main",
-        "rev": "f27fcbaf8f2f89acd693ec2e29d6079cac2b66a5",
-        "revCount": 56,
+        "rev": "186b8e9811e7b214f52c0b78f12ac33b51022d60",
+        "revCount": 58,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/pkgs.git"
       },
