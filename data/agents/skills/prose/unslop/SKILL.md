@@ -1,6 +1,7 @@
 ---
 name: unslop
 description: Always apply when writing prose, such as documentation or reports.
+disable-model-invocation: true 
 ---
 
 # Unslop
