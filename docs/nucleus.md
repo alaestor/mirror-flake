@@ -78,4 +78,19 @@ To initialize the project, or to recover if a broken input declaration prevents 
 ./nucleus/bootstrap.sh
 ```
 
-It temporarily installs `nucleus/bootstrap-flake.nix`, a minimal source containing only the inputs needed to evaluate the generator, then asks the local generator to write without validation and refreshes the generated flake's lock graph.
+It temporarily installs `nucleus/bootstrap-flake.nix`, then asks the local
+generator to write without validation and refreshes the generated flake's lock
+graph. The bootstrap evaluates this repository's module tree, so its seed inputs
+must include dependencies used by outer flake-parts imports. Here that includes
+`nix-wrapper-modules` alongside `nixpkgs` and `flake-parts`. Inputs used only
+inside deferred NixOS or Home Manager modules do not need bootstrap entries.
+
+Nucleus is vendored and tailored to each project. Its bootstrap is a small
+project-specific seed, not an independent evaluator that can bypass broken
+module source. When adding an outer import from a new input, update the seed as
+well as the distributed declaration.
+
+The script accepts a missing `flake.nix` when initializing a project. For
+recovery, it preserves an existing non-seed source as
+`flake.nix.pre-bootstrap.<timestamp>` before replacing it. This backup does not
+restore automatically if generation fails.

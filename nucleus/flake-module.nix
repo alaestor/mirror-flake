@@ -158,6 +158,7 @@ in
         checks.nucleus = builtins.deepSeq tests (
           pkgs.runCommandLocal "check-nucleus" { } ''
             diff -u ${inputs.self}/flake.nix ${generated}
+            ${lib.getExe pkgs.bash} ${./.}/tests/bootstrap.sh
             touch $out
           ''
         );
