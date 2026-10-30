@@ -6,11 +6,15 @@ usage() {
   printf '%s\n' ''
   printf '%s\n' 'Generate flake.nix transactionally.'
   printf '%s\n' '  --no-check  Install the generated file without validation or lock updates.'
-  printf '%s\n' '              flake.lock is left untouched; run `nix flake lock` yourself'
+  printf '%s\n' '              flake.lock is left untouched; run nix flake lock yourself'
   printf '%s\n' '              afterwards if the change affects it (bootstrap.sh does this).'
 }
 
 skip_check=0
+if (( $# > 1 )); then
+  usage >&2
+  exit 2
+fi
 case "${1-}" in
   "") ;;
   --no-check) skip_check=1 ;;
@@ -91,10 +95,8 @@ trap 'exit 130' HUP INT TERM
 cp "$NUCLEUS_GENERATED" flake.nix
 chmod u+w flake.nix
 
-if ! {
-  "$NUCLEUS_NIX" flake lock
-  "$NUCLEUS_NIX" flake check --no-build
-} >"$log_file" 2>&1; then
+if ! "$NUCLEUS_NIX" flake lock >"$log_file" 2>&1 \
+  || ! "$NUCLEUS_NIX" flake check --no-build >>"$log_file" 2>&1; then
   cp flake.nix "$artifact_dir/flake.nix.bad"
   if [[ -f flake.lock ]]; then
     cp flake.lock "$artifact_dir/flake.lock.bad"

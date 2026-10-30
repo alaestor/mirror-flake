@@ -159,6 +159,7 @@ in
           pkgs.runCommandLocal "check-nucleus" { } ''
             diff -u ${inputs.self}/flake.nix ${generated}
             ${lib.getExe pkgs.bash} ${./.}/tests/bootstrap.sh
+            ${lib.getExe pkgs.bash} ${./.}/tests/writer.sh
             touch $out
           ''
         );
