@@ -56,8 +56,7 @@
       };
       baseOverrides = [
         "developer_instructions=${builtins.toJSON resolvedPrompts.plain.preamble}"
-      ]
-      ++ lib.optional config.services.tokview.enable "openai_base_url=${builtins.toJSON "http://127.0.0.1:${toString config.services.tokview.proxyPort}/v1"}";
+      ];
       mkOverrideArgs =
         values:
         lib.concatMapStringsSep "\n" (value: ''
@@ -69,7 +68,6 @@
       # are the loop's own job, not the harness's — see selector-loop.nix.
       codexCaseArms = ''
         guard) context_guard=true ;;
-        mem|memory) memory_enabled=true ;;
         luna) model="gpt-6-luna" ;;
         sol) model="gpt-6.1-sol" ;;
         astra) model="gpt-6-astra" ;;
@@ -148,14 +146,12 @@
             sandbox_mode="danger-full-access"
             passthrough=()
             context_guard=false
-            memory_enabled=false
 
             ${agents.mkSelectorLoop {
               caseArms = codexCaseArms;
               helpFlag = "--cx-help";
               helpLines = [
-                "usage: ${name} [luna|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard|mem|memory] [--] [codex arguments...]"
-                "mem/memory enables shared project and global Cognee memory; the local LLM must be available"
+                "usage: ${name} [luna|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard] [--] [codex arguments...]"
                 "guard opts into context handoffs and compaction blocking; normal compaction is the default"
               ];
               argsVar = "passthrough";
@@ -178,24 +174,6 @@
             project_memories="$(${lib.getExe (agents.projectMemory pkgs)} list)"
             session_instructions=${lib.escapeShellArg resolvedPrompts.plain.preamble}
             [[ -z "$project_memories" ]] || session_instructions+=$'\n\n# Available project memories\n'"$project_memories"
-            memory_mcp=${lib.escapeShellArg ("mcp_servers.cognee={command=${builtins.toJSON (lib.getExe config.services.cognee-memory.mcpBridge)},enabled=MEMORY_ENABLED}")}
-            codex_args+=( -c "''${memory_mcp//MEMORY_ENABLED/$memory_enabled}" )
-            if [[ "$memory_enabled" == true ]]; then
-              ${
-                if config.services.cognee-memory.enable then
-                  ''
-                    ${lib.getExe config.services.cognee-memory.sessionPrepare}
-                  ''
-                else
-                  ''
-                    echo 'cognee: memory is disabled in this configuration' >&2
-                    exit 1
-                  ''
-              }
-              COGNEE_MEMORY_PROJECT="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
-              export COGNEE_MEMORY_PROJECT
-              session_instructions+=$'\n'${lib.escapeShellArg agents.cogneeInstructions}
-            fi
             codex_args+=( -c "developer_instructions=$(jq -Rn --arg text "$session_instructions" '$text')" )
 
             if [[ -n "$model" ]]; then
@@ -220,7 +198,7 @@
             # automatically trust the working-directory
             codex_args+=( -c "projects={\"$PWD\"={trust_level=\"trusted\"}}")
 
-            exec ${lib.optionalString config.services.tokview.enable "${lib.getExe config.services.tokview.sessionLauncher} "}${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
+            exec ${lib.getExe codexPackage} "''${codex_args[@]}" "''${passthrough[@]}"
           '';
 
           sandbox =
@@ -229,9 +207,6 @@
               inherit name native;
               helpFlag = "--cx-help";
               herdrAgent = "codex";
-              beforeExec = agents.cogneeSandboxText pkgs config;
-              sessionArgsVar = "session_args";
-              sessionEnvironmentVar = "session_environment";
             };
         };
 
@@ -259,9 +234,7 @@
     in
     {
       imports = [
-        inputs.self.modules.homeManager.tokview
         inputs.self.modules.homeManager.agents-prompt-preview
-        inputs.self.modules.homeManager.cognee-memory
       ];
 
       # Calling `codex features list` shows current feature flags.
@@ -281,8 +254,6 @@
       };
 
       config = {
-        services.tokview.enable = lib.mkDefault true;
-        services.cognee-memory.enable = lib.mkDefault true;
         home.packages =
           let
             cxWrappers = mkCodexWrapper "cx";

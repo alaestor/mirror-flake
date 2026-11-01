@@ -154,7 +154,6 @@
       # are the loop's own job, not the harness's — see selector-loop.nix.
       claudeCaseArms = ''
         guard) context_guard=1 ;;
-        mem|memory) memory_enabled=1 ;;
         haiku|sonnet|opus) model="$1" ;;
         lo|low) effort="low" ;;
         med|medium) effort="medium" ;;
@@ -183,11 +182,6 @@
 
       # Do not inherit stale MCP registrations from the live auth-bearing config.
       mcpConfig = pkgs.writeText "cc-mcp-config.json" (builtins.toJSON { mcpServers = { }; });
-      memoryMcpConfig = pkgs.writeText "cc-memory-mcp-config.json" (
-        builtins.toJSON {
-          mcpServers.cognee.command = lib.getExe config.services.cognee-memory.mcpBridge;
-        }
-      );
 
       mkClaudeWrapper =
         name:
@@ -251,7 +245,6 @@
             agents_md=1
             context_limit=200000
             context_guard=0
-            memory_enabled=0
             tool_search="true"
             claude_args=()
 
@@ -259,8 +252,7 @@
               caseArms = claudeCaseArms;
               helpFlag = "--cc-help";
               helpLines = [
-                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [1m|search|alltools|guard|mem|memory] [--] [claude arguments...]"
-                "mem/memory enables shared project and global Cognee memory; the local LLM must be available"
+                "usage: ${name} [haiku|sonnet|opus] [lo|med|hi|max] [user|edits|auto|plan|bypass] [mini|full] [lean|verbose] [1m|search|alltools|guard] [--] [claude arguments...]"
                 "guard opts into context handoffs and compaction blocking; normal compaction is the default"
                 "mini (default) replaces the stock preamble with a trimmed one; full keeps Claude Code's"
                 "lean (default) gives every model Opus's terse tool descriptions; verbose keeps the stock ones"
@@ -272,24 +264,6 @@
             }}
 
             mcp_config=${lib.escapeShellArg (toString mcpConfig)}
-            if (( memory_enabled )); then
-              ${
-                if config.services.cognee-memory.enable then
-                  ''
-                    ${lib.getExe config.services.cognee-memory.sessionPrepare}
-                  ''
-                else
-                  ''
-                    echo 'cognee: memory is disabled in this configuration' >&2
-                    exit 1
-                  ''
-              }
-              COGNEE_MEMORY_PROJECT="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
-              export COGNEE_MEMORY_PROJECT
-              mcp_config=${lib.escapeShellArg (toString memoryMcpConfig)}
-              claude_args+=( --allowedTools 'mcp__cognee__remember,mcp__cognee__recall' )
-            fi
-
             [[ -z "$model" ]] || claude_args+=( --model "$model" )
             if (( context_limit == 1000000 )); then
               # Native Claude model suffixes select the extended context window.
@@ -323,9 +297,6 @@
             append_prompt=${lib.escapeShellArg resolvedPrompt.preamble}
             project_memories="$(${lib.getExe (agents.projectMemory pkgs)} list)"
             [[ -z "$project_memories" ]] || append_prompt+=$'\n\n# Available project memories\n'"$project_memories"
-            if (( memory_enabled )); then
-              append_prompt+=$'\n\n'${lib.escapeShellArg agents.cogneeInstructions}
-            fi
             if [[ "$prompt" != "full" ]]; then
               claude_args+=( --system-prompt-file ${lib.escapeShellArg (toString resolvedPrompt.system)} )
               append_prompt="$(cc_environment_block)"$'\n\n'"$append_prompt"
@@ -361,10 +332,7 @@
             # scale its thresholds to the session's actual window.
             export CC_CONTEXT_LIMIT="$context_limit"
 
-            ${lib.optionalString config.services.tokview.enable ''
-              export ANTHROPIC_BASE_URL=http://127.0.0.1:${toString config.services.tokview.proxyPort}
-            ''}
-            exec ${lib.optionalString config.services.tokview.enable "${lib.getExe config.services.tokview.sessionLauncher} "}${lib.getExe claudePackage} "''${claude_args[@]}"
+            exec ${lib.getExe claudePackage} "''${claude_args[@]}"
           '';
 
           # `cc` sandboxes `cc-native` unconditionally —
@@ -388,9 +356,6 @@
               inherit name native;
               helpFlag = "--cc-help";
               herdrAgent = "claude";
-              beforeExec = agents.cogneeSandboxText pkgs config;
-              sessionArgsVar = "session_args";
-              sessionEnvironmentVar = "session_environment";
             };
         };
 
@@ -398,13 +363,8 @@
     in
     {
       imports = [
-        inputs.self.modules.homeManager.tokview
         inputs.self.modules.homeManager.agents-prompt-preview
-        inputs.self.modules.homeManager.cognee-memory
       ];
-
-      services.tokview.enable = lib.mkDefault true;
-      services.cognee-memory.enable = lib.mkDefault true;
 
       assertions = [
         {

@@ -358,15 +358,6 @@ let
     # SQLite query index is in-memory; durable SQLite state would instead
     # require rollback journaling or a guest-local contribution.
     deepseek.stateDirs = [ ".dsh" ];
-
-    # Tokview also uses SQLite WAL. Native and guest observations stay in
-    # independent databases rather than sharing one over virtiofs.
-    tokview.localStateDirs = [
-      {
-        directory = ".tokview";
-        size = 4096;
-      }
-    ];
   };
 
   vmContributionsFor =
@@ -443,8 +434,6 @@ let
       herdrAgent ? null,
       forward ? null,
       beforeExec ? "",
-      sessionArgsVar ? null,
-      sessionEnvironmentVar ? null,
     }:
     let
       sandboxWritableRoots = sandboxWritableRootsFor "$HOME";
@@ -484,9 +473,8 @@ let
       ${lib.optionalString (herdrAgent != null) "export HERDR_AGENT=${lib.escapeShellArg herdrAgent}"}
       exec agent-vm-session ${
         lib.optionalString (forward != null) "--forward ${lib.escapeShellArg forward} "
-      }${lib.optionalString (sessionArgsVar != null) ''"''${${sessionArgsVar}[@]}" ''}-- \
+      }-- \
         ${pkgs.coreutils}/bin/env --chdir="$cwd" \
-        ${lib.optionalString (sessionEnvironmentVar != null) ''"''${${sessionEnvironmentVar}[@]}" ''}\
         ${lib.getExe native} "$@"
     '';
 

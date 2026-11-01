@@ -12,8 +12,7 @@ virtiofs, systemd units, or anything belonging to the VM layer
 
 - `tools` / `toolsMarkdown` — the CLI tool set every harness's shell
 fragment advertises, and its rendering as a markdown bullet list.
-- `fragments` — reusable preamble text blocks (`shell`, `rtk`, `headroom`,
-`memory`, `serena`). Each is plain text; harnesses are responsible for
+- `fragments` — reusable preamble text blocks (`shell`, `rtk`, `memory`). Each is plain text; harnesses are responsible for
 concatenating the fragments they want and injecting the result at
 whatever depth their own module (`--append-system-prompt`,
 `developer_instructions=`, ...) requires.
@@ -318,7 +317,7 @@ The in-guest acceptance checks themselves live in untracked working notes
 
 # flake.lib.agents.mkAgentVm
 
-The VM layer. Must never mention `~/.claude`, headroom, or a model name — that's
+The VM layer. Must never mention `~/.claude` or a model name — that's
 the harness layer's job (`libagents.nix`, `selector-loop.nix`). This layer
 only knows about shares, networking, channels, and the guest's own NixOS
 configuration; it must never be handed a harness's prompt text or tool

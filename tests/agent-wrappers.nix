@@ -34,14 +34,6 @@ let
         };
         programs.claude-code.package = mockClient "claude";
         programs.codex.package = mockClient "codex";
-        services.tokview.enable = false;
-        services.cognee-memory.sessionPrepare = pkgs.writeShellScriptBin "memory-prepare-fixture" ''
-          if [[ "''${AGENT_TEST_MEMORY_UNAVAILABLE:-0}" == 1 ]]; then
-            echo 'cognee: local LLM unavailable' >&2
-            exit 1
-          fi
-          echo prepare >> "$AGENT_TEST_MEMORY"
-        '';
       }
     ];
   };
@@ -94,21 +86,23 @@ assert builtins.all (name:
   codexRoles.${name}.description == profiles.roles.${name}.description
 ) (builtins.attrNames profiles.roles);
 assert cfg.programs.claude-code.skills == agents.skills;
-assert builtins.all (path: builtins.pathExists "${path}/SKILL.md") (builtins.attrValues agents.skills);
-assert builtins.attrNames agents.skills == [
-  "docs"
-  "general-testing"
-  "git-conventional-commits"
-  "git-howto-change-commit-message-history"
-  "nix-flake-component-flake-parts"
-  "unslop"
-];
-assert !(builtins.hasAttr ".serena-cxs/serena_config.yml" cfg.home.file);
+assert builtins.all (path: builtins.pathExists "${path}/SKILL.md") (
+  builtins.attrValues agents.skills
+);
+assert
+  builtins.attrNames agents.skills == [
+    "docs"
+    "general-testing"
+    "git-conventional-commits"
+    "git-howto-change-commit-message-history"
+    "nix-flake-component-flake-parts"
+    "unslop"
+  ];
 pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } ''
   for wrapper in ${
     pkgs.lib.escapeShellArgs (map (package: "${package}/bin/${package.name}") wrappers)
   }; do
-    if grep -qiE "serena|headroom" "$wrapper"; then
+    if grep -qiE "tokview|openai_base_url|ANTHROPIC_BASE_URL" "$wrapper"; then
       echo "unexpected removed dependency in $wrapper" >&2
       exit 1
     fi
@@ -122,12 +116,11 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
   export AGENT_TEST_ARGS="$PWD/args"
   export AGENT_TEST_URL="$PWD/environment"
   export AGENT_TEST_DIRECTIVES="$PWD/directives-path"
-  export AGENT_TEST_MEMORY="$PWD/memory-events"
-  touch "$AGENT_TEST_MEMORY"
   ${wrapper "cc-native"}/bin/cc-native sonnet 1m search plan -- 'literal prompt'
   grep -Fx 'sonnet[1m]' "$AGENT_TEST_ARGS"
   grep -F 'EnterPlanMode' "$AGENT_TEST_ARGS"
   grep -Fx 'literal prompt' "$AGENT_TEST_ARGS"
+  grep -Fx 'base_url=' "$AGENT_TEST_URL"
   grep -Fx 'context_limit=1000000' "$AGENT_TEST_URL"
   grep -Fx 'tool_search=auto' "$AGENT_TEST_URL"
   grep -Fx 'guard=0' "$AGENT_TEST_URL"
@@ -246,36 +239,23 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
     exit 1
   fi
   grep -F 'must resolve inside the Nix store' hook-error
-  test ! -s "$AGENT_TEST_MEMORY"
-  ${wrapper "cc-native"}/bin/cc-native mem
-  python3 - <<'PY'
+  # Retired memory selectors pass through as ordinary vendor arguments.
+  for executable in ${wrapper "cc-native"}/bin/cc-native ${wrapper "cx-native"}/bin/cx-native; do
+    "$executable" mem memory
+    grep -Fx 'mem' "$AGENT_TEST_ARGS"
+    grep -Fx 'memory' "$AGENT_TEST_ARGS"
+  done
+  ${wrapper "cc-native"}/bin/cc-native
+  python3 - <<'PYTEST'
   import json, pathlib
   args = pathlib.Path('args').read_text().splitlines()
   config = json.loads(pathlib.Path(args[args.index('--mcp-config') + 1]).read_text())
-  assert set(config['mcpServers']) == {'cognee'}
-  assert 'Cognee memory is enabled' in pathlib.Path('args').read_text()
-  assert 'mem' not in args
-  PY
-  ${wrapper "cc-native"}/bin/cc-native memory guard
-  grep -Fx 'guard=1' "$AGENT_TEST_URL"
-  ${wrapper "cx-native"}/bin/cx-native mem
-  grep -E '^mcp_servers.cognee=.*enabled=true' "$AGENT_TEST_ARGS"
-  ${wrapper "cx-native"}/bin/cx-native memory guard
-  grep -Fx ${pkgs.lib.escapeShellArg (guardState "true")} "$AGENT_TEST_ARGS"
-  test "$(wc -l < "$AGENT_TEST_MEMORY")" -eq 4
-  ${wrapper "cx-native"}/bin/cx-native -- mem
-  grep -Fx 'mem' "$AGENT_TEST_ARGS"
-  grep -E '^mcp_servers.cognee=.*enabled=false' "$AGENT_TEST_ARGS"
-  ${wrapper "cc-native"}/bin/cc-native -- memory
-  test "$(wc -l < "$AGENT_TEST_MEMORY")" -eq 4
-  for executable in ${wrapper "cc-native"}/bin/cc-native ${wrapper "cx-native"}/bin/cx-native; do
-    echo untouched > "$AGENT_TEST_ARGS"
-    if AGENT_TEST_MEMORY_UNAVAILABLE=1 "$executable" mem 2> error; then
-      echo 'memory launch unexpectedly succeeded without its LLM' >&2
-      exit 1
-    fi
-    grep -Fx untouched "$AGENT_TEST_ARGS"
-    grep -Fx 'cognee: local LLM unavailable' error
-  done
+  assert config == {'mcpServers': {}}
+  PYTEST
+  ${wrapper "cx-native"}/bin/cx-native
+  if grep -F 'mcp_servers.' "$AGENT_TEST_ARGS"; then
+    echo 'wrapper injected an MCP server' >&2
+    exit 1
+  fi
   touch "$out"
 ''

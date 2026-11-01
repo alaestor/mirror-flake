@@ -14,7 +14,6 @@ let
     "claude"
     "codex"
     "deepseek"
-    "tokview"
   ];
   # noblesse offloads its builds here.
   remoteBuildUser = "nixremote";

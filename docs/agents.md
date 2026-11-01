@@ -104,29 +104,6 @@ escalation policy are prompt requirements, not security boundaries. The VM remai
 the isolation boundary. If the runtime does not expose role selection, report the
 limitation rather than silently falling back to a generic worker.
 
-## Token observability
-
-The Tokview feature owns one on-demand user service per environment. Both
-Claude and Codex send provider traffic through its loopback proxy and wait for
-readiness before launching. Proxy failure stops launch rather than silently
-losing observations. Codex receives its endpoint through invocation-time
-configuration; do not use `tokview wrap codex`, which rewrites the immutable
-Home Manager config.
-
-The feature owns the CLI, ports, and managed configuration. Harnesses import it
-and enable it as a default; setting `services.tokview.enable = false` restores
-direct provider connections. Prompt and response capture are disabled by
-default. This replaces compression with observation: prompts, responses, and
-tool results are not compressed. Provider routing remains the proxy's concern.
-
-Tokview uses SQLite WAL, so `.tokview` is guest-local persistent state. Native
-and VM sessions intentionally have separate databases. Use
-`tokview show --watch` for native sessions and `tokview-guest show --watch` from
-a shared work tree for VM sessions. The guest CLI uses the same isolation
-entry point as the agent wrappers; it does not mount or copy the database onto
-the host. The host attaching the harnesses contributes Tokview's local-state
-record alongside theirs.
-
 ## Explicit directives
 
 Directives are named programs invoked by the user's current prompt. `^^name`
@@ -238,10 +215,10 @@ shared VM. An explicitly native session does not gain that isolation, so only
 trusted Nix-packaged programs belong in the catalogue. Vendor skills do not
 provide directive dispatch.
 
-## Opt-in shared memory
+## Project memory
 
 Project notes use `.agents/memory/<name>.toml` at the repository root. The
-`project-memory` command works in either harness, with or without Cognee. Each
+`project-memory` command works in either harness. Each
 file has a short `trigger` describing when to open it and a Markdown `content`
 stored as a multiline TOML literal string. At session start the wrappers add
 only filenames and triggers to the prompt, capped at 30 entries and 200
@@ -253,42 +230,6 @@ maintain an index. Projects decide whether to track `.agents/memory/` in Git;
 this repository ignores dot-directories by default. Keep secrets and session
 handoffs out of project memory. Claude's own auto-memory is disabled in its
 Home Manager settings, so it cannot silently create a competing store.
-
-Cognee remains a separate opt-in store:
-
-`mem` or `memory`, before `--`, enables Cognee for that invocation of `cc`,
-`cx`, or their `-native` counterparts. Without the selector, no memory service
-is started and no Cognee tools are enabled. Launch fails if the configured
-host-local LLM or memory service is unavailable.
-
-Cognee runs as an on-demand host user service. Its SQLite, vector and graph
-databases and model caches stay on the host; none are added to guest shares.
-The MCP adapter exposes text `remember` and `recall`, plus single-item
-`forget` by `data_id`; it does not expose arbitrary host file ingestion or
-dataset-wide deletion. Forget requires an explicit project or global scope
-and permanently removes that item. Both harnesses use the same store. Remember defaults to the
-current project's scope, with global scope available for cross-project facts;
-recall searches both by default. Project identity is the canonical repository
-root, or the working directory outside a repository. These scopes organize
-memory, not authorization between mutually untrusted sessions.
-
-Native sessions connect directly to the host loopback endpoint. Wrapped
-sessions prepare the host service before entering isolation, then use a
-loopback-only reverse SSH forward on a per-session guest port. Parallel
-sessions do not share a forward's lifecycle, and ordinary sessions add no
-memory forward. The generic isolation entry point owns forwarding; the
-memory feature owns the endpoint and storage.
-
-The host user configuration selects the LLM endpoint. The service uses the
-first model advertised by `/models` when it starts; an opted-in launch restarts
-it if that model changes. No real API credential is required by this local
-setup. Embeddings run locally through FastEmbed and download their model on
-first use. Memory tools are available
-to the agent, not an automatic transcript logger; never store secrets.
-
-Stop the host service with `systemctl --user stop cognee-memory.service`.
-The next opted-in launch starts it again. Inspect failures with
-`journalctl --user -u cognee-memory.service`.
 
 ## Codex status display
 
