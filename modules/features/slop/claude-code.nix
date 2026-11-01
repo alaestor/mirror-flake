@@ -379,7 +379,6 @@
       ];
 
       home.sessionVariables = claudeEnvironment;
-      programs.claude-code.settings.autoMemoryEnabled = false;
 
       home.packages = [
         ccWrappers.native
@@ -394,6 +393,7 @@
         context = resolvedPrompt.context;
         skills = agents.skills;
         settings = {
+          autoMemoryEnabled = false;
           includeCoAuthoredBy = lib.mkDefault false;
           skipDangerousModePermissionPrompt = lib.mkDefault true;
           permissions.defaultMode = lib.mkDefault "bypassPermissions";
