@@ -100,6 +100,7 @@ assert composedModule.config == {
   second = true;
 };
 assert !invalidModule.success;
+assert builtins.deepSeq (import ./tests-inputs.nix { inherit lib; }) true;
 {
   inherit discovered rendered;
 }

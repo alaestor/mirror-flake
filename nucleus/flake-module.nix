@@ -99,7 +99,14 @@ in
   };
 
   options.nucleus = {
-    enable = lib.mkEnableOption "the local flake source generator";
+    autoFollow = {
+      enable = lib.mkEnableOption "lock-file input unification with nix-auto-follow";
+      ignore = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Root inputs whose dependency subtrees nix-auto-follow must preserve.";
+      };
+    };
 
     description = lib.mkOption {
       type = lib.types.str;
@@ -126,11 +133,42 @@ in
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  config = {
     perSystem =
-      { pkgs, ... }:
+      { pkgs, system, ... }:
       let
         generated = pkgs.writeText "flake.nix" rendered;
+        ignoredAliases = lib.filter (
+          name: (cfg.inputs.${name}.follows or null) != null
+        ) cfg.autoFollow.ignore;
+        # Defer package evaluation and realization until the writer invokes it.
+        # A store-path dependency on the package would build it before flag parsing.
+        autoFollow =
+          if cfg.autoFollow.enable then
+            lib.getExe (pkgs.writeShellApplication {
+              name = "nucleus-auto-follow";
+              runtimeInputs = [ pkgs.nix ];
+              text =
+                if ignoredAliases != [ ] then ''
+                  printf '%s\n' ${lib.escapeShellArg "nucleus.autoFollow.ignore contains follows aliases: ${lib.concatStringsSep ", " ignoredAliases}. Ignore a non-aliased root input instead."} >&2
+                  exit 1
+                ''
+                else ''
+                  exec nix run --impure --expr ${lib.escapeShellArg ''
+                    let
+                      pkgs = import ${pkgs.path} {
+                        system = ${builtins.toJSON system};
+                        config = { };
+                        overlays = [ ];
+                      };
+                    in pkgs.callPackage ${./auto-follow.nix} { }
+                  ''} "" -- --in-place ${lib.escapeShellArgs (
+                    lib.concatMap (name: [ "--ignore" name ]) cfg.autoFollow.ignore
+                  )} flake.lock
+                '';
+            })
+          else
+            "";
         writeFlake = pkgs.writeShellApplication {
           name = "write-flake";
           runtimeInputs = [
@@ -141,9 +179,8 @@ in
           text = ''
             export NUCLEUS_GENERATED=${lib.escapeShellArg (toString generated)}
             export NUCLEUS_NIX=${lib.escapeShellArg (lib.getExe pkgs.nix)}
-            export NUCLEUS_NIX_INSTANTIATE=${
-              lib.escapeShellArg (lib.getExe' pkgs.nix "nix-instantiate")
-            }
+            export NUCLEUS_NIX_INSTANTIATE=${lib.escapeShellArg (lib.getExe' pkgs.nix "nix-instantiate")}
+            export NUCLEUS_AUTO_FOLLOW=${lib.escapeShellArg autoFollow}
             exec ${lib.getExe pkgs.bash} ${./write-flake.sh} "$@"
           '';
         };
@@ -156,7 +193,7 @@ in
         };
 
         checks.nucleus = builtins.deepSeq tests (
-          pkgs.runCommandLocal "check-nucleus" { } ''
+          pkgs.runCommandLocal "check-nucleus" { nativeBuildInputs = [ pkgs.git ]; } ''
             diff -u ${inputs.self}/flake.nix ${generated}
             ${lib.getExe pkgs.bash} ${./.}/tests/bootstrap.sh
             ${lib.getExe pkgs.bash} ${./.}/tests/writer.sh

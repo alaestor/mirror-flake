@@ -6,7 +6,7 @@
   systems = [ "x86_64-linux" ];
 
   nucleus = {
-    enable = true;
+    autoFollow.enable = true;
     description = "Alaestor Weissman's personal flake";
     inputs.nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
     inputs.flake-parts = {

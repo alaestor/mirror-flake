@@ -65,6 +65,11 @@ nix flake lock          # only when inputs changed
 timeout 120s nix build .#checks.x86_64-linux.nucleus --no-link
 ```
 
+The writer runs auto-follow even when `flake.nix` is unchanged. Review its lock
+changes because it overrides upstream pins. Preserve required dependency subtrees
+through `nucleus.autoFollow.ignore` using non-aliased root input names, or pass
+`--no-auto-follow` to the writer for a one-off skip. See `docs/nucleus.md`.
+
 - Name dendritic-style nix files after their respective modules; don't use `default.nix` for files in the `modules/` directory.
 
 - Always validate your changes. Start with syntax/whitespace and the narrowest affected output. Prefer using timeouts, e.g.

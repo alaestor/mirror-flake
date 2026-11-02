@@ -14,7 +14,7 @@ The nucleus is not intended to reproduce flake-file's general API or import-tree
 
 Keeping the contract narrow makes local ownership practical. nucleus is not a general-purpose utility meant to be consumed; it should always be built-to-purpose.
 
-`nucleus` provides a bootstrap mechanism and failure introspection by means of artifact retention, but no rollback or versioning mechanisms. Git remains the authoritative recovery route for semantic module failures and for restoring an earlier lock state; recovery features are explicitly out-of-scope.
+The writer restores the active flake and lock when validation fails and retains diagnostic artifacts. Bootstrap preserves the previous source but does not restore it automatically. Git remains the recovery route for semantic module failures and earlier lock states.
 
 ## Architecture and invariants
 
@@ -58,17 +58,20 @@ Input ownership follows this repo's ownership convention:
 
 ## Generation, validation, and recovery
 
-With `nucleus.enable = true`, the nucleus module provides a generated source package, a `write-flake` app, and a consistency check. The check reports when committed `flake.nix` differs from the canonical rendering.
+Importing the nucleus module provides a generated source package, a `write-flake` app, and a consistency check. The check reports when committed `flake.nix` differs from the canonical rendering.
 
 Normal writing is transactional:
 
 1. Parse the generated candidate.
 2. Back up the active `flake.nix` and `flake.lock`.
 3. Temporarily install the candidate and refresh its lock graph.
-4. Run `nix flake check --no-build`.
-5. Keep the candidate only if validation succeeds; otherwise restore both active files.
+4. Unify same-named dependencies with the pinned `nix-auto-follow` tool when `nucleus.autoFollow.enable` is enabled, as it is in this repository.
+5. Run `nix flake check --no-build` without rewriting the resulting lock.
+6. Keep the candidate only if validation succeeds; otherwise restore both active files.
 
 On failure, the writer retains the candidate, attempted lock file, validation log, and backups in a reported temporary artifact directory. The `write-flake --no-check` escape hatch installs generated source without parsing, lock refresh, or validation.
+
+Auto-follow also runs when the generated source is unchanged. It overrides upstream dependency pins, so review lock changes and validate affected consumers. To preserve a dependency subtree, add its non-aliased root input name to `nucleus.autoFollow.ignore`; aliases declared with `follows` are rejected. Pass `write-flake --no-auto-follow` to skip unification for one run while retaining normal validation. `--no-check` skips it along with lock refresh and validation.
 
 `nix flake check --no-build` evaluates whole NixOS/Home Manager configurations and needs real memory to do it; it was previously unrunnable on constrained hardware (the agent VM's guest resources were sized too small). That's fixed by giving the guest more RAM/CPU rather than by narrowing the gate. There is deliberately no CI running these checks — every check remains a manual, local step.
 
@@ -92,5 +95,7 @@ well as the distributed declaration.
 
 The script accepts a missing `flake.nix` when initializing a project. For
 recovery, it preserves an existing non-seed source as
-`flake.nix.pre-bootstrap.<timestamp>` before replacing it. This backup does not
+`flake.nix.pre-bootstrap.<unique suffix>` before replacing it. This backup does not
 restore automatically if generation fails.
+
+When `modules/` is absent, bootstrap seeds it from `nucleus/project.nix`; it leaves an existing module tree untouched. `--git` makes new bootstrap files visible to Nix and stages their final contents only after success. Existing tracked files are not restaged.
