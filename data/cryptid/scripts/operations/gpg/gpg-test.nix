@@ -20,7 +20,7 @@ with context;
     ${bash-get-keyid}
     OUTPUT=$(mktemp /tmp/gpg-pub.XXXXXX)
     gpg --export --armor ${"$" + env.keyid} > "$OUTPUT"
-    if [ "$(cat "$OUTPUT")" = "$(cat "$PUB_PATH")" ]; then echo "TEST PASSED"; else echo "FAIL: PGP CORRUPT OR INVALID" >&2; fi
+    if [ "$(cat "$OUTPUT")" = "$(cat "$PUB_PATH")" ]; then echo "TEST PASSED"; else echo "FAIL: PGP CORRUPT OR INVALID" >&2; exit 1; fi
     cleanup
     trap "" EXIT ERR
   '';

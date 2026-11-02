@@ -11,6 +11,6 @@ with context;
     PUB_PATH=$(timestamped_last "${pathv-emerg-age-public}")
     printf "Verifying emergency AGE keys...\nPrivate: $PRIV_PATH\nPublic:  $PUB_PATH\n"
     OUTPUT=$(age-keygen -y "$PRIV_PATH")
-    if [ "$OUTPUT" == "$(cat "$PUB_PATH")" ]; then echo "TEST PASSED"; else echo "FAIL: AGE CORRUPT OR INVALID" >&2; fi
+    if [ "$OUTPUT" == "$(cat "$PUB_PATH")" ]; then echo "TEST PASSED"; else echo "FAIL: AGE CORRUPT OR INVALID" >&2; exit 1; fi
   '';
 }
