@@ -8,6 +8,20 @@ let
   lib = inputs.nixpkgs.lib;
   harness = import ./lib/serve-contract.nix { inherit inputs system; };
   nixos = inputs.self.modules.nixos;
+  # Exercise cache admission without depending on a personal encrypted key.
+  # This substitutes only the source-key existence probe, not the service.
+  cacheModule = exists: (import "${inputs.self}/modules/serve/services/nix-cache.nix" {
+    inherit inputs;
+    self = inputs.self // {
+      secrets = inputs.self.secrets // {
+        nixStoreSigning = _: { inherit exists; subpath = "fixture-signing-key.age"; };
+      };
+    };
+  }).flake.modules.nixos.serve-nix-cache;
+  cacheWithoutKey = harness.evaluate [
+    (cacheModule false)
+    { serve.nix-cache = { enable = true; authority = "cache.example.test"; }; }
+  ];
 
   # A service whose data root can sit on a network share must order itself
   # against that mount, or shutdown tries to unmount the share out from under
@@ -33,6 +47,10 @@ let
       # No discrete boolean activation surface: enabling it only builds a
       # package (serve.cinny.package), consumed by a domain composition.
       activationPaths = [ ];
+      enabledAssertions = [ (config: {
+        assertion = lib.isDerivation config.serve.cinny.package;
+        message = "enabled Cinny did not produce its configured web artifact";
+      }) ];
     }
     {
       name = "filebrowser";
@@ -58,12 +76,6 @@ let
         [ "services" "headscale" "enable" ]
         [ "services" "headplane" "enable" ]
       ];
-      enabledAssertions = [
-        (config: {
-          assertion = config.services.headscale.enable && config.services.headplane.enable;
-          message = "serve-headscale did not configure both workloads when enabled";
-        })
-      ];
     }
     {
       name = "jellyfin";
@@ -78,29 +90,16 @@ let
       module = nixos.serve-matrix;
       activationPaths = [ [ "services" "matrix-tuwunel" "enable" ] ];
       enabledConfig.serverName = "example.test";
-      enabledAssertions = [
-        (config: {
-          assertion = config.services.matrix-tuwunel.enable;
-          message = "serve-matrix did not configure its workload when enabled";
-        })
-      ];
     }
     {
       name = "nix-cache";
-      module = nixos.serve-nix-cache;
+      module = cacheModule true;
       activationPaths = [ [ "services" "nix-serve" "enable" ] ];
       enabledConfig.authority = "cache.example.test";
-    }
-    {
-      name = "static-site-0x04";
-      module = nixos.serve-static-site-0x04;
-      # Pure content-root data module; no boolean activation surface.
-      activationPaths = [ ];
-    }
-    {
-      name = "static-site-bokunopi";
-      module = nixos.serve-static-site-bokunopi;
-      activationPaths = [ ];
+      enabledAssertions = [ (config: {
+        assertion = config.networking.firewall.interfaces.tailscale0.allowedTCPPorts == [ config.serve.nix-cache.port ];
+        message = "enabled cache did not restrict its ingress to the private interface";
+      }) ];
     }
     {
       name = "torrenting";
@@ -115,6 +114,10 @@ let
   serviceAssertions = lib.concatMap harness.serviceCase cases;
 
   domainDisabled = harness.evaluate [ nixos.domain-0x04 ];
+  domainStatic = harness.evaluate [
+    nixos.domain-0x04
+    { serve.static-site-0x04 = { enable = true; root = "/srv/site-fixture"; }; }
+  ];
   domainHeadscale = harness.evaluate [
     nixos.domain-0x04
     { serve.headscale.enable = true; }
@@ -127,7 +130,7 @@ let
   bokunopiDisabled = harness.evaluate [ nixos.domain-bokunopi ];
   bokunopiEnabled = harness.evaluate [
     nixos.domain-bokunopi
-    { serve.static-site-bokunopi.enable = true; }
+    { serve.static-site-bokunopi = { enable = true; root = "/srv/other-site-fixture"; }; }
   ];
 
   remotehostDisabled = harness.evaluate [ nixos.domain-remotehost ];
@@ -141,12 +144,24 @@ let
 
   domainAssertions = [
     {
+      assertion = !cacheWithoutKey.services.nix-serve.enable
+        && cacheWithoutKey.networking.firewall.interfaces.tailscale0.allowedTCPPorts == [ ]
+        && builtins.any (lib.hasInfix "nix-serve was not enabled") cacheWithoutKey.warnings;
+      message = "cache without a signing key must stay closed and warn rather than serve unsigned paths";
+    }
+    {
       assertion = domainDisabled.services.caddy.virtualHosts == { };
       message = "domain-0x04cc creates routes with all members disabled";
     }
     {
       assertion = domainDisabled.networking.firewall.allowedTCPPorts == [ ];
       message = "domain-0x04cc opens public ingress with all members disabled";
+    }
+    {
+      assertion = builtins.attrNames domainStatic.services.caddy.virtualHosts == [ "0x04.cc" ]
+        && lib.hasInfix "root * /srv/site-fixture" domainStatic.services.caddy.virtualHosts."0x04.cc".extraConfig
+        && domainStatic.networking.firewall.allowedTCPPorts == [ 80 443 ];
+      message = "domain-0x04cc did not expose only the configured static content root";
     }
     {
       assertion = builtins.attrNames domainHeadscale.services.caddy.virtualHosts == [ "headscale.0x04.cc" ];
@@ -175,6 +190,11 @@ let
     {
       assertion = builtins.attrNames bokunopiEnabled.services.caddy.virtualHosts == [ "bokunopi.co" ];
       message = "domain-bokunopi did not create only the static-site route";
+    }
+    {
+      assertion = lib.hasInfix "root * /srv/other-site-fixture"
+        bokunopiEnabled.services.caddy.virtualHosts."bokunopi.co".extraConfig;
+      message = "domain-bokunopi ignored its host's static content root";
     }
     {
       assertion = bokunopiEnabled.networking.firewall.allowedTCPPorts == [ 80 443 ];

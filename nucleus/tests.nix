@@ -9,13 +9,7 @@ let
 
   rendered = render {
     description = "Fixture flake";
-    outputsExpression = ''
-      inputs:
-        inputs.flake-parts.lib.mkFlake { inherit inputs; } {
-          imports = [ ./nucleus/flake-module.nix ]
-            ++ import ./nucleus/list-modules.nix ./modules;
-        }
-    '';
+    outputsExpression = "inputs: { inherited = inputs.token; }";
     inputs = {
       flake-parts = {
         url = "github:hercules-ci/flake-parts";
@@ -34,6 +28,7 @@ let
       };
     };
   };
+  renderedValue = import (builtins.toFile "nucleus-render-fixture.nix" rendered);
 
   flakePartsTestHarness = {
     options.perSystem = lib.mkOption {
@@ -85,9 +80,15 @@ assert discovered == [
   "a.nix"
   "nested/b.nix"
 ];
-assert lib.hasInfix ''description = "Fixture flake";'' rendered;
-assert lib.hasInfix ''follows = "nixpkgs";'' rendered;
-assert !(lib.hasInfix "flake =" rendered);
+assert renderedValue.description == "Fixture flake";
+assert renderedValue.inputs == {
+  flake-parts = {
+    url = "github:hercules-ci/flake-parts";
+    inputs.nixpkgs-lib.follows = "nixpkgs";
+  };
+  nixpkgs.url = "nixpkgs/nixos-unstable";
+};
+assert (renderedValue.outputs { token = "passed-through"; }).inherited == "passed-through";
 assert builtins.attrNames evaluatedModules.config.flake.modules == [
   "homeManager"
   "nixos"

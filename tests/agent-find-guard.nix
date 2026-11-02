@@ -1,9 +1,8 @@
 /**
   Exercises `flake.lib.agents.findGuardBashEnv` (`modules/mechanisms/libagents/libagents.nix`)
-  against a synthetic stand-in for Claude Code's own exported `find` -> `bfs`
-  shell function, so a future Claude Code build that reshapes that function
-  enough to break the `sed`-based capture fails this build instead of only
-  showing up as a silent stderr warning at agent runtime.
+  against a synthetic exported shell function. Checks root refusal and
+  delegation, including preservation of an existing wrapper. It does not
+  establish compatibility with every version of Claude Code's shell setup.
 */
 { inputs, pkgs, system }:
 let
@@ -94,6 +93,10 @@ pkgs.runCommand "agent-find-guard-test"
       "$(${bash} ${probe} with-upstream /)" 1 0 "refusing to search filesystem root"
     check "captured upstream, scoped" \
       "$(${bash} ${probe} with-upstream /nix -maxdepth 0)" 0 1 ""
+    check "canonical root alias" \
+      "$(${bash} ${probe} with-upstream /tmp/..)" 1 0 "refusing to search filesystem root"
+    check "root after a scoped path" \
+      "$(${bash} ${probe} with-upstream /nix /)" 1 0 "refusing to search filesystem root"
 
     # FIND_ALLOW_ROOT=1 overrides the refusal and still reaches upstream.
     check "override, root" \

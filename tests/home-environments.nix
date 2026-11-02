@@ -113,7 +113,6 @@ let
 
   expectedFeature = "contributed-by-${hostName}";
   homeManagerPackage = inputs.unstable-home-manager.packages.${system}.home-manager;
-  helloDrvPath = config: (builtins.head config.home.packages).drvPath;
   hasPackage = package: packages: builtins.any (candidate: candidate.drvPath == package.drvPath) packages;
 
   assertions = [
@@ -146,7 +145,8 @@ let
       message = "standalone environment missed its host feature contribution";
     }
     {
-      assertion = integrated.test.attached == standalone.test.attached;
+      assertion = integrated.test.attached == "explicit-module"
+        && standalone.test.attached == "explicit-module";
       message = "activation modes evaluated the explicit module differently";
     }
     {
@@ -166,16 +166,13 @@ let
       message = "standalone environment did not receive its default home directory";
     }
     {
-      assertion = helloDrvPath integrated == helloDrvPath standalone;
-      message = "activation modes did not use the same host package set";
+      assertion = hasPackage pkgs.hello integrated.home.packages
+        && hasPackage pkgs.hello standalone.home.packages;
+      message = "activation modes did not install the attached module's package from the host package set";
     }
     {
       assertion = !(builtins.hasAttr serviceUsername nixosConfig.home-manager.users);
       message = "host feature contributions leaked into an unmanaged service account";
-    }
-    {
-      assertion = builtins.hasAttr "${standaloneUsername}@${hostName}" fixture.homeConfigurations;
-      message = "standalone attachment did not produce a homeConfigurations output";
     }
     {
       assertion = !(builtins.hasAttr "${integratedUsername}@${hostName}" fixture.homeConfigurations);

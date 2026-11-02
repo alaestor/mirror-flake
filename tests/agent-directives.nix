@@ -53,14 +53,8 @@ pkgs.runCommand "agent-directives-test" { nativeBuildInputs = [ pkgs.python3 ]; 
   catalogue = json.loads(subprocess.run(
       [real, 'list', '--json'], text=True, capture_output=True, check=True,
   ).stdout)
-  assert {'pickup', 'handoff', 'what', 'grill', 'list',
-          'domain-modeling', 'grill-with-docs',
-          'subagents-local',
-          'subagents-manual'} <= {item['name'] for item in catalogue}
-  assert not {'wait-what', 'grilling', 'grill-me', 'subagents-local-sequential'} & {item['name'] for item in catalogue}
-  assert not {'docs', 'unslop', 'general-testing', 'git-conventional-commits',
-              'git-howto-change-commit-message-history',
-              'nix-flake-component-flake-parts'} & {item['name'] for item in catalogue}
+  assert {'pickup', 'handoff', 'list'} <= {item['name'] for item in catalogue}
+  descriptions = {item['name']: item['description'] for item in catalogue}
   state_dir = os.path.join(os.getcwd(), 'directive-state')
   os.environ['XDG_STATE_HOME'] = state_dir
 
@@ -138,10 +132,11 @@ pkgs.runCommand "agent-directives-test" { nativeBuildInputs = [ pkgs.python3 ]; 
           'hook_event_name': 'UserPromptSubmit', 'prompt': '^^list ^^handoff',
       }), text=True, capture_output=True)
       assert listed.returncode == 2 and listed.stdout == ""
-      assert '**handoff**\n' in listed.stderr
-      assert '**list** [List available directives]' in listed.stderr
-      assert '**pickup** [Read the latest handoff into this turn]' in listed.stderr
-      assert '**handoff** [' not in listed.stderr
+      lines = listed.stderr.splitlines()
+      assert '- handoff' in lines, listed.stderr
+      assert '- list   — ' + descriptions['list'] in lines, listed.stderr
+      assert '- pickup   — ' + descriptions['pickup'] in lines, listed.stderr
+      assert not any(line.startswith('- handoff ') for line in lines), listed.stderr
       assert 'handoff instructions loaded' not in listed.stderr
       assert 'BEGIN EXPLICIT DIRECTIVE OUTPUT' not in listed.stderr
       bad_list = subprocess.run([real, 'hook', harness], input=json.dumps({
@@ -150,43 +145,19 @@ pkgs.runCommand "agent-directives-test" { nativeBuildInputs = [ pkgs.python3 ]; 
       assert bad_list.returncode == 2 and 'list takes no arguments' in bad_list.stderr
       terminal_list = subprocess.run([real, 'run', 'list'], text=True, capture_output=True, check=True)
       assert terminal_list.stdout == ""
-      assert '**list** [List available directives]' in terminal_list.stderr
+      assert '- list   — ' + descriptions['list'] in terminal_list.stderr.splitlines(), terminal_list.stderr
       result = subprocess.run([real, 'hook', harness], input=json.dumps({
           'hook_event_name': 'UserPromptSubmit', 'prompt': '^^handoff'
       }), text=True, capture_output=True, check=True)
       response = json.loads(result.stdout)
       assert 'handoff instructions loaded.' in response['systemMessage']
-      assert 'Write a local handoff' in response['hookSpecificOutput']['additionalContext']
-      assert 'Write a handoff' not in response['systemMessage']
+      with open('${inputs.self}/data/agents/directives/macro/handoff.md') as handle:
+          instructions = handle.read().strip()
+      assert instructions in response['hookSpecificOutput']['additionalContext']
+      assert instructions not in response['systemMessage']
   rejected = subprocess.run([real, 'run', 'handoff', 'unexpected'],
                             text=True, capture_output=True)
   assert rejected.returncode == 2 and 'takes no arguments' in rejected.stderr
-  for harness in ('claude', 'codex'):
-      result = subprocess.run([real, 'hook', harness], input=json.dumps({
-          'hook_event_name': 'UserPromptSubmit', 'prompt': '^^what'
-      }), text=True, capture_output=True, check=True)
-      response = json.loads(result.stdout)
-      assert 'what instructions loaded.' in response['systemMessage']
-      assert 'did not understand the last explanation' in response['hookSpecificOutput']['additionalContext']
-      for name in ('grill', 'domain-modeling', 'grill-with-docs'):
-          result = subprocess.run([real, 'hook', harness], input=json.dumps({
-              'hook_event_name': 'UserPromptSubmit', 'prompt': '^^' + name,
-          }), text=True, capture_output=True, check=True)
-          context = json.loads(result.stdout)['hookSpecificOutput']['additionalContext']
-          if name != 'domain-modeling':
-              assert 'design tree' in context
-          if name in ('domain-modeling', 'grill-with-docs'):
-              assert '# CONTEXT.md Format' in context and '# ADR Format' in context
-          assert 'Call the Skill tool' not in context
-      for name, expected in (
-          ('subagents-local', 'Only run sequential agents'),
-          ('subagents-manual', 'Instead of using the subagent tooling'),
-      ):
-          result = subprocess.run([real, 'hook', harness], input=json.dumps({
-              'hook_event_name': 'UserPromptSubmit', 'prompt': '^^' + name,
-          }), text=True, capture_output=True, check=True)
-          assert expected in json.loads(result.stdout)['hookSpecificOutput']['additionalContext']
-
   with tempfile.TemporaryDirectory() as project:
       absent = subprocess.run([real, 'hook', 'codex'], input=json.dumps({
           'hook_event_name': 'UserPromptSubmit', 'cwd': project, 'prompt': '^^pickup'

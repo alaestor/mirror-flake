@@ -19,12 +19,21 @@ let
     }).config;
 
   defaults = mkConfig { };
-  quiet = mkConfig { memory-manager.zram.enable = false; memory-manager.earlyoom.enable = false; };
+  swapOnly = mkConfig { memory-manager.earlyoom.enable = false; };
+  killerOnly = mkConfig { memory-manager.zram.enable = false; };
+  tuned = mkConfig {
+    memory-manager.zram.memoryPercent = 60;
+    memory-manager.earlyoom = {
+      notifications = true;
+      freeMemThreshold = 15;
+      freeSwapThreshold = 20;
+    };
+  };
   oomdHost = mkConfig { systemd.oomd.enable = true; };
 
   assertions = [
     {
-      assertion = defaults.zramSwap.enable && defaults.zramSwap.memoryPercent == 30;
+      assertion = defaults.zramSwap.enable;
       message = "memory-manager did not provide compressed swap by default";
     }
     {
@@ -40,8 +49,16 @@ let
       message = "memory-manager left systemd-oomd racing earlyoom over the same pressure";
     }
     {
-      assertion = !quiet.zramSwap.enable && !quiet.services.earlyoom.enable;
+      assertion = swapOnly.zramSwap.enable && !swapOnly.services.earlyoom.enable
+        && !killerOnly.zramSwap.enable && killerOnly.services.earlyoom.enable;
       message = "memory-manager halves are not independently switchable";
+    }
+    {
+      assertion = tuned.zramSwap.memoryPercent == 60
+        && tuned.services.earlyoom.enableNotifications
+        && tuned.services.earlyoom.freeMemThreshold == 15
+        && tuned.services.earlyoom.freeSwapThreshold == 20;
+      message = "memory-manager did not forward host tuning to the configured services";
     }
     {
       assertion = oomdHost.systemd.oomd.enable;

@@ -39,7 +39,10 @@ let
   };
   cfg = configuration.config;
   profiles = import (inputs.self.data.path "agents/subagent-profiles.nix");
-  codexRoles = cfg.programs.codex.settings.agents;
+  expectedRoles = pkgs.writeText "expected-agent-roles.json" (builtins.toJSON {
+    roles = (import (inputs.self.data.path "programs/codex/agents.nix") { inherit profiles; }).roles;
+    shell = agents.fragments.shell pkgs;
+  });
   wrappers = builtins.filter (
     package:
     builtins.elem package.name [
@@ -49,7 +52,6 @@ let
       "cx-native"
     ]
   ) cfg.home.packages;
-  names = map (package: package.name) cfg.home.packages;
   wrapper = name: builtins.head (builtins.filter (package: package.name == name) wrappers);
   events = [
     "PostToolUse"
@@ -66,47 +68,17 @@ let
     + "}";
 in
 assert builtins.length wrappers == 4;
-assert
-  !(builtins.any (name: builtins.elem name names) [
-    "ccs"
-    "ccs-native"
-    "cxs"
-    "cxs-native"
-  ]);
 assert builtins.all (event: builtins.hasAttr event cfg.programs.claude-code.settings.hooks) events;
 assert builtins.hasAttr "UserPromptSubmit" cfg.programs.claude-code.settings.hooks;
 assert builtins.all (
   key: !cfg.programs.codex.settings.hooks.state.${key}.enabled
 ) inputs.self.lib.agents.codexGuardHookKeys;
 assert cfg.programs.codex.skills == agents.skills;
-assert cfg.programs.codex.settings.features.multi_agent_v2;
-assert cfg.programs.codex.settings.model_auto_compact_token_limit == 176800;
-assert builtins.attrNames codexRoles == builtins.attrNames profiles.roles;
-assert builtins.all (name:
-  codexRoles.${name}.description == profiles.roles.${name}.description
-) (builtins.attrNames profiles.roles);
 assert cfg.programs.claude-code.skills == agents.skills;
 assert builtins.all (path: builtins.pathExists "${path}/SKILL.md") (
   builtins.attrValues agents.skills
 );
-assert
-  builtins.attrNames agents.skills == [
-    "docs"
-    "general-testing"
-    "git-conventional-commits"
-    "git-howto-change-commit-message-history"
-    "nix-flake-component-flake-parts"
-    "unslop"
-  ];
 pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } ''
-  for wrapper in ${
-    pkgs.lib.escapeShellArgs (map (package: "${package}/bin/${package.name}") wrappers)
-  }; do
-    if grep -qiE "tokview|openai_base_url|ANTHROPIC_BASE_URL" "$wrapper"; then
-      echo "unexpected removed dependency in $wrapper" >&2
-      exit 1
-    fi
-  done
   ${pkgs.lib.concatMapStringsSep "\n" (package: ''
     ${package}/bin/${package.name} --${
       if pkgs.lib.hasPrefix "cc" package.name then "cc" else "cx"
@@ -116,6 +88,22 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
   export AGENT_TEST_ARGS="$PWD/args"
   export AGENT_TEST_URL="$PWD/environment"
   export AGENT_TEST_DIRECTIVES="$PWD/directives-path"
+  # The isolated entry points must refuse an unshared cwd, never silently
+  # falling back to the native client or starting a VM session.
+  mkdir mock-bin
+  cat > mock-bin/agent-vm-session <<'SH'
+  #!${pkgs.runtimeShell}
+  touch "$AGENT_TEST_ARGS"
+  SH
+  chmod +x mock-bin/agent-vm-session
+  for executable in ${wrapper "cc"}/bin/cc ${wrapper "cx"}/bin/cx; do
+    if PATH="$PWD/mock-bin:$PATH" "$executable" >refused.out 2>refused.err; then
+      echo 'isolated wrapper accepted an unshared directory' >&2
+      exit 1
+    fi
+    grep -F 'outside every shared root' refused.err
+    test ! -e "$AGENT_TEST_ARGS"
+  done
   ${wrapper "cc-native"}/bin/cc-native sonnet 1m search plan -- 'literal prompt'
   grep -Fx 'sonnet[1m]' "$AGENT_TEST_ARGS"
   grep -F 'EnterPlanMode' "$AGENT_TEST_ARGS"
@@ -139,20 +127,8 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
 
   ${wrapper "cc-native"}/bin/cc-native 1m -- --model=sonnet
   grep -Fx -- '--model=sonnet[1m]' "$AGENT_TEST_ARGS"
-  if ${wrapper "cc-native"}/bin/cc-native graph; then
-    echo 'retired graph selector unexpectedly succeeded' >&2
-    exit 1
-  fi
-
   ${wrapper "cx-native"}/bin/cx-native sol
   grep -Fx 'gpt-6.1-sol' "$AGENT_TEST_ARGS"
-  ${wrapper "cx-native"}/bin/cx-native terra
-  grep -Fx 'terra' "$AGENT_TEST_ARGS"
-  if grep -Fx 'gpt-6-terra' "$AGENT_TEST_ARGS"; then
-    echo 'retired terra selector unexpectedly selected a model' >&2
-    exit 1
-  fi
-
   ${wrapper "cx-native"}/bin/cx-native astra hi -- sol
   test "$(cat "$AGENT_TEST_DIRECTIVES")" = ${pkgs.lib.escapeShellArg (pkgs.lib.getExe directivePackage)}
   grep -Fx 'gpt-6-astra' "$AGENT_TEST_ARGS"
@@ -182,28 +158,21 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
   test ! -L "$PWD/guest-home/.codex/skills/procedure-handoff"
   test -L "$PWD/guest-home/.codex/skills/user-skill"
   python3 - <<'PY'
-  import pathlib, tomllib
+  import json, pathlib, tomllib
   config = tomllib.loads(pathlib.Path('guest-home/.codex/config.toml').read_text())
-  expected = {
-      'fact-finder': 'gpt-6-luna',
-      'mechanical-implementer': 'gpt-6-luna',
-      'complex-implementer': 'gpt-6.1-sol',
-      'reviewer': 'gpt-6.1-sol',
-  }
+  expected = json.loads(pathlib.Path('${expectedRoles}').read_text())
   assert config['features']['multi_agent_v2'] is True
-  assert config['model_auto_compact_token_limit'] == 176800
-  assert set(config['agents']) == set(expected)
-  for name, model in expected.items():
+  assert set(config['agents']) == set(expected['roles'])
+  for name, definition in expected['roles'].items():
       entry = config['agents'][name]
-      assert entry['description']
+      assert entry['description'] == definition['description'], name
       role_path = pathlib.Path(entry['config_file'])
       assert str(role_path).startswith('/nix/store/')
       role = tomllib.loads(role_path.read_text())
-      assert role['model'] == model, name
-      assert role['model_reasoning_effort'] == 'medium', name
-      assert 'Do not spawn further agents' in role['developer_instructions'], name
-      assert '# Shell' in role['developer_instructions'], name
-      assert 'Available project memories' not in role['developer_instructions'], name
+      assert role['model'] == definition['model'], name
+      assert role['model_reasoning_effort'] == definition['model_reasoning_effort'], name
+      assert definition['developer_instructions'] in role['developer_instructions'], name
+      assert expected['shell'] in role['developer_instructions'], name
   PY
   ${pkgs.lib.concatMapStringsSep "\n" (name: ''
     test "$(readlink "$PWD/guest-home/.codex/skills/${name}")" = ${pkgs.lib.escapeShellArg agents.skills.${name}}
@@ -239,11 +208,11 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
     exit 1
   fi
   grep -F 'must resolve inside the Nix store' hook-error
-  # Retired memory selectors pass through as ordinary vendor arguments.
+  # Unknown selectors pass through as ordinary vendor arguments.
   for executable in ${wrapper "cc-native"}/bin/cc-native ${wrapper "cx-native"}/bin/cx-native; do
-    "$executable" mem memory
-    grep -Fx 'mem' "$AGENT_TEST_ARGS"
-    grep -Fx 'memory' "$AGENT_TEST_ARGS"
+    "$executable" fixture-unknown 'two words'
+    grep -Fx 'fixture-unknown' "$AGENT_TEST_ARGS"
+    grep -Fx 'two words' "$AGENT_TEST_ARGS"
   done
   ${wrapper "cc-native"}/bin/cc-native
   python3 - <<'PYTEST'

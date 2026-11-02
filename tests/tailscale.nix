@@ -11,7 +11,10 @@ let
     imports = [
       ../nucleus/flake-module.nix
       ../modules/fleet/fleet.nix
-      ../modules/fleet/tailnet.nix
+      { flake.fleet.tailnets."0x04cc" = {
+        coordinationUrl = "https://coordination.example.test";
+        dnsSuffix = "tailnet.example.test";
+      }; }
       ../modules/features/tailscale.nix
       ../modules/aspects/tailnet-client.nix
     ];
@@ -40,6 +43,14 @@ let
 
   rawConfig = (mkConfig rawFixture.modules.nixos.tailscale).config;
   aspectConfig = (mkConfig aspectFixture.modules.nixos.tailnet-client).config;
+  customConfig = (inputs.unstable-nixpkgs.lib.nixosSystem {
+    inherit system;
+    modules = [
+      aspectFixture.modules.nixos.tailnet-client
+      userEnvironmentModule
+      { tailscale.loginServer = "https://override.example.test"; }
+    ];
+  }).config;
   tailnet = aspectFixture.fleet.tailnets."0x04cc";
 
   assertions = [
@@ -54,6 +65,20 @@ let
     {
       assertion = aspectConfig.tailscale.enable;
       message = "tailnet-client aspect did not enable the Tailscale feature";
+    }
+    {
+      assertion = !rawConfig.services.tailscale.enable
+        && rawConfig.userEnvironment.sharedModules == [ ];
+      message = "disabled Tailscale configured a daemon or attached user modules";
+    }
+    {
+      assertion = aspectConfig.services.tailscale.enable
+        && aspectConfig.services.tailscale.extraUpFlags == [ "--login-server=${tailnet.coordinationUrl}" ];
+      message = "tailnet-client did not configure the daemon to enroll against the fleet server";
+    }
+    {
+      assertion = customConfig.services.tailscale.extraUpFlags == [ "--login-server=https://override.example.test" ];
+      message = "tailnet-client forced fleet policy over a host refinement";
     }
     {
       assertion = aspectConfig.tailscale.loginServer == tailnet.coordinationUrl;

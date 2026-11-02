@@ -83,7 +83,7 @@ class JellybuilderTest(unittest.TestCase):
 
     def test_legacy_show_rule_receives_common_and_nfo_modules(self) -> None:
         episode = self.touch("Shows/Example/episode.mkv")
-        script = self.touch(
+        self.touch(
             "Shows/Example/jellylink.py",
             """
 import nfo
@@ -96,8 +96,6 @@ def process(here, output_root, overwrite):
     nfo.write_episode(output / "episode.nfo", "Episode", 1, 1)
 """,
         )
-        self.assertTrue(script.is_file())
-
         jellybuilder.process_shows(self.source, self.destination, overwrite=False)
 
         show = self.destination / "Shows/Example"
@@ -127,6 +125,45 @@ def process(here, output_root, overwrite):
             (self.destination / "Shows/Example/episode.mkv").resolve(), episode.resolve()
         )
         self.assertFalse((self.destination / "Shows/Shows").exists())
+
+    def test_link_collision_requires_explicit_overwrite(self) -> None:
+        source = self.touch("episode.mkv", "media")
+        destination = self.destination / "episode.mkv"
+        destination.write_text("keep me")
+
+        with self.assertRaises(FileExistsError):
+            jellybuilder.link_file(source, destination, overwrite=False)
+        self.assertEqual(destination.read_text(), "keep me")
+
+        jellybuilder.link_file(source, destination, overwrite=True)
+        self.assertTrue(destination.is_symlink())
+        self.assertEqual(destination.resolve(), source)
+        self.assertEqual(source.read_text(), "media")
+
+    def test_overwrite_cannot_remove_real_directories(self) -> None:
+        source = self.touch("episode.mkv")
+        destination = self.destination / "episode.mkv"
+        destination.mkdir()
+        protected = destination / "keep.txt"
+        protected.write_text("keep me")
+
+        with self.assertRaises(IsADirectoryError):
+            jellybuilder.link_file(source, destination, overwrite=True)
+        self.assertEqual(protected.read_text(), "keep me")
+
+    def test_cleanup_removes_only_dangling_links(self) -> None:
+        source = self.touch("episode.mkv")
+        live = self.destination / "live.mkv"
+        live.symlink_to(source)
+        stale = self.destination / "stale.mkv"
+        stale.symlink_to(self.source / "missing.mkv")
+        ordinary = self.destination / "keep.txt"
+        ordinary.write_text("keep me")
+
+        self.assertEqual(jellybuilder.remove_dangling_symlinks(self.destination), 1)
+        self.assertFalse(stale.is_symlink())
+        self.assertEqual(live.resolve(), source)
+        self.assertEqual(ordinary.read_text(), "keep me")
 
 
 if __name__ == "__main__":

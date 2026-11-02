@@ -12,6 +12,7 @@ let
   };
 
   disabled = (evaluate [ ]).config;
+  ordinary = (evaluate [ { steam-gaming.enable = true; } ]).config;
   enabled = (evaluate [ {
     steam-gaming = {
       enable = true;
@@ -26,11 +27,18 @@ let
       message = "steam-gaming unexpectedly enabled Steam by default";
     }
     {
+      assertion = ordinary.programs.steam.enable
+        && !ordinary.programs.steam.remotePlay.openFirewall
+        && !(ordinary.systemd.user.services ? preventSteamDumps)
+        && !(inputs.nixpkgs.lib.hasInfix "crash.steampowered.com" ordinary.networking.extraHosts);
+      message = "ordinary Steam activation applied opt-in ingress or crash suppression";
+    }
+    {
       assertion = enabled.programs.steam.enable && enabled.programs.steam.remotePlay.openFirewall;
       message = "steam-gaming did not enable Steam and Remote Play ingress";
     }
     {
-      assertion = builtins.match ".*crash\\.steampowered\\.com.*" enabled.networking.extraHosts != null;
+      assertion = inputs.nixpkgs.lib.hasInfix "0.0.0.0 crash.steampowered.com" enabled.networking.extraHosts;
       message = "steam-gaming did not suppress Steam crash-report uploads";
     }
     {

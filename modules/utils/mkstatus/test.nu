@@ -28,17 +28,20 @@ def main [script: path, template: path] {
   assert equal ($report.annotations | where scope == "empty" | first | get message) ""
   assert equal ($report.annotations | where scope == "unscoped" | first | get directory) "modules/nested"
   assert equal ($report.annotations | where scope == "secrets" | first | get message) "see [credential guidance](docs/credentials.md)"
-  let templateContents = ($template | open --raw)
-  assert ($templateContents | str contains 'renderMarkdownLinks(item.message)')
-  assert ($templateContents | str contains 'id="links"')
-  assert ($templateContents | str contains 'id="generated"')
-  assert ($templateContents | str contains 'generated ${data.generatedAt}')
-  assert ($templateContents | str contains 'id="repository-link"')
-  assert ($templateContents | str contains 'id="edit-repository"')
-  assert ($templateContents | str contains 'id="revision-link"')
-  assert ($templateContents | str contains 'id="edit-revision"')
-  assert ($templateContents | str contains "editRepository.disabled = localLinks")
-  assert ($templateContents | str contains 'src/commit/${encodeURIComponent(value)}')
+
+  # Exercise HTML generation, not the template's variable names. Comment
+  # text must survive JSON decoding without closing its enclosing script.
+  let hostile = '</script><script>alert("fixture")</script> & <tag>'
+  $"# ($todo)\(web\): ($hostile)\n" | save ($fixture | path join "modules" "hostile.nix")
+  let htmlOutput = ($fixture | path join "status.html")
+  ^nu $script --template $template --root $fixture --group directory --output $htmlOutput
+  let html = (open --raw $htmlOutput)
+  assert not ($html | str contains '__STATUS_DATA__')
+  assert not ($html | str contains $hostile)
+  let embedded = ($html | parse --regex '(?s)<script id="status-data" type="application/json">(?<data>.*?)</script>' | first | get data | from json)
+  assert equal $embedded.defaultGroup "directory"
+  assert equal $embedded.repository $report.repository
+  assert equal ($embedded.annotations | where scope == "web" | first | get message) $hostile
 
   let overridden = (^nu $script --template $template --root $fixture --format json --output $output --url "https://example.com/override" --rev "override" | complete)
   assert equal $overridden.exit_code 0
