@@ -125,6 +125,8 @@ let
         case "$shortcut" in
           nswitch)
             ${if isNixOnDroid then ''command=(nix-on-droid switch)'' else ''command=(sudo nixos-rebuild switch)''}
+            # Recheck mutable remote targets instead of reusing a stale fetch.
+            command+=(--option tarball-ttl 0)
             ;;
           nboot)
             ${if isNixOnDroid then ''printf 'nboot: nix-on-droid has no boot action\n' >&2; return 2'' else ''command=(sudo nixos-rebuild boot)''}
