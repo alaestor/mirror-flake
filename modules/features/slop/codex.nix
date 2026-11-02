@@ -69,6 +69,7 @@
       codexCaseArms = ''
         guard) context_guard=true ;;
         luna) model="gpt-6-luna" ;;
+        terra) model="gpt-6.1-terra" ;;
         sol) model="gpt-6.1-sol" ;;
         astra) model="gpt-6-astra" ;;
         lo|low) effort="low" ;;
@@ -151,7 +152,7 @@
               caseArms = codexCaseArms;
               helpFlag = "--cx-help";
               helpLines = [
-                "usage: ${name} [luna|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard] [--] [codex arguments...]"
+                "usage: ${name} [luna|terra|sol|astra] [lo|med|hi|xhi] [full|small] [user|auto|bypass] [guard] [--] [codex arguments...]"
                 "guard opts into context handoffs and compaction blocking; normal compaction is the default"
               ];
               argsVar = "passthrough";
