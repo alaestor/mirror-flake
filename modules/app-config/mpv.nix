@@ -5,7 +5,7 @@
 { config, inputs, ... }:
 let
   mpvModule =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
       # Keep the package-set boundary explicit. These alpkgs outputs are leaf
       # scripts/shaders; MPV and its compiled dependencies come from the
@@ -42,6 +42,22 @@ let
           (toString fontsConf)
         ];
         mpv-unwrapped = pkgs.mpv-unwrapped.override { ffmpeg = pkgs.ffmpeg-full; };
+      };
+
+      # Upstream uses bare executable names, which the wrapper library's
+      # store-path substitution leaves untouched. Pin desktop launches to this
+      # wrapper instead of whichever mpv the desktop session finds on PATH.
+      buildCommand.desktopEntry = {
+        after = [ "symlinkScript" ];
+        data = ''
+          desktopFile=${placeholder config.outputName}/share/applications/mpv.desktop
+          if [[ -e "$desktopFile" ]]; then
+            rm "$desktopFile"
+            substitute ${config.package}/share/applications/mpv.desktop "$desktopFile" \
+              --replace-fail 'Exec=mpv ' 'Exec=${config.wrapperPaths.placeholder} ' \
+              --replace-fail 'TryExec=mpv' 'TryExec=${config.wrapperPaths.placeholder}'
+          fi
+        '';
       };
 
       "mpv.conf".content = ''
