@@ -35,10 +35,10 @@
         follows = "android-nixpkgs";
       };
     };
-    url = "github:nix-community/home-manager/release-24.05";
+    url = "github:nix-community/home-manager/release-26.05";
   };
   android-nixpkgs = {
-    url = "github:NixOS/nixpkgs/nixos-24.05";
+    url = "github:NixOS/nixpkgs/nixos-26.05";
   };
   cryptid-nixpkgs = {
     url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";

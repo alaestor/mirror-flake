@@ -1,10 +1,10 @@
 /** Declares the nix-on-droid flake input and its pinned nixpkgs/Home Manager pair, for noblesse. */
 {
   nucleus.inputs = {
-    android-nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    android-nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
     android-home-manager = {
-      url = "github:nix-community/home-manager/release-24.05";
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "android-nixpkgs";
     };
 
