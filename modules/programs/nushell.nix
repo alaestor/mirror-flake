@@ -32,6 +32,7 @@
 
       programs.nushell = {
         enable = lib.mkDefault true;
+        loadSessionVariables = lib.mkDefault true;
         environmentVariables = config.home.sessionVariables;
         settings = {
           show_banner = lib.mkDefault false;
