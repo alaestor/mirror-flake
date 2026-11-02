@@ -2,7 +2,7 @@
 { config, ... } : {
 
   nucleus.inputs = {
-    stable-nixpkgs.url   = "nixpkgs/nixos-${config.flake.fleet.channels.stable}";
+    stable-nixpkgs.url   = "https://channels.nixos.org/nixos-${config.flake.fleet.channels.stable}/nixexprs.tar.zst";
     unstable-nixpkgs.follows = "nixpkgs";
   };
 

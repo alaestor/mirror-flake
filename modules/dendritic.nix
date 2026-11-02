@@ -8,7 +8,7 @@
   nucleus = {
     enable = true;
     description = "Alaestor Weissman's personal flake";
-    inputs.nixpkgs.url = "nixpkgs/nixos-unstable";
+    inputs.nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
     inputs.flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";

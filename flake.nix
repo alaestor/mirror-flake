@@ -38,7 +38,7 @@
     url = "github:nix-community/home-manager/release-26.05";
   };
   android-nixpkgs = {
-    url = "github:NixOS/nixpkgs/nixos-26.05";
+    url = "https://channels.nixos.org/nixos-26.05/nixexprs.tar.zst";
   };
   cryptid-nixpkgs = {
     url = "nixpkgs/4c1018dae018162ec878d42fec712642d214fdfa";
@@ -114,7 +114,7 @@
     url = "github:BirdeeHub/nix-wrapper-modules";
   };
   nixpkgs = {
-    url = "nixpkgs/nixos-unstable";
+    url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
   };
   plasma-manager = {
     inputs = {
@@ -136,7 +136,7 @@
     url = "github:nix-community/home-manager/release-26.05";
   };
   stable-nixpkgs = {
-    url = "nixpkgs/nixos-26.05";
+    url = "https://channels.nixos.org/nixos-26.05/nixexprs.tar.zst";
   };
   unstable-home-manager = {
     inputs = {
