@@ -8,6 +8,7 @@
   nucleus.inputs.firefox-extensions-declarative = {
     url = "git+https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative";
     inputs.nixpkgs.follows = "unstable-nixpkgs";
+    inputs.flake-parts.follows = "flake-parts";
   };
 
   flake.modules.homeManager.librewolf =

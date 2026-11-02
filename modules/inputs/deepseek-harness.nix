@@ -10,5 +10,6 @@
   nucleus.inputs.deepseek-harness = {
     url = "github:Moraxyc/deepseek-harness.nix";
     inputs.nixpkgs.follows = "nixpkgs";
+    inputs.flake-parts.follows = "flake-parts";
   };
 }

@@ -45,6 +45,9 @@
   };
   deepseek-harness = {
     inputs = {
+      flake-parts = {
+        follows = "flake-parts";
+      };
       nixpkgs = {
         follows = "nixpkgs";
       };
@@ -61,6 +64,9 @@
   };
   firefox-extensions-declarative = {
     inputs = {
+      flake-parts = {
+        follows = "flake-parts";
+      };
       nixpkgs = {
         follows = "unstable-nixpkgs";
       };
