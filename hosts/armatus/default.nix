@@ -7,6 +7,6 @@
   ];
 
   homeManager = [
-    ./home/user.nix
+    (import ./home/user.nix { inherit inputs; })
   ];
 }

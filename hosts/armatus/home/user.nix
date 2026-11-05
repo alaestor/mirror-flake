@@ -1,3 +1,4 @@
+{ inputs }:
 { lib, pkgs, ... }:
 {
   deepseek-harness.enableSandbox = false;
@@ -6,10 +7,10 @@
   # armatus than on other builders.
   programs.librewolf.profiles.default.extensions.packages = lib.mkForce [ ];
 
-  home.packages = with pkgs; [
+  home.packages = (with pkgs; [
     chromium
     keepassxc
     lmstudio
     obsidian
-  ];
+  ]) ++ [ inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}.jellium-desktop ];
 }
