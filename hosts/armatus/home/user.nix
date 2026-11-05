@@ -7,7 +7,9 @@
   programs.librewolf.profiles.default.extensions.packages = lib.mkForce [ ];
 
   home.packages = with pkgs; [
+    chromium
     keepassxc
     lmstudio
+    obsidian
   ];
 }

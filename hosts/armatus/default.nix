@@ -1,9 +1,9 @@
-{ ... }:
+{ inputs, ... }:
 {
   nixos = [
     ./hardware.nix
     ./networking.nix
-    ./system.nix
+    (import ./system.nix { inherit inputs; })
   ];
 
   homeManager = [

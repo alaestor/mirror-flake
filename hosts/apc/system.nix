@@ -69,7 +69,11 @@ in
 
   serve.nix-cache.enable = true;
 
-  ssh-host.authorizedKeys = [ inputs.self.data.vars.sshClientPublicKeys.noblesse ];
+  ssh-host.authorizedKeys = [
+    inputs.self.data.vars.sshClientPublicKeys.noblesse
+    # TODO: Temporary; remove Armatus access when no longer needed
+    inputs.self.data.vars.sshClientPublicKeys.armatus
+  ];
 
   environment = {
     sessionVariables.NIXOS_OZONE_WL = "1";

@@ -1,3 +1,4 @@
+{ inputs }:
 { config, ... }:
 let
   username = config.hostIdentity.primaryUser;
@@ -5,6 +6,7 @@ in
 {
   ssh-host = {
     allowUsers = [ username ];
+    authorizedKeys = [ inputs.self.data.vars.sshClientPublicKeys.apc ];
     initrd.enable = true;
   };
 

@@ -31,6 +31,7 @@ in
       auto-login
       crypto-yubikey
       hifi-audio
+      local-cache
       nas
       ssh-client
       ssh-host
