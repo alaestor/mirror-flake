@@ -14,6 +14,8 @@
 
   services.xserver.videoDrivers = [ "nvidia" ];
   hardware = {
+    # TODO: confirm or diagnose wifi
+    enableRedistributableFirmware = true;
     cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
     nvidia = {
       modesetting.enable = true;
