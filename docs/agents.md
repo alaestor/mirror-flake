@@ -187,6 +187,11 @@ They are not directive names. The Codex guest wrapper recreates their links
 on launch and removes links left by older generations without replacing
 user-owned skills.
 
+Codex disables the bundled skill-creator through `skills.config` in
+`data/programs/codex/config.toml` to avoid loading its long authoring instructions
+for small skill edits. Its source remains available for explicit inspection.
+Home Manager activation and a new session apply this setting.
+
 Both harnesses call the same resolver at `UserPromptSubmit`. Claude registers
 it through Home Manager; Codex registers it in managed system configuration,
 where a store-backed hook can run without a per-generation trust prompt. The

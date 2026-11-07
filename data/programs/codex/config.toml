@@ -72,5 +72,9 @@ path = "/home/user/.codex/skills/.system/plugin-creator/SKILL.md"
 enabled = false
 
 [[skills.config]]
+path = "/home/user/.codex/skills/.system/skill-creator/SKILL.md"
+enabled = false
+
+[[skills.config]]
 path = "/home/user/.codex/skills/.system/skill-installer/SKILL.md"
 enabled = false

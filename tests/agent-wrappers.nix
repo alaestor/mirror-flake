@@ -172,6 +172,11 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 pkgs.
   python3 - <<'PY'
   import json, pathlib, tomllib
   config = tomllib.loads(pathlib.Path('guest-home/.codex/config.toml').read_text())
+  assert any(
+      entry['path'] == '/home/agent-fixture/.codex/skills/.system/skill-creator/SKILL.md'
+      and entry['enabled'] is False
+      for entry in config['skills']['config']
+  ), 'bundled skill-creator must stay disabled'
   expected = json.loads(pathlib.Path('${expectedRoles}').read_text())
   assert config['features']['multi_agent_v2'] is True
   assert set(config['agents']) == set(expected['roles'])
