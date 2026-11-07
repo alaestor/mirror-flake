@@ -49,6 +49,7 @@
   lib,
   self,
   inputs,
+  config,
   ...
 }:
 let
@@ -140,15 +141,7 @@ let
     ++ (with alpkgsFor pkgs; [
       readability-cli
     ])
-    ++ [ (projectMemory pkgs) ];
-
-  projectMemory =
-    pkgs:
-    pkgs.writeShellApplication {
-      name = "project-memory";
-      runtimeInputs = with pkgs; [ git taplo jq coreutils ];
-      text = builtins.readFile (self.data.path "agents/project-memory.sh");
-    };
+    ++ [ (config.flake.lib.agents.memory pkgs) ];
 
   toolsMarkdown =
     pkgs:
@@ -176,17 +169,7 @@ let
       never when exact values or syntax are needed.
     '';
 
-    memory = ''
-      # Project memory
-
-      The session starts with a listing of filenames and triggers from
-      `.agents/memory/*.toml` in the project root, when any exist. Open a
-      relevant memory with `project-memory read <name>`; that prints only its
-      content. A trigger says when to read a memory, not what the content says. Use
-      `project-memory new|edit|delete <name>` to maintain memories. Do not put
-      secrets or transient session notes here. Git tracking is the project's
-      choice.
-    '';
+    memory = self.data.read "agents/memory/prompts/session-start.md";
 
   };
 
@@ -209,6 +192,7 @@ let
     } (self.data.read "agents/context-guard.py");
 
   skills = {
+    memory = self.data.path "agents/skills/memory";
     docs = self.data.path "agents/skills/prose/docs";
     unslop = self.data.path "agents/skills/prose/unslop";
     general-testing = self.data.path "agents/skills/general-testing";
@@ -335,6 +319,7 @@ let
     # because virtiofs shares directories rather than individual files.
     claude = {
       stateDirs = [
+        ".agents/memory"
         ".claude"
         ".cache/claude-cli-nodejs"
       ];
@@ -346,6 +331,7 @@ let
     # Codex must stay on a guest-local filesystem because its SQLite databases
     # use WAL.
     codex = {
+      stateDirs = [ ".agents/memory" ];
       localStateDirs = [
         {
           directory = ".codex";
@@ -367,7 +353,7 @@ let
     in
     {
       stateDirs = map (directory: "${home}/${directory}") (
-        lib.concatMap (harness: harness.stateDirs or [ ]) selected
+        lib.unique (lib.concatMap (harness: harness.stateDirs or [ ]) selected)
       );
       localStateDirs = map (
         entry: builtins.removeAttrs entry [ "directory" ] // { path = "${home}/${entry.directory}"; }
@@ -556,7 +542,6 @@ in
       codexDirectiveHook
       codexGuardHookKeys
       codexHookConfig
-      projectMemory
       mkPrompt
       harnesses
       vmContributionsFor

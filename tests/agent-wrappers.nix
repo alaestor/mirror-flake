@@ -78,7 +78,10 @@ assert cfg.programs.claude-code.skills == agents.skills;
 assert builtins.all (path: builtins.pathExists "${path}/SKILL.md") (
   builtins.attrValues agents.skills
 );
-pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+assert pkgs.lib.count (path: path == "/home/fixture/.agents/memory") (
+  agents.stateDirsFor "/home/fixture" [ "claude" "codex" ]
+) == 1;
+pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 pkgs.git ]; } ''
   ${pkgs.lib.concatMapStringsSep "\n" (package: ''
     ${package}/bin/${package.name} --${
       if pkgs.lib.hasPrefix "cc" package.name then "cc" else "cx"
@@ -235,5 +238,20 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 ]; } 
     echo 'wrapper injected an MCP server' >&2
     exit 1
   fi
+  # Discovery is delivered through each vendor's real prompt argument.
+  git init --quiet memory-project
+  printf 'A reproducible packaging constraint.\n' > memory-draft.md
+  ${pkgs.lib.getExe (agents.memory pkgs)} --project-root "$PWD/memory-project" \
+    add project:integration \
+    --trigger 'When packaging the fixture' --file memory-draft.md
+  for executable in ${wrapper "cc-native"}/bin/cc-native ${wrapper "cx-native"}/bin/cx-native; do
+    (cd memory-project && "$executable")
+    python3 - <<'PY'
+  from pathlib import Path
+  args = Path('args').read_text()
+  assert 'project:integration' in args
+  assert 'When packaging the fixture' in args
+  PY
+  done
   touch "$out"
 ''

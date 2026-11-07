@@ -141,10 +141,20 @@ run at `UserPromptSubmit`, may change
 files, and can inject their stdout as context. Keep their dispatch out of
 vendor skill definitions; see `docs/agents.md` before extending them. The
 harnesses register a small, explicit set of model-invocable skills for
-documentation, prose, testing, Git, and flake-parts. Other migrated procedures run only
-when explicitly invoked as directives. Codex's NixOS-managed hook is a fixed
+documentation, prose, testing, Git, flake-parts, and memory. Other migrated
+procedures run only when explicitly invoked as directives. Codex's NixOS-managed hook is a fixed
 shim; its current directive package comes from the Home Manager wrapper, so
 ordinary directive edits need a Home Manager activation, not a system rebuild.
+
+Agent memory is a shared mechanism, packaged from `data/agents/memory/`.
+Read `docs/memory.md` before changing it. Keep task-specific instructions in its
+named Markdown prompts rather than embedding prose in CLI or Nix code. The CLI
+owns budgets and publication; agents own editorial judgment. Memory directories
+may contain supporting files and optional check scripts, which never execute
+automatically. Do not introduce a verifier registry or confirmation lifecycle.
+Substantial curation uses a fresh-context read-only subagent when available and permitted,
+with the parent reviewing and applying proposals. Never silently migrate old
+TOML notes or introduce a competing vendor memory store.
 
 ### Hosted services and domains
 

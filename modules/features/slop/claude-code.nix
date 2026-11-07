@@ -295,8 +295,8 @@
             # flags — only the last one takes effect — so every appended
             # block has to be concatenated into a single call.
             append_prompt=${lib.escapeShellArg resolvedPrompt.preamble}
-            project_memories="$(${lib.getExe (agents.projectMemory pkgs)} list)"
-            [[ -z "$project_memories" ]] || append_prompt+=$'\n\n# Available project memories\n'"$project_memories"
+            project_memories="$(${lib.getExe (agents.memory pkgs)} session)"
+            [[ -z "$project_memories" ]] || append_prompt+=$'\n\n# Memory discovery\n'"$project_memories"
             if [[ "$prompt" != "full" ]]; then
               claude_args+=( --system-prompt-file ${lib.escapeShellArg (toString resolvedPrompt.system)} )
               append_prompt="$(cc_environment_block)"$'\n\n'"$append_prompt"

@@ -178,11 +178,11 @@ These composed directives do not call a vendor Skill tool. The two
 Deprecated Nix skills have no directive replacement. The unused `speaking`
 skill is absent because these harnesses do not provide a Speak tool.
 
-Both harnesses register six model-invocable skills: `docs`, `unslop`,
+Both harnesses register seven model-invocable skills: `docs`, `unslop`,
 `general-testing`,
-`git-conventional-commits`, `git-howto-change-commit-message-history`, and
-`nix-flake-component-flake-parts`. Their source files remain under
-`data/agents/skills/`; `flake.lib.agents.skills` selects only these six.
+`git-conventional-commits`, `git-howto-change-commit-message-history`,
+`nix-flake-component-flake-parts`, and `memory`. Their source files remain under
+`data/agents/skills/`; `flake.lib.agents.skills` selects these seven.
 They are not directive names. The Codex guest wrapper recreates their links
 on launch and removes links left by older generations without replacing
 user-owned skills.
@@ -215,21 +215,27 @@ shared VM. An explicitly native session does not gain that isolation, so only
 trusted Nix-packaged programs belong in the catalogue. Vendor skills do not
 provide directive dispatch.
 
-## Project memory
+## Agent memory
 
-Project notes use `.agents/memory/<name>.toml` at the repository root. The
-`project-memory` command works in either harness. Each
-file has a short `trigger` describing when to open it and a Markdown `content`
-stored as a multiline TOML literal string. At session start the wrappers add
-only filenames and triggers to the prompt, capped at 30 entries and 200
-characters per trigger. Agents read relevant content with
-`project-memory read <name>`; the command returns content alone. Use
-`project-memory new|edit|delete <name>` to maintain files. The command uses
-`$EDITOR` and validates TOML before replacing an existing memory. It does not
-maintain an index. Projects decide whether to track `.agents/memory/` in Git;
-this repository ignores dot-directories by default. Keep secrets and session
-handoffs out of project memory. Claude's own auto-memory is disabled in its
-Home Manager settings, so it cannot silently create a competing store.
+Both harnesses expose the shared `memory` CLI and inject its complete scoped
+index at session start. Project knowledge lives under `.agents/memory/` at the
+project root; global knowledge lives under `~/.agents/memory/`, contributed by
+the harness layer as shared VM state. Neither scope silently shadows the other.
+Claude's vendor auto-memory is disabled to avoid a competing store.
+
+The CLI owns deterministic admission budgets, revision-safe publication,
+telemetry, and maintenance findings. Memories own directories with a README,
+metadata, and optional supporting files. Agents own admission judgment, manual
+checks of remembered assumptions, curation, and promotion proposals. Attached
+scripts never run automatically. Substantial curation can use a
+fresh-context read-only subagent; the parent reviews and applies its proposals.
+The tool never launches a model or interrupts a task to perform curation.
+
+Editable prompts live under `data/agents/memory/prompts/`; the memory skill
+points to their CLI-rendered procedures. See [Agent memory](memory.md) for
+storage, quotas, human inspection, deletion, and validation. The old TOML store
+and `project-memory` CLI are no longer supported. Keep secrets and session
+handoffs out of memory. Projects decide whether to track their store in Git.
 
 ## Codex status display
 

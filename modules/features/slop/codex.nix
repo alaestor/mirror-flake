@@ -172,9 +172,9 @@
             }
             codex_args+=( -c "''${guard_state//GUARD_ENABLED/$context_guard}" )
             ${mkOverrideArgs baseOverrides}
-            project_memories="$(${lib.getExe (agents.projectMemory pkgs)} list)"
+            project_memories="$(${lib.getExe (agents.memory pkgs)} session)"
             session_instructions=${lib.escapeShellArg resolvedPrompts.plain.preamble}
-            [[ -z "$project_memories" ]] || session_instructions+=$'\n\n# Available project memories\n'"$project_memories"
+            [[ -z "$project_memories" ]] || session_instructions+=$'\n\n# Memory discovery\n'"$project_memories"
             codex_args+=( -c "developer_instructions=$(jq -Rn --arg text "$session_instructions" '$text')" )
 
             if [[ -n "$model" ]]; then
