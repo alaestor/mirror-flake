@@ -11,6 +11,7 @@ let
       # scripts/shaders; MPV and its compiled dependencies come from the
       # consumer's pkgs.
       alpkgs = inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system};
+      copyPasteTime = inputs.mpv-copyPasteTime.packages.${pkgs.stdenv.hostPlatform.system};
       modernx = pkgs.mpvScripts.modernx-zydezu;
       fontsConf = pkgs.makeFontsConf {
         # Must include fontconfig's own conf.d: it carries the generic-family
@@ -315,12 +316,18 @@ let
         pkgs.mpvScripts.quack
         pkgs.mpvScripts.videoclip
         alpkgs.mpv-cycleCommands
-        alpkgs.mpv-clipboard
-        alpkgs.mpv-copyPasteTime
+        copyPasteTime.mpv-clipboard
+        copyPasteTime.mpv-copyPasteTime
       ]);
     };
 in
 {
+  nucleus.inputs.mpv-copyPasteTime = {
+    url = "git+https://git.0x04.cc/alaestor/mpv-copyPasteTime.git";
+    inputs.nixpkgs.follows = "nixpkgs";
+    inputs.flake-parts.follows = "flake-parts";
+  };
+
   flake.wrappers = {
     mpv = mpvModule;
     mpv-software = {

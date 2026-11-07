@@ -368,6 +368,29 @@
         "type": "github"
       }
     },
+    "mpv-copyPasteTime": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794070317,
+        "narHash": "sha256-pmTgpfomjW5nTFuV1yZyC3/ZDuaMw7Jy+LhxH63Rt9M=",
+        "ref": "refs/heads/main",
+        "rev": "903c17a90828c6bdd1ca2b797b8ee9cdfb0a182c",
+        "revCount": 75,
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/mpv-copyPasteTime.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.0x04.cc/alaestor/mpv-copyPasteTime.git"
+      }
+    },
     "nix-auto-ci": {
       "inputs": {
         "actions-nix": [
@@ -594,6 +617,7 @@
         "flake-parts": "flake-parts",
         "impermanence": "impermanence",
         "microvm": "microvm",
+        "mpv-copyPasteTime": "mpv-copyPasteTime",
         "nix-on-droid": "nix-on-droid",
         "nix-wrapper-modules": "nix-wrapper-modules",
         "nixpkgs": "nixpkgs",

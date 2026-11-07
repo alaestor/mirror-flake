@@ -100,6 +100,17 @@
     };
     url = "github:microvm-nix/microvm.nix";
   };
+  mpv-copyPasteTime = {
+    inputs = {
+      flake-parts = {
+        follows = "flake-parts";
+      };
+      nixpkgs = {
+        follows = "nixpkgs";
+      };
+    };
+    url = "git+https://git.0x04.cc/alaestor/mpv-copyPasteTime.git";
+  };
   nix-on-droid = {
     inputs = {
       home-manager = {
