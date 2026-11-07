@@ -29,7 +29,7 @@ Create standardized, semantic git commits using the Conventional Commits specifi
 | `fix`      | Bug fix                        |
 | `docs`     | Documentation only             |
 | `style`    | Formatting/style (no logic)    |
-| `refactor` | Code refactor (no feature/fix) |
+| `refactor` | Internal restructuring with unchanged behavior and public contracts |
 | `perf`     | Performance improvement        |
 | `test`     | Add/update tests               |
 | `build`    | Build system/dependencies      |
@@ -37,17 +37,22 @@ Create standardized, semantic git commits using the Conventional Commits specifi
 | `chore`    | Maintenance/misc               |
 | `revert`   | Revert commit                  |
 
-## Breaking Changes
+## Breaking changes
 
+Mark breaking changes with `!` after the type or scope:
+
+```text
+feat(agents)!: replace the memory CLI
 ```
-# Exclamation mark after type/scope
-feat!: remove deprecated endpoint
 
-# BREAKING CHANGE footer
-feat: allow config to extend other configs
+The exclamation point is sufficient. Omit a `BREAKING CHANGE` footer when it
+would only repeat the subject or body. Include one only when it adds useful
+compatibility or migration details. A body is optional too; do not add filler.
 
-BREAKING CHANGE: `extends` key behavior changed
-```
+In this workflow, refactors preserve behavior and public contracts by definition.
+Never use `refactor!` or a `BREAKING CHANGE` footer with `refactor`. If a change
+breaks compatibility, classify it by its actual purpose, such as `feat` or `fix`,
+rather than calling it a refactor.
 
 ## Workflow
 
