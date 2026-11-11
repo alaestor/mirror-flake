@@ -462,11 +462,6 @@ let
         openssh.authorizedKeys.keys = authorizedKeys;
       };
 
-      # ssh from a modern terminal (ghostty, kitty, foot) otherwise lands in a
-      # guest that has never heard of $TERM, and every program that asks
-      # ncurses for a screen size — `systemctl status` above all — prints
-      # "unknown terminal type" and nothing else. The terminfo database is in
-      # the shared host store, so this costs the guest nothing to carry.
       # Opaque to this layer by construction: the caller says
       # `CLAUDE_CONFIG_DIR = ...`, this writes it out, and the VM never
       # learns which harness cares. `mkDefault` so a guest-side module (a
@@ -483,9 +478,9 @@ let
       # system-level config file or why.
       environment.etc = lib.mapAttrs (_: source: { inherit source; }) guestEtc;
 
-      # WORKAROUND(err): rxvt-unicode package fails to build
-      # TODO(err): delete if workaround works
-      # environment.enableAllTerminfo = true;
+      # Recognize terminal types forwarded over SSH, including Ghostty and Kitty.
+      environment.enableAllTerminfo = true;
+
       # The credential path never enters the store. The materialization service
       # fails closed: sshd is required by it and cannot generate an unpinned key.
       systemd.tmpfiles.rules =
