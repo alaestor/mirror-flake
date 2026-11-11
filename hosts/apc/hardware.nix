@@ -74,7 +74,7 @@
     gpgSmartcards.enable = true;
   };
 
-  # TODO(apc): legacy rocm hip rule; still needed?
+  # Compatibility link for software that expects HIP at /opt/rocm/hip.
   systemd.tmpfiles.rules = [
     "L+    /opt/rocm/hip   -    -    -     -    ${pkgs.rocmPackages.clr}"
   ];
