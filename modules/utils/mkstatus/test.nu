@@ -8,6 +8,11 @@ def main [script: path, template: path] {
   let note = ("NO" + "TE")
   ($"# ($todo)" + "(secrets): see [credential guidance](docs/credentials.md)\nvalue = true; # " + $warn + "(security): accepted risk\n# " + $note + "(architecture): intentional design\n# " + $note + "(empty)\n# ordinary comment\n") | save ($fixture | path join "modules" "sample.nix")
   $"// ($todo): nested task\nlet text = \"($todo): not a comment\";\n" | save ($fixture | path join "modules" "nested" "sample.js")
+  [
+    'See https://todo.example.org for the issue tracker.'
+    '# NOTEWORTHY is not an annotation.'
+    '# WARNING is not an annotation.'
+  ] | str join (char newline) | save ($fixture | path join "prose.md")
   ^git -C $fixture init --quiet
   ^git -C $fixture config user.email "test@example.com"
   ^git -C $fixture config user.name "mkstatus test"

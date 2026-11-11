@@ -63,7 +63,7 @@ def print-link-warnings [root: path, revision: string] {
 }
 
 def scan [root: path] {
-  let pattern = '(?i)(?:#|//|--|;|/\*+|\*|<!--)\s*(TODO|WARN|NOTE)(?:\(([A-Za-z0-9][A-Za-z0-9._-]*)\))?\s*:?\s*(.*?)\s*(?:-->)?$'
+  let pattern = '(?i)(?:#|//|--|;|/\*+|\*|<!--)\s*(TODO|WARN|NOTE)(?:\(([A-Za-z0-9][A-Za-z0-9._-]*)\))?(?:(?:\s*:\s*|\s+)(.*?))?\s*(?:-->)?$'
   let result = (^rg --json --line-number --no-heading --color never $pattern $root | complete)
   if $result.exit_code not-in [0 1] {
     error make {msg: ($result.stderr | str trim)}
