@@ -33,6 +33,9 @@ let
           script = import "${scriptDirectory}/${fileName}" {
             inherit inputs nixpkgsAllowUnfree pkgs;
             inherit isNixOnDroid;
+            fetchPrograms = if includePrograms then {
+              inherit (config.programs) fastfetch hyfetch;
+            } else null;
             tailnetDomain = config.standard-terminal.tailscale.domain;
           };
         in
@@ -43,14 +46,6 @@ let
       ) (lib.filterAttrs (fileName: fileType: fileType == "regular" && lib.hasSuffix ".nix" fileName) (
         builtins.readDir scriptDirectory
       )));
-
-      # processed "uwu" themed fastfetch config (inserts ascii art)
-      customLogoPath = self.data.vars.textart.boykisser;
-      fastfetchUwuSettingsPath = pkgs.writeText "fastfetch-uwu.json" (
-        builtins.replaceStrings [ "__NIX_REPLACED_LOGO_PATH__" ] [ (toString customLogoPath) ] (
-          self.data.read "features/standard-terminal/fastfetch_uwu.json"
-        )
-      );
 
     in
     {
@@ -159,22 +154,6 @@ let
               };
 
               nushell.extraConfig = lib.mkAfter ''
-                def --wrapped ff [...args] {
-                  fastfetch ...$args
-                }
-
-                def --wrapped ffuwu [...args] {
-                  fastfetch -c ${fastfetchUwuSettingsPath} ...$args
-                }
-
-                def --wrapped hy [...args] {
-                  hyfetch ...$args
-                }
-
-                def --wrapped hyuwu [...args] {
-                  hyfetch --ascii-file ${customLogoPath} ...$args --args "-c ${fastfetchUwuSettingsPath}"
-                }
-
                 if $nu.is-interactive {
                   clear
                 }

@@ -54,9 +54,6 @@
         };
       };
 
-      programs.nushell.shellAliases = {
-        lola = lib.mkDefault "git log --graph --decorate --pretty=oneline --abbrev-commit --all";
-        lolno = lib.mkDefault "git reset --mixed HEAD~1";
-      };
+      programs.nushell.shellAliases.lolno = lib.mkDefault "git reset --mixed HEAD~1";
     };
 }
