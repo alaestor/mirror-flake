@@ -212,6 +212,12 @@ Administrative hardware-token stubs are convenience artifacts, not exportable
 private-key backups. Deploying a stub still requires the corresponding token to
 perform cryptographic operations.
 
+The NixOS `crypto` aspect imports the `yubikey` feature, which installs token
+tooling and deploys administrative stubs for the host's primary user by default.
+Set `yubikey.administrativeStubs.enable = false` for tooling alone. The feature
+owns deployment paths and permissions; `self.secrets` supplies the encrypted
+material descriptors.
+
 ## Stable host identities
 
 System and initrd host identities are long-lived state. Reinstallation must

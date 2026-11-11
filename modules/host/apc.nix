@@ -26,7 +26,7 @@ in
       (with inputs.self.modules.nixos; [
         agent-vm
         auto-login
-        crypto-yubikey
+        crypto
         hifi-audio
         kde
         memory-manager

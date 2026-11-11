@@ -29,7 +29,7 @@ in
       tailnet-client
       kde
       auto-login
-      crypto-yubikey
+      crypto
       hifi-audio
       local-cache
       nas

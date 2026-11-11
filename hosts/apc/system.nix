@@ -65,8 +65,6 @@ in
     lifecycle.lingerSeconds = 10 * 60;
   };
 
-  crypto-yubikey.administrativeStubs.enable = true;
-
   serve.nix-cache.enable = true;
 
   ssh-host.authorizedKeys = [
