@@ -32,7 +32,6 @@
 
       programs.nushell = {
         enable = lib.mkDefault true;
-        loadSessionVariables = lib.mkDefault true;
         environmentVariables = config.home.sessionVariables;
         settings = {
           show_banner = lib.mkDefault false;
@@ -58,6 +57,8 @@
           ${passwordHelper}
           ${flakeHelper}
         '';
+      } // lib.optionalAttrs (options.programs.nushell ? loadSessionVariables) {
+        loadSessionVariables = lib.mkDefault true;
       };
     };
 }

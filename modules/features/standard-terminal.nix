@@ -4,11 +4,10 @@
   file must return a script declaration whose name and package name match its
   filename. Declarations can disable themselves from their supplied context.
 
-  # TODO(workaround): try nushell config with newer pinnned nixpkgs
   `flake.modules.homeManager.standard-terminal-tailnet` is the dormant option
   interface declaring `standard-terminal.tailscale.domain`; the Tailscale
-  feature imports it to supply the suffix. The Nix-on-Droid adapter provides Nushell and these script packages, but
-  omits other program integrations unavailable from its pinned Home Manager.
+  feature imports it to supply the suffix. The Nix-on-Droid adapter shares the
+  terminal programs and Nushell configuration, but omits Ghostty.
   Bash and Nushell functions adapt the external ncd helper so it can change
   the current shell's directory to the cached local flake root.
 */
@@ -186,10 +185,9 @@ in
     userEnvironment.sharedModules = [
       (mkHomeModule {
         includeGhostty = false;
-        includePrograms = false;
+        includePrograms = true;
         isNixOnDroid = true;
       })
-      { programs.nushell.enable = true; }
     ];
   };
 }

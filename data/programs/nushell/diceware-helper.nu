@@ -22,7 +22,7 @@ def pw [
       | enumerate
       | each { |row|
           match ($capitalized | any { |index| $index == $row.index }) {
-            true => ($row.item | str uppercase),
+            true => ($row.item | str upcase),
             false => $row.item,
           }
         }
