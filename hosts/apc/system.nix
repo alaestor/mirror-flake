@@ -142,7 +142,6 @@ in
   # here, and doing so as hard values only worked because they happened to
   # match.
   nix.settings = {
-    download-buffer-size = 524288000 * 2; # TODO(global): download-buffer-size
     allowed-users = [
       "@wheel"
       # The agent VM's nix daemon channel connects as this account. It is
