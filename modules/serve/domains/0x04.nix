@@ -1,8 +1,14 @@
 /**
   Public 0x04.cc domain composition: static site, Matrix, Cinny, Headscale,
   and Forgejo (with its Cerberus challenge-page exemption).
+
+  Headscale and Headplane advertise the fleet's coordination URL only when
+  enabled. Tailnet DNS policy remains a host concern.
 */
-{ inputs, ... }:
+{ config, inputs, ... }:
+let
+  coordinationUrl = config.flake.fleet.tailnets."0x04cc".coordinationUrl;
+in
 {
   flake.modules.nixos.domain-0x04 =
     { config, lib, ... }:
@@ -74,6 +80,14 @@
           443
         ]
         ++ lib.optional matrixEnabled 8448;
+
+      services.headscale.settings.server_url = lib.mkIf headscaleEnabled (
+        lib.mkDefault coordinationUrl
+      );
+      services.headplane.settings = lib.mkIf headscaleEnabled {
+        server.base_url = lib.mkDefault coordinationUrl;
+        headscale.public_url = lib.mkDefault coordinationUrl;
+      };
 
       services.caddy.virtualHosts = lib.optionalAttrs (staticSiteEnabled || matrixEnabled) {
         "${domain}".extraConfig = ''

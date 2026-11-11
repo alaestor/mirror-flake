@@ -172,6 +172,18 @@ let
       message = "domain-0x04cc Headscale ingress differs from ports 80 and 443";
     }
     {
+      assertion = domainHeadscale.services.headscale.settings.server_url == "https://headscale.0x04.cc"
+        && (domainHeadscale.services.headplane.settings.server.base_url or null) == "https://headscale.0x04.cc"
+        && (domainHeadscale.services.headplane.settings.headscale.public_url or null) == "https://headscale.0x04.cc";
+      message = "domain-0x04 did not configure the public URLs for Headscale and Headplane";
+    }
+    {
+      assertion = (domainDisabled.services.headscale.settings.server_url or null) != "https://headscale.0x04.cc"
+        && (domainDisabled.services.headplane.settings.server.base_url or null) != "https://headscale.0x04.cc"
+        && (domainDisabled.services.headplane.settings.headscale.public_url or null) != "https://headscale.0x04.cc";
+      message = "domain-0x04 configures Headscale public URLs while the service is disabled";
+    }
+    {
       assertion = domainMatrix.services.matrix-tuwunel.enable;
       message = "domain-0x04cc did not configure Matrix when enabled";
     }

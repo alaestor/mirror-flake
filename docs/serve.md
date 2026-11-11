@@ -88,7 +88,9 @@ Every route, virtual host, and port must be conditional on the corresponding
 produce no public listener and no workload.
 
 Domain modules may set values intrinsic to the public composition, such as a
-protocol's public server name. Concrete storage locations, network topology,
+protocol's public server name or advertised URL, guarded by the service's enable
+option. Consume shared fleet facts when the same public address is used by
+clients. Tailnet DNS policy, concrete storage locations, network topology,
 credentials, and one-machine exceptions remain host-owned.
 
 Name a domain module after the site or property it composes, not its TLD.

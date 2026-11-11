@@ -109,8 +109,7 @@ in
   };
 
   services = {
-    headscale.settings = { # TODO(domains): delegate headscale subdomain config to domain
-      server_url = tailnet.coordinationUrl;
+    headscale.settings = {
       dns = {
         magic_dns = true;
         base_domain = tailnet.dnsSuffix;
@@ -121,11 +120,6 @@ in
         ];
       };
       trusted_proxies = [ "127.0.0.1/32" ];
-    };
-
-    headplane.settings = {
-      server.base_url = tailnet.coordinationUrl;
-      headscale.public_url = tailnet.coordinationUrl;
     };
   };
 }
