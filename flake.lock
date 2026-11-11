@@ -59,11 +59,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794069878,
-        "narHash": "sha256-M6zVrGwsW1FWbHi+Jg+AV5w+MVOY2Ok58fywd4jIgVw=",
+        "lastModified": 1794360839,
+        "narHash": "sha256-eIZTikatDADI87AXm5GjioBljDV7LylydFweT/nEXc0=",
         "ref": "refs/heads/main",
-        "rev": "f71aa7d7b180517838c222f78d61b268e1bd719d",
-        "revCount": 64,
+        "rev": "54dff061ae2afeb417b36ae0459252081beae0cf",
+        "revCount": 65,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/pkgs.git"
       },

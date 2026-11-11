@@ -1,29 +1,5 @@
 { inputs, tailnet }:
 { pkgs, ... }:
-let
-  # TODO(pkgs): migrate ffmpeg-hdr
-  ffmpeg-hdr =
-    (pkgs.ffmpeg-headless.override {
-      withUnfree = false;
-      withSmallBuild = false;
-      withDebug = false;
-      withSrt = false;
-      withSsh = false;
-      withRist = false;
-      withGmp = false;
-      withQrencode = false;
-      withQuirc = false;
-      withAom = false;
-      withDav1d = false;
-      withRav1e = false;
-      withJxl = true;
-      withSvtav1 = true;
-      svt-av1 = pkgs.svt-av1-hdr;
-    }).overrideAttrs
-      (_: {
-        pname = "ffmpeg-hdr";
-      });
-in
 {
   # A browser reaching `ds` by this host's tailnet name sends that name as
   # `Host`, and the web UI's `/api` fence rejects every authority it was not
@@ -66,10 +42,10 @@ in
         webcord
         element-desktop
         jellyfin-desktop
-        ffmpeg-hdr
         ripgrep
       ]
       ++ (with inputs.alpkgs.packages.${pkgs.stdenv.hostPlatform.system}; [
+        ffmpeg-hdr
         readability-cli
         jellium-desktop
       ]);
