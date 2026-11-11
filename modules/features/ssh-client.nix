@@ -98,7 +98,6 @@
       };
     };
 
-  # TODO(droid): ssh-client for droid?
   flake.modules.homeManager.ssh-client =
     {
       config,
