@@ -49,9 +49,6 @@
     firewall = {
       enable = lib.mkForce true;
       allowPing = false;
-      # TODO(lan): confirm this is still a real hand-created libvirt tap and
-      # not leftover from a torn-down VM; nothing declarative here creates it.
-      trustedInterfaces = [ "vmtap2" ];
       allowedTCPPorts = [
         1234 # LM Studio's API (modules/aspects/ai-coding-local.nix), exposed to the LAN on purpose.
         2234 # for soulseek
