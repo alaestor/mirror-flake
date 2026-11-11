@@ -63,7 +63,6 @@ let
         home.packages = map (script: script.package) scriptPackages;
         programs = lib.mkMerge [
           {
-            # TODO: normalize the ncd/nboot/hswitch commands into focused features.
             bash = {
               enable = lib.mkDefault true;
               initExtra = lib.mkAfter ''
