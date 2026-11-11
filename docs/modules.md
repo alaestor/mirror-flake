@@ -81,6 +81,11 @@ paths, and machine topology remain owned by the relevant host or secret system.
 Hosts consume fleet values directly; they must not evaluate another host to
 discover shared state.
 
+Known general-LAN address reservations belong in `fleet.lan.reservations`, keyed
+by host name, rather than in `hostIdentity`. They describe externally managed
+assignments for consumers such as service listeners; declaring a reservation
+does not configure DHCP or assign an address to an interface.
+
 ## Promotion rule
 
 Repeated policy is an architectural signal. When substantially identical policy

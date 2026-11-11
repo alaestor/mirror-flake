@@ -47,6 +47,16 @@ let
           for it and does not consume this fact.
         '';
       };
+
+      reservations = mkOption {
+        type = types.attrsOf types.nonEmptyStr;
+        default = { };
+        description = ''
+          Reserved general-LAN addresses keyed by host name. These record
+          externally managed reservations for consumers such as service
+          listeners; they do not configure DHCP or assign interface addresses.
+        '';
+      };
     };
   };
 in

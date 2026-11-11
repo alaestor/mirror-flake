@@ -79,7 +79,7 @@ in
   serve = {
     caddy = {
       enable = true;
-      bindAddress = "172.16.0.4"; # TODO: should host identity contain static/reserved ip?
+      bindAddress = lan.reservations.lanser;
     };
     cinny.enable = true;
     filebrowser.enable = true;
