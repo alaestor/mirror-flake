@@ -32,8 +32,4 @@
   '';
 
   home-manager.backupFileExtension = "hm-bak";
-
-  # TODO(droid): can this be generalized in base?
-  environment.sessionVariables.HOSTNAME = config.hostIdentity.name;
-
 }
