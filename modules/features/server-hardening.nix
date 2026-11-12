@@ -1,8 +1,11 @@
 /**
   Baseline kernel and service hardening for network-facing server hosts.
+
+  Routing and address-family policy belong to the host. AppArmor is available
+  for service-owned profiles; enabling it does not confine every workload.
+  See docs/security-hardening.md for the policy and validation requirements.
 */
 {
-  # TODO(security): deep audit of server-hardening module configuration settings
   flake.modules.nixos.server-hardening =
     { lib, pkgs, ... }:
     {
@@ -10,7 +13,7 @@
         kernelModules = [ "dns_resolver" ];
         kernelParams = [
           "slab_nomerge"
-          "page_poison=1"
+          # Page poisoning overrides the kernel's default heap initialization.
           "page_alloc.shuffle=1"
           "debugfs=off"
         ];
@@ -42,11 +45,9 @@
         kernel.sysctl = {
           "kernel.kptr_restrict" = lib.mkOverride 500 2;
           "net.core.bpf_jit_enable" = false;
-          "kernel.ftrace_enabled" = false;
+          # Recent kernels reject disabling ftrace through its former sysctl.
           "net.ipv4.conf.all.log_martians" = true;
-          "net.ipv4.conf.all.rp_filter" = "1";
           "net.ipv4.conf.default.log_martians" = true;
-          "net.ipv4.conf.default.rp_filter" = "1";
           "net.ipv4.icmp_echo_ignore_broadcasts" = true;
           "net.ipv4.conf.all.accept_redirects" = lib.mkDefault false;
           "net.ipv4.conf.all.secure_redirects" = lib.mkDefault false;
@@ -56,15 +57,12 @@
           "net.ipv6.conf.default.accept_redirects" = lib.mkDefault false;
           "net.ipv4.conf.all.send_redirects" = false;
           "net.ipv4.conf.default.send_redirects" = false;
-          "net.ipv6.conf.all.accept_ra" = 0;
-          "net.ipv6.conf.default.accept_ra" = 0;
         };
       };
 
       security = {
         protectKernelImage = true;
         forcePageTableIsolation = true;
-        virtualisation.flushL1DataCache = "always";
         sudo.enable = false;
         sudo-rs = {
           enable = true;
