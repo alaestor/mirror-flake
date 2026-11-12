@@ -1,6 +1,7 @@
 /**
   Shared Caddy instance built with the Cerberus challenge plugin.
 */
+{ self, ... }:
 {
   flake.modules.nixos.serve-caddy =
     { config, lib, pkgs, ... }:
@@ -34,7 +35,7 @@
           enable = true;
           package = pkgs.caddy.withPlugins {
             plugins = [ "github.com/sjtug/cerberus@v0.4.6" ];
-            hash = "sha256-/BMVrLTdWd7esMMZ4Xm7Rj4pm9/kIOl7IazHqf8yMoE=";
+            hash = (self.data.readJSON "serve/caddy/source.json").hash;
           };
           dataDir = "/var/lib/caddy";
           # The nixpkgs module emits its own global `log` block from this

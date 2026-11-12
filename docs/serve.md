@@ -130,6 +130,21 @@ domain. A host imports it once, then imports any number of domains:
 This avoids repeatedly importing the same exported module through independent
 domain graphs and makes ownership of the public listener explicit.
 
+### Plugin source updates
+
+Caddy's plugin source hash depends on both the pinned Caddy version and the
+plugin set. The Nushell `nup` helper updates the lockfile, then builds the
+configured proxy's source bundle. If that derivation reports a hash mismatch,
+the helper updates `data/serve/caddy/source.json` and rebuilds the source to
+verify it. It does not compile Caddy or rebuild the host.
+
+Other failures leave the hash unchanged. A failed verification restores the
+previous hash but retains the updated lockfile for diagnosis. Review the hash
+change together with `flake.lock`; accepting a reported hash is an explicit
+dependency update, not an independent authenticity check. After changing the
+plugin list, run `nup-refresh-caddy` from the flake root to refresh its hash
+without updating inputs.
+
 ## Standalone and private services
 
 A host may import `serve-<name>` directly without a domain. This is appropriate
