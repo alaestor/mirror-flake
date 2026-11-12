@@ -126,6 +126,10 @@ in
   };
 
   services = {
+    # TODO(workaround): use stable Tuwunel until unstable supplies system AWS-LC; tracked in https://github.com/NixOS/nixpkgs/issues/570938
+    matrix-tuwunel.package =
+      inputs.stable-nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}.matrix-tuwunel;
+
     openssh.extraConfig = lib.mkAfter ''
       Match User forgejo
         AuthorizedKeysCommand /etc/ssh/authorized_keys_command_forgejo
