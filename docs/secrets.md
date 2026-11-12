@@ -266,27 +266,34 @@ CryptID is the offline administrative and recovery workflow that produces some
 of these identities. Its physical-media and lifecycle model is documented in
 [`cryptid-protocol.md`](cryptid-protocol.md).
 
-## Planned: stable system SSH host key during `nixos-anywhere` deployment
+## Stable host keys during `nixos-anywhere` deployment
 
-`mkNixosAnywhereDeployer` (`modules/utils/lib.nix`) currently only provisions
-an ephemeral deployment key. `TODO(deploy)` there tracks provisioning the
-host's *stable* system SSH host key as part of the same deployment. High-level
-implementation guide:
+Run `deploy-<host>` from inside the writable flake checkout. Before connecting
+to the installer or partitioning, it stages the stable system identity at
+`ssh-host.hostKeyPath` and, when enabled, the separate initrd identity at
+`ssh-host.initrd.hostKeyPath`.
 
-- Resolve the host backup as
-  `secrets/ssh-host/ssh_host_ed25519_key_<host>.age` and its public identity
-  as `data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub`.
-- If the encrypted backup exists, decrypt it with the administrative age
-  identity and stage it at `ssh-host.hostKeyPath`. Never generate a
-  replacement merely because this is a fresh installation.
-- Verify that the staged private key derives the committed public identity;
-  fail before partitioning if they differ.
-- If no backup exists, generate the key once, encrypt it atomically to the
-  administrative recipients, record its public identity, and stage that same
-  private key for the initial installation.
-- Print the created paths and remind the operator to declare the encrypted
-  system-key backup in `secrets/secrets.nix`; do not rewrite that policy file
-  automatically.
-- Reuse the restrictive temporary-directory, permissions, and cleanup approach
-  already used for the initrd host key (same function) so plaintext keys do
-  not survive the deployment.
+Backups live at `secrets/ssh-host/ssh_host_ed25519_key_<host>.age`; public
+identities live at `data/identities/ssh-host/ssh_host_ed25519_key_<host>.pub`.
+Initrd filenames add `_initrd`. Existing backups require the administrative
+identity at `secrets/age_sk.txt` and a matching public identity. Missing public
+files, public-only identities, decryption errors, and mismatched keys stop
+deployment rather than silently replacing an identity. Legacy initrd files
+under `secrets/hosts/<host>/` must be migrated first.
+
+When neither representation exists, the deployer generates an Ed25519 key,
+encrypts its backup to all administrative recipients, publishes both files
+without overwriting existing identities, and stages that same key for the
+first installation. Review and commit the generated files. Declare system-key
+backups in `secrets/secrets.nix` with administrative recipients only; initrd
+backups need no Agenix rule. New system identities also require rekeying their
+runtime secrets before those secrets can activate successfully. The deployer
+does not edit recipient policy automatically.
+
+Private staging directories use a restrictive umask, and staged private keys
+have mode `0600`. Cleanup runs on success, failure, and handled termination
+signals. Only persistent host keys enter `--extra-files`; the ephemeral SSH
+identity and temporary LUKS passphrase stay in a separate directory. Disko
+receives the passphrase through `--disk-encryption-keys`, not the installed
+root. The initrd host key still enters unencrypted boot-accessible material
+as described above.

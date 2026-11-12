@@ -248,7 +248,8 @@ in
 
     /**
       Creates a nixos-anywhere deployer for a host using the `ssh-host` and
-      `standard-disk` modules.
+      `standard-disk` modules. Restores or creates stable system and optional
+      initrd host identities, verifying public keys before partitioning.
     */
     mkNixosAnywhereDeployer = {
       name,
@@ -256,7 +257,7 @@ in
       system-config,
     }: pkgs.writeShellApplication {
       name = "deploy-${name}";
-      runtimeInputs = with pkgs; [ age age-plugin-yubikey nixos-anywhere openssh ];
+      runtimeInputs = with pkgs; [ age age-plugin-yubikey coreutils nixos-anywhere openssh ];
       text = ''
         if [ -z "''${1:-}" ]; then
           printf "Requires one positional argument: <user>@<ip>\n\nUsage: nix run .#deploy-${name} -- root@192.168.0.5\n"
@@ -267,12 +268,55 @@ in
 
         echo "[$(date +%Y%m%dT%H%M%S)] Starting deploying '${name}' to '$TARGET'"
 
-        # Contents of this directory are copied to the installed system root.
+        umask 077
+        STAGING_DIR=""
+        DEPLOY_KEY_DIR=""
+        BACKUP_TEMP=""
+        PUBLIC_TEMP=""
+        cleanup() {
+          if [ -n "$BACKUP_TEMP" ]; then rm -f -- "$BACKUP_TEMP"; fi
+          if [ -n "$PUBLIC_TEMP" ]; then rm -f -- "$PUBLIC_TEMP"; fi
+          if [ -n "$STAGING_DIR" ]; then rm -rf -- "$STAGING_DIR"; fi
+          if [ -n "$DEPLOY_KEY_DIR" ]; then rm -rf -- "$DEPLOY_KEY_DIR"; fi
+        }
+        trap cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+        trap 'exit 129' HUP
+
+        # Only persistent host keys belong in the tree copied to the target.
         STAGING_DIR=$(mktemp -d)
         DEPLOY_KEY_DIR=$(mktemp -d)
         DEPLOY_KEY="$DEPLOY_KEY_DIR/nixos-anywhere"
-        cleanup() { rm -rf "$STAGING_DIR" "$DEPLOY_KEY_DIR" "''${KEY_GENERATION_DIR:-}"; }
-        trap cleanup ERR EXIT
+
+        FLAKE_ROOT="$PWD"
+        while [ "$FLAKE_ROOT" != / ] && [ ! -f "$FLAKE_ROOT/flake.nix" ]; do
+          FLAKE_ROOT=$(dirname "$FLAKE_ROOT")
+        done
+        if [ ! -f "$FLAKE_ROOT/flake.nix" ]; then
+          echo "ERROR: flake.nix not found. Run from inside your flake repository." >&2
+          exit 1
+        fi
+        HOST=${lib.escapeShellArg (lib.toLower name)}
+        HOSTKEYS_DIR="$FLAKE_ROOT/secrets/ssh-host"
+        PUBLIC_KEYS_DIR="$FLAKE_ROOT/data/identities/ssh-host"
+        AGE_IDENTITY_FILE="$FLAKE_ROOT/secrets/age_sk.txt"
+        ADMINISTRATIVE_RECIPIENTS=(${lib.concatMapStringsSep " " lib.escapeShellArg self.data.vars.administrativeAgeRecipients})
+
+        ${self.data.read "utils/deploy/stage-host-key.sh"}
+
+        stage_host_key "ssh_host_ed25519_key_$HOST" ${lib.escapeShellArg (toString system-config.ssh-host.hostKeyPath)} "$HOST"
+
+        ${lib.optionalString system-config.ssh-host.initrd.enable ''
+          LEGACY_AGE_FILE="$FLAKE_ROOT/secrets/hosts/$HOST/initrd-hostkey.age"
+          LEGACY_PUBLIC_KEY_FILE="$FLAKE_ROOT/secrets/hosts/$HOST/initrd-hostkey.pub"
+          if [ -e "$LEGACY_AGE_FILE" ] || [ -e "$LEGACY_PUBLIC_KEY_FILE" ]; then
+            echo "ERROR: legacy initrd host-key files found in secrets/hosts/$HOST." >&2
+            echo "Migrate them to secrets/ssh-host and data/identities/ssh-host before deploying." >&2
+            exit 1
+          fi
+          stage_host_key "ssh_host_ed25519_key_''${HOST}_initrd" ${lib.escapeShellArg (toString system-config.ssh-host.initrd.hostKeyPath)} "''${HOST}_initrd"
+        ''}
 
         # Generate an ephemeral deployment identity.
         ssh-keygen \
@@ -303,87 +347,6 @@ in
           -o BatchMode=yes \
           "$TARGET" true
 
-        # TODO(deploy): Provision the stable system SSH host key as part of
-        # nixos-anywhere deployment. Implementation guide: docs/secrets.md
-        # ("Planned: stable system SSH host key during nixos-anywhere
-        # deployment"). Reuse the restrictive temporary-directory, permissions,
-        # and cleanup approach below so plaintext keys do not survive the
-        # deployment.
-
-        ${lib.optionalString system-config.ssh-host.initrd.enable ''
-            # --- Locate the flake root ---
-            FLAKE_ROOT="$PWD"
-            while [ "$FLAKE_ROOT" != "/" ] && [ ! -f "$FLAKE_ROOT/flake.nix" ]; do
-              FLAKE_ROOT="$(dirname "$FLAKE_ROOT")"
-            done
-            if [ ! -f "$FLAKE_ROOT/flake.nix" ]; then
-              echo "ERROR: flake.nix not found. Run 'nix run' from inside your flake repo." >&2
-              exit 1
-            fi
-
-            HOST="${name}"
-            HOSTKEYS_DIR="$FLAKE_ROOT/secrets/ssh-host"
-            PUBLIC_KEYS_DIR="$FLAKE_ROOT/data/identities/ssh-host"
-            AGE_FILE="$HOSTKEYS_DIR/ssh_host_ed25519_key_''${HOST}_initrd.age"
-            PUBLIC_KEY_FILE="$PUBLIC_KEYS_DIR/ssh_host_ed25519_key_''${HOST}_initrd.pub"
-            LEGACY_AGE_FILE="$FLAKE_ROOT/secrets/hosts/$HOST/initrd-hostkey.age"
-            LEGACY_PUBLIC_KEY_FILE="$FLAKE_ROOT/secrets/hosts/$HOST/initrd-hostkey.pub"
-            AGE_IDENTITY_FILE="$FLAKE_ROOT/secrets/age_sk.txt"
-            STAGING_KEYPATH="''${STAGING_DIR}${system-config.ssh-host.initrd.hostKeyPath}"
-            install -d -m755 "$(dirname "''${STAGING_KEYPATH}")"
-
-            if [ ! -e "$AGE_FILE" ] && [ -e "$LEGACY_AGE_FILE" ]; then
-              echo "ERROR: legacy initrd host-key backup found: $LEGACY_AGE_FILE" >&2
-              echo "Move it to $AGE_FILE before deploying; do not generate a replacement." >&2
-              if [ -e "$LEGACY_PUBLIC_KEY_FILE" ]; then
-                echo "Also move $LEGACY_PUBLIC_KEY_FILE to $PUBLIC_KEY_FILE." >&2
-              fi
-              exit 1
-            fi
-
-            # Create and retain a stable initrd host key. The first installation
-            # stages the generated key directly, avoiding a second deploy.
-            if [ ! -f "$AGE_FILE" ]; then
-              if [ -e "$PUBLIC_KEY_FILE" ]; then
-                echo "ERROR: public initrd host key exists without its encrypted backup: $PUBLIC_KEY_FILE" >&2
-                echo "Refusing to generate a replacement identity." >&2
-                exit 1
-              fi
-
-              echo "No initrd host-key backup for $HOST, generating and encrypting..."
-              install -d -m700 "$HOSTKEYS_DIR"
-              install -d -m755 "$PUBLIC_KEYS_DIR"
-              KEY_GENERATION_DIR=$(mktemp -d)
-              GENERATED_KEY="$KEY_GENERATION_DIR/ssh_host_ed25519_key_''${HOST}_initrd"
-              ssh-keygen -q -t ed25519 -N "" -C "''${HOST}_initrd" -f "$GENERATED_KEY"
-              age ${lib.concatMapStringsSep " " (recipient: "-r ${lib.escapeShellArg recipient}") self.data.vars.administrativeAgeRecipients} \
-                -o "$AGE_FILE.tmp" "$GENERATED_KEY"
-              mv "$AGE_FILE.tmp" "$AGE_FILE"
-              mv "$GENERATED_KEY.pub" "$PUBLIC_KEY_FILE"
-              install -m600 "$GENERATED_KEY" "$STAGING_KEYPATH"
-              rm -rf "$KEY_GENERATION_DIR"
-              KEY_GENERATION_DIR=""
-
-              echo "Created $AGE_FILE"
-              echo "Created $PUBLIC_KEY_FILE"
-              echo "Initrd SSH host public key (record it for host verification):"
-              cat "$PUBLIC_KEY_FILE"
-              echo "Review and commit both files after deployment. No secrets.nix rule is needed;"
-              echo "the initrd backup is encrypted directly to administrative recipients."
-            else
-              if [ ! -r "$AGE_IDENTITY_FILE" ]; then
-                echo "ERROR: age identity file not found or unreadable: $AGE_IDENTITY_FILE" >&2
-                echo "An administrative age identity is required to decrypt $AGE_FILE." >&2
-                exit 1
-              fi
-
-              printf "\n\n\tDECRYPTING AGE SECRET - MAY REQUIRE FIDO2 PIN\n\n"
-
-              age --decrypt --identity "$AGE_IDENTITY_FILE" "$AGE_FILE" > "$STAGING_KEYPATH"
-              chmod 600 "$STAGING_KEYPATH"
-            fi
-        ''}
-
         # create the password file for luks setup
         while true; do
           echo -n "Enter LUKS passphrase for partitioning: "
@@ -400,7 +363,7 @@ in
         done
         # --extra-files is copied only to the installed system, after disko has
         # run. Disko needs this file in the live installer instead.
-        LUKS_KEY_FILE="$STAGING_DIR/luks-setup-password"
+        LUKS_KEY_FILE="$DEPLOY_KEY_DIR/luks-setup-password"
         echo -n "''${PASSPHRASE}" > "$LUKS_KEY_FILE"
         chmod 600 "$LUKS_KEY_FILE"
 
