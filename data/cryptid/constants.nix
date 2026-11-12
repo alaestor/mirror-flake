@@ -33,7 +33,7 @@ rec {
   yubi-stock-piv-pin = yubi-stock-pgp-pin;
   yubi-stock-piv-puk = yubi-stock-pgp-admin;
   yubi-stock-piv-mgt = "010203040506070801020304050607080102030405060708";
-  # TODO(crypt): switch back to AES192 when age-plugin-yubikey supports it.
+  # TODO(crypt): switch back to AES192 when age-plugin-yubikey supports it; see [age-plugin-yubikey#92](https://github.com/str4d/age-plugin-yubikey/issues/92).
   yubi-piv-management-alg = "TDES";
 
   path-firsttimeflag = "/tmp/first-time-init";
