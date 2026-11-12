@@ -8,7 +8,7 @@
 
   networking = {
     domain = tailnet.dnsSuffix;
-    enableIPv6 = true;
+    enableIPv6 = false;
     networkmanager.enable = true;
     useDHCP = false;
     interfaces = {
@@ -36,7 +36,6 @@
           publicKey = "UBnjj4fW9ZR7bGnxN7JOD9G9AOwkYWl2gADZRHljEHI=";
           allowedIPs = [
             "0.0.0.0/0"
-            "::/0"
           ];
           endpoint = "89.238.174.2:51820";
           persistentKeepalive = 25;
