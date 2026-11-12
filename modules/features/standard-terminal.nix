@@ -10,6 +10,7 @@
   terminal programs and Nushell configuration, but omits Ghostty.
   Bash and Nushell functions adapt the external ncd helper so it can change
   the current shell's directory to the cached local flake root.
+  `nwhere` prints that cached flake reference without fetching or changing it.
 */
 { inputs, self, ... }:
 let

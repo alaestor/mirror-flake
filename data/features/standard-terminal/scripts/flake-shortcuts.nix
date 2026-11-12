@@ -155,6 +155,13 @@ let
       }
 
       case "''${1:-}" in
+        show)
+          [ "$#" -eq 1 ] || {
+            printf 'Usage: nflake-target show\n' >&2
+            exit 2
+          }
+          read_target
+          ;;
         local-path)
           [ "$#" -eq 1 ] || {
             printf 'Usage: nflake-target local-path\n' >&2
@@ -171,7 +178,7 @@ let
           run_shortcut "$@"
           ;;
         *)
-          printf 'Usage: nflake-target {local-path|run <shortcut> [arguments...]}\n' >&2
+          printf 'Usage: nflake-target {show|local-path|run <shortcut> [arguments...]}\n' >&2
           exit 2
           ;;
       esac
@@ -193,6 +200,14 @@ let
       exec nflake-target local-path "$@"
     '';
   };
+
+  nwhere = pkgs.writeShellApplication {
+    name = "nwhere";
+    runtimeInputs = [ backend ];
+    text = ''
+      exec nflake-target show "$@"
+    '';
+  };
 in
 {
   name = "flake-shortcuts";
@@ -202,6 +217,7 @@ in
     paths = [
       backend
       ncd
+      nwhere
       (mkShortcut "hswitch")
       (mkShortcut "nboot")
       (mkShortcut "ndry")
