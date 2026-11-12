@@ -5,7 +5,7 @@
 Shared definitions consumed by every harness feature module
 (`modules/features/claude-code.nix`, `modules/features/codex.nix`, and any
 future addition). This is the harness *layer*: it knows about tool lists,
-prompt fragments, skills and `AGENTS.md`. It must never mention vsock,
+prompt fragments, skills, directives and `AGENTS.md`. It must never mention vsock,
 virtiofs, systemd units, or anything belonging to the VM layer
 (`modules/mechanisms/libagents/vm.nix`) — see the layering rule in
 `docs/agents.md`.
@@ -16,27 +16,40 @@ fragment advertises, and its rendering as a markdown bullet list.
 concatenating the fragments they want and injecting the result at
 whatever depth their own module (`--append-system-prompt`,
 `developer_instructions=`, ...) requires.
-- `collectSkills` — recursively scans a skills root for `SKILL.md`
-directories, keyed by their path with `/` flattened to `-`.
+- `directives` — packages the shared directive catalogue and resolver CLI;
+both harnesses use it for `UserPromptSubmit`.
+- `skills` — the selected model-invocable skills registered by both harnesses.
 - `context` — the shared `AGENTS.md` context text.
 - `stateDirs` / `stateDirsFor` — the `$HOME`-relative directories each
 harness and component keeps live state in, and a helper that makes them
 absolute for one home. Declared here because the VM layer is forbidden
-from naming any of them (`implementation-guide.md` Phase 6) and the
+from naming any of them and the
 harness modules themselves are Home Manager modules, which a NixOS
 configuration cannot read back — a standalone `userEnvironment`
 attachment is not evaluated during `nixos-rebuild` at all. A plain table
 in the harness layer is therefore the only place both sides can agree on.
+- `webPorts` — the TCP port each browser-serving harness listens on. Same
+table argument as `stateDirs`: the wrapper that binds it and the
+firewall rule that scopes it live on opposite sides of the Home
+Manager/NixOS split, and neither can read the other back.
 - `environmentFor` — environment variables that must hold the *same* value
 on the host and inside the guest, for one home directory.
+- `sandboxWritableRootsFor` — the trees in which harness wrappers may start,
+shared with the host's agent VM declaration so its fixed shares cannot
+drift from the wrappers' admission check.
 
-- `mkPrompt` — resolves a `(harness, model, variant)` prompt into the three
+- `mkPrompt` — resolves a `(model, variant)` prompt into the three
 depths a harness can inject at (`system`, `preamble`, `context`), from a
-layered `common -> byHarness -> byVariant -> byModel` declaration. See
+layered `common -> byVariant -> byModel` declaration. See
 its doc comment below for the layer shape. `system` is a `path` (or
 `null`); `preamble` and `context` are single strings — never a list of
 flags — because `--append-system-prompt`-style options do not
 accumulate across repeated invocations.
+
+## memory
+
+Packages the harness-independent memory CLI. Prompts are separate editable
+Markdown files under data/agents/memory/prompts; see docs/memory.md.
 
 ## prompt-preview
 
@@ -70,12 +83,10 @@ argument to pick a `homeConfigurations` name other than `user@apc`).
 
 # flake.lib.agents.{mkSelectorLoop, mkHarnessWrappers}
 
-Implemented per the deviation recorded in `.claude/handoff-472dce40.md`:
-an earlier design's literal "harness factory" (model/effort as reserved
-cross-harness words,
-`native` as a selector) was replaced with this narrower design after
-discussion. What genuinely generalizes across `cc`/`ccs`/`cx`/`cxs` turned
-out to be smaller than the guide scoped it: harnesses keep their own
+An earlier design's literal "harness factory" (model/effort as reserved
+cross-harness words, `native` as a selector) was replaced with this
+narrower design. What genuinely generalizes across `cc`/`cx`
+turned out to be smaller than first scoped: harnesses keep their own
 selector vocabulary (`haiku|sonnet|opus` vs `luna|terra|sol`, `--effort` vs
 `-c model_reasoning_effort=`, ...) as their own case arms, handed to this
 factory as literal bash text — not a declarative selector DSL, which would
@@ -99,20 +110,13 @@ exec) and a `<name>` package (a thin dispatcher that either execs
 whatever `sandbox` returns). `native` is no longer a selector word: running `<name>-native`
 directly *is* the bypass, so there is no runtime `sandbox` flag to
 thread through one script and no collision surface to guard with an
-eval-time assertion (the guide's Phase 3 called for one; it has nothing
-left to protect under this design — see the handoff for why that
-requirement was dropped rather than carried forward speculatively).
-
-Forward-looking Phase 3 pieces from the guide (`stateDirs`, `components`,
-`needs` fields for the VM layer) are intentionally absent here — Phase 4
-hasn't clarified what the VM layer needs from a harness declaration yet,
-and guessing ahead of it risks the wrong shape. Don't add them speculatively.
+eval-time assertion . The narrower design does not need that assertion..
 
 ## vm-channels
 
 # flake.lib.agents.vmChannels
 
-The constants both halves of a Phase 5 channel have to agree on, in one
+The constants both halves of a channel have to agree on, in one
 place so the guest (`vm.nix`) and the host (`vm-host.nix`) can never drift
 apart. Nothing here evaluates to a module; it is a plain lookup table plus
 the CID derivation.
@@ -159,7 +163,7 @@ module declares `microvm.vms.<name>` exactly once. Harness modules must
 never declare a VM of their own: several harnesses are meant to share one
 guest, so a second declaration is either an outright conflict or an
 accidental merge, and anything that refcounts sessions over the instance
-(Phase 7) becomes meaningless. Harnesses contribute the facts that are
+becomes meaningless. Harnesses contribute the facts that are
 theirs — `projectRoots` and `stateDirs` — and may raise `enable` as an
 `mkDefault`. `hostUser`, `uid`, `vcpu`, `mem` and the vsock
 CID are platform policy: this module's defaults, the host's to override, and
@@ -176,8 +180,8 @@ for why the listener binds any CID rather than the guest's.
 that is deliberately *not* in `nix.settings.trusted-users`. The host
 daemon authenticates by peer credentials, so whatever uid this proxy runs
 as is the identity the whole guest gets: run it as root and the guest can
-ask the host to substitute from any binary cache it likes, which the guide
-is emphatic must be refused. Untrusted is not read-only: an untrusted
+ask the host to substitute from any binary cache it likes, which must be
+refused. Untrusted is not read-only: an untrusted
 client may still build derivations and add paths, which is the whole
 point — it just cannot tell the daemon *where to trust content from*.
 The account must appear in `allowed-users`, which an assertion checks
@@ -192,18 +196,23 @@ the host; with no session there is no agent to forward to, and the guest
 sees a connection refused. That is the honest failure — a signature needs
 the human at the machine anyway.
 
-## Lifecycle (Phase 7)
+## Lifecycle
 
 The VM starts on demand and stops once nothing needs it. `agent-vm-session`
 (`environment.systemPackages`) is the one entry point: `agent-vm-session --
 <command>` starts the guest if it is not already up, waits for its sshd,
-and runs `<command>` over ssh in a `systemd-run --scope` of its own — see
+and runs `<command>` over ssh in a `systemd-run --scope` of its own. A
+leading `--forward <ssh -L spec>` (repeatable) additionally carries a port
+the guest serves back out to the host for that session's lifetime — see
 that script's doc comment (next to `mkSessionScript` above) for why a scope
 needs no explicit release step, what `agent-vm-linger-hold.service` is for,
 and the two traps in microvm.nix's generated unit (`Restart = "always"`,
-`StopWhenUnneeded`'s lack of a grace period) that shaped it. Not yet called
-by any harness wrapper — that wiring is Phase 8's cutover, not this
-module's.
+`StopWhenUnneeded`'s lack of a grace period) that shaped it. Harness
+wrappers call this entry point to enter the guest.
+
+`--reverse-forward <ssh -R spec>` carries a host endpoint into guest
+loopback for the session. Its consumer chooses the ports and capability;
+the isolation mechanism treats it as an opaque forwarding specification.
 
 `agent-vm-stop` (`mkStopScript`, next to `mkSessionScript`) is the manual
 counterpart: drops the linger-hold reference immediately rather than
@@ -212,6 +221,13 @@ for a while and would rather not leave the guest idling. It is a pure
 early-release, not a kill — an active session's own referrer keeps the
 guest up regardless, exactly as if the automatic linger had simply expired
 sooner.
+
+`agent-vm-restart` (`mkRestartScript`) is recovery rather than a third
+lifecycle verb — there is deliberately no `agent-vm-start`, since a session
+boots the guest itself. It takes the guest down and bounces the virtiofsd
+supervisord, the one wedged state a session cannot recover from on its own.
+`StopWhenUnneeded` on `microvm-virtiofsd@<name>` is what stops that state
+from arising in the first place; both carry the full reasoning.
 
 The `security.polkit.extraConfig` rule is what lets `hostUser` — an
 unprivileged account — start and stop these specific units at all;
@@ -224,11 +240,11 @@ as a dependency, so the "start the daemons yourself" problem that
 `packages.agent-vm-run` exists to solve stops being the deployment path
 (`agent-vm-run` stays a dev tool for throwaway guests like the smoke test).
 Those daemons run as root, which is what makes store paths appear correctly
-owned inside the guest. And it gives Phase 7 exactly one unit to hang
-session refcounting off.
+owned inside the guest. It gives session refcounting exactly one unit to
+hang off.
 
 `autostart` defaults to **false**: enabling this module should cost a build,
-not a permanently running VM. Phase 7 decides when the guest actually runs.
+not a permanently running VM. Sessions decide when the guest actually runs.
 
 `boot.kernelModules` and the udev rule exist because a guest with a channel
 has `microvm.vsock.cid` set, so QEMU opens `/dev/vhost-vsock`; without the
@@ -285,8 +301,8 @@ unevaluable).
 
 # `nixosConfigurations.agent-vm-smoke-test`
 
-Phase 4's acceptance test target — "get *any* VM booting, with correct
-path identity. No harnesses yet." Not part of the host registry
+An acceptance test target for a VM with correct path identity. It is not
+part of the host registry
 (`modules/host-plumbing/registry.nix`): it isn't a real fleet host, has no
 `hostIdentity`, and is meant to be built and thrown away, not deployed.
 
@@ -299,13 +315,13 @@ needs, and dies with `Failed to connect to
 `modules/mechanisms/libagents/vm-run.nix` for what the wrapper does, why it wants
 `sudo`, and what `--unprivileged` costs you.
 
-Phase 5 added the nix-daemon and gpg-agent channels here rather than in a
-second guest. They need `agent-vm.enable = true` on the host (see
+The nix-daemon and gpg-agent channels live here rather than in a second
+guest. They need `agent-vm.enable = true` on the host (see
 `modules/mechanisms/libagents/vm-host.nix`); without it the guest boots
 normally and both proxies just fail to connect.
 
-Phase 6 added the harness state directories as read-write shares. Those
-come from the host and are not created by this configuration, so building
+The harness state directories are read-write shares. They come from the host
+and are not created by this configuration, so building
 it on a machine that lacks them is fine but *running* it there is not:
 virtiofsd refuses a source directory that does not exist. On a host with
 `agent-vm.enable`, systemd-tmpfiles has already made them.
@@ -317,7 +333,7 @@ The in-guest acceptance checks themselves live in untracked working notes
 
 # flake.lib.agents.mkAgentVm
 
-The VM layer. Must never mention `~/.claude` or a model name — that's
+The VM layer. Must never mention harness state paths, proxy names, or model names — that's
 the harness layer's job (`libagents.nix`, `selector-loop.nix`). This layer
 only knows about shares, networking, channels, and the guest's own NixOS
 configuration; it must never be handed a harness's prompt text or tool
@@ -330,15 +346,15 @@ returns a NixOS module (a plain guest config, not a `nixosConfigurations.*`
 entry — the caller decides how to instantiate it, matching how every other
 module in this flake stays a value rather than wiring itself in).
 
-**Shares and identity (Phase 4).** Store share (read-only virtiofs + a
-tmpfs-backed writable overlay, so the guide's "known failure mode" —
+**Shares and identity.** Store share (read-only virtiofs + a
+tmpfs-backed writable overlay, so an overlayfs upper directory on
 overlayfs upper dir on virtiofs/9p — never applies here, since the
 overlay's upper directory lives on the guest's own root instead of a
 share), one virtiofs share per `projectRoots` entry mounted at the
 **identical host path**, SSH reachable via a forwarded port over QEMU user
 networking, and a guest user whose **name and home path** match `hostUser`.
 
-**Channels (Phase 5).** `channels` is the seam the harness layer eventually
+**Channels.** `channels` is the seam the harness layer
 declares through: it says *what capability the guest needs*, and this
 function decides that the capability is a vsock proxy. Each channel is a
 unix socket in the guest, socket-activated per connection, forwarded to a
@@ -379,12 +395,13 @@ is stable and unique without a registry), which makes QEMU want
 `/dev/vhost-vsock` — see `vm-host.nix` for the host-side permissions that
 need.
 
-**State directories (Phase 6).** `stateDirs` is a list of host directories
+**State directories.** `stateDirs` is a list of host directories
 shared read-write at the identical path, exactly like `projectRoots` — the
 distinction is entirely in who contributes them and why, not in what this
 function does with them, so they are kept as two lists rather than merged
 into one. They carry the agent's memory, sessions and credentials across
-guest restarts.
+guest restarts. `localStateDirs` instead creates persistent guest block volumes
+for state, such as SQLite WAL databases, that cannot safely use virtiofs.
 
 This function must never *name* one of those directories: which state a
 harness keeps, and where, is the harness layer's fact
@@ -399,12 +416,11 @@ generation over the same shared `~/.claude` would rename the host
 generation's `settings.json` out of the way on every boot. The host's
 generation is the sole manager; the guest gets packages and wrappers only.
 
-
 `uid`, if given, is the host user's numeric uid. The default virtiofs
 `securityModel = "none"` preserves numeric ownership as-is rather than
 translating it, so a mismatched guest uid makes shared files look
 wrong-owned from inside the guest even though the bytes are identical;
 passing it keeps a `touch`'d file's ownership sane on both sides. Leaving
 it `null` still boots and shares files, just without that cosmetic
-guarantee — acceptable for this phase's "any VM boots, path identity
-holds" bar.
+guarantee — acceptable for a smoke test that only requires booting and
+path identity.

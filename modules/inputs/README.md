@@ -6,6 +6,14 @@ Declares the agenix flake input, for secret decryption at activation.
 
 Declares the alpkgs flake input, this author's personal package overlay.
 
+## deepseek-harness
+
+Declares the community Nix packaging for DeepSeek Harness (`dsh`).
+
+Its own `nixConfig` advertises a Cachix substituter, which a consuming
+flake does not inherit; without adding that substituter here or on the
+host, `dsh` and its bundles are built from source.
+
 ## home-manager
 
 Declares the stable and unstable Home Manager flake inputs, tracking the matching nixpkgs channels.
@@ -25,3 +33,7 @@ Declares the nix-wrapper-modules flake input and its wrappers flake module.
 ## nixpkgs
 
 Declares the stable and unstable nixpkgs flake inputs.
+
+## zed-cea
+
+Declares the zed-cea flake input, this author's Cheat Engine Auto Assembler language tooling.

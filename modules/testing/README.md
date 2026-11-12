@@ -16,3 +16,14 @@ contribute a check directly, colocated with the thing it tests
 (`modules/utils/mkstatus/mkstatus.nix`,
 `modules/features/nix-store-signing.nix`). The full check set is the union
 of both mechanisms, not just what's under `tests/`.
+
+A check should identify a regression in repository behavior: a refused
+unsafe operation, a generated artifact, or an integration contract. Prefer
+synthetic identities and caller-supplied values over snapshots of personal
+configuration. Exercise both sides of a conditional; a disabled-only test
+also passes if the implementation does nothing. Do not test upstream merge
+semantics or grep implementation source as a substitute for running it.
+
+`nix flake check --no-build` evaluates checks but does not execute their
+builders. Use `nix build .#checks.<system>.<name> --no-link` for a focused
+test, or `nix flake check` to build the current system's full check set.

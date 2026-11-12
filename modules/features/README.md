@@ -20,11 +20,6 @@ blacklist against that hardware before trusting it.
 
 Auto-logs a user into the display manager and, optionally, getty.
 
-## crypto
-
-YubiKey-backed cryptography tooling (GPG smartcard, age, SSH) for hosts
-that use one.
-
 ## hifi-audio
 
 Enables the standard PipeWire audio stack with ALSA, 32-bit ALSA, PulseAudio
@@ -32,7 +27,7 @@ compatibility, and realtime scheduling support.
 
 ## isolive-minimal
 
-Creates a minimal NixOS installer ISO file no grub countdown, optimized for image size.
+Creates a minimal NixOS installer ISO file no grub countdown, optimized for image size. Builds on `isolive`, trimming further: no firmware blobs, wireless, documentation, fonts, speech synthesis, graphics acceleration, or sound/input services.
 
 ## isolive
 
@@ -72,6 +67,14 @@ notifications, and vice versa.
 Provides optional NFS mounts for the Cauldron, Vault, Pocket, and Services
 NAS shares. Each share can be enabled independently and mounted read-only.
 
+Enabled shares are optional to boot. Services that read or write one are
+expected to declare `RequiresMountsFor` against their data root so only the
+consumer fails when a share is absent, and order themselves after
+`nas-detach.service` so they stop before shutdown detaches the shares.
+
+With scripted networking, enabled shares also order network.target after
+interface address configuration, keeping addresses until NFS has stopped.
+
 ## nix-store-signing
 
 # nix-store-signing
@@ -92,7 +95,7 @@ installables. Importing the module does not enable deployment.
 
 Wires a primary OpenPGP fingerprint into GPG and Git commit signing.
 
-## printers
+## printer-brother-hl-l2320d
 
 Enables CUPS, a PDF printer, and the configured Brother HL-L2320D printer.
 
@@ -116,6 +119,16 @@ accepts additive entries from compositions such as `tailnet-client`.
 Repository-managed common, tailnet, and fleet-wide host keys are enabled
 independently through `knowCommonHosts`, `knowTailnetHosts`, and
 `knowFleetHosts`.
+
+Design tradeoff: `~/.ssh/known_hosts` is rendered as a read-only Nix
+store symlink from `ssh-client.knownHosts`, so `ssh` cannot append a TOFU
+entry for any host not declared in the repository — connecting to an
+undeclared host is a hard failure until the flake is edited (or you use
+`sshu`, a shell app from `standard-terminal`'s script catalog, which
+disables host-key checking entirely rather than recording a key). This is
+deliberate: it keeps known-hosts state reproducible and
+auditable instead of accreting client-local TOFU state. See
+`docs/secrets.md` for the escape hatches.
 
 ## ssh-host
 
@@ -214,11 +227,10 @@ Implements the interactive terminal feature and packages every direct
 file must return a script declaration whose name and package name match its
 filename. Declarations can disable themselves from their supplied context.
 
-# TODO(workaround): try nushell config with newer pinnned nixpkgs
 `flake.modules.homeManager.standard-terminal-tailnet` is the dormant option
 interface declaring `standard-terminal.tailscale.domain`; the Tailscale
-feature imports it to supply the suffix. The Nix-on-Droid adapter provides Nushell and these script packages, but
-omits other program integrations unavailable from its pinned Home Manager.
+feature imports it to supply the suffix. The Nix-on-Droid adapter shares the
+terminal programs and Nushell configuration, but omits Ghostty.
 Bash and Nushell functions adapt the external ncd helper so it can change
 the current shell's directory to the cached local flake root.
 
@@ -240,3 +252,9 @@ one, use `tailscale up --login-server <URL>` to authenticate interactively.
 
 Attached user environments receive `standard-terminal.tailscale.domain`
 through the dormant `standard-terminal-tailnet` option interface.
+
+## yubikey
+
+Installs YubiKey tooling, smartcard support, and device rules. Deploys
+administrative age, SSH, and OpenPGP stubs for the host's primary user
+by default; disable yubikey.administrativeStubs.enable for tooling alone.

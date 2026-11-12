@@ -31,6 +31,10 @@ Nushell, this author's default interactive shell.
 
 OpenSSH client program defaults, shared across host/user environments.
 
+## vscodium
+
+VSCodium with Cheat Engine Auto Assembler support, enabled by default.
+
 ## zed
 
 Zed editor, enabled by default.

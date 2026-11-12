@@ -5,7 +5,8 @@ server, with a curated favorites list of local models.
 
 ## ai-coding
 
-Bundles the Claude Code and Codex agent modules for a user environment.
+Bundles the Claude Code, Codex, and DeepSeek Harness agent modules for a
+user environment.
 
 ## coding
 
@@ -13,6 +14,10 @@ Home Manager aspect for a coding environment.
 
 This composes developer-oriented capabilities without introducing a new
 configuration interface of its own.
+
+## crypto
+
+Composes cryptographic capabilities, currently YubiKey tooling and stubs.
 
 ## tailnet-client
 
@@ -30,5 +35,5 @@ the VPN lifecycle.
 
 Home Manager aspect for a general-purpose workstation.
 
-This composes terminal, remote-access, coding, and desktop application
+This composes terminal, remote-access, and desktop application
 capabilities without introducing a new configuration interface of its own.

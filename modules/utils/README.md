@@ -61,4 +61,5 @@ Creates a script which writes a NixOS ISO to a block device. `postWrite`
 can add host-specific operations after the ISO has been written.
 
 Creates a nixos-anywhere deployer for a host using the `ssh-host` and
-`standard-disk` modules.
+`standard-disk` modules. Restores or creates stable system and optional
+initrd host identities, verifying public keys before partitioning.

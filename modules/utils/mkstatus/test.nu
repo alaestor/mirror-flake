@@ -12,7 +12,11 @@ def main [script: path, template: path] {
     'See https://todo.example.org for the issue tracker.'
     '# NOTEWORTHY is not an annotation.'
     '# WARNING is not an annotation.'
+    $"# ($note)\(documentation\): annotation in ordinary Markdown"
   ] | str join (char newline) | save ($fixture | path join "prose.md")
+  for name in ["README" "README.md" "readme.md" "ReadMe.rst" "modules/nested/README.md"] {
+    $"# ($todo): copied annotation must be ignored\n" | save ($fixture | path join $name)
+  }
   ^git -C $fixture init --quiet
   ^git -C $fixture config user.email "test@example.com"
   ^git -C $fixture config user.name "mkstatus test"
@@ -24,12 +28,13 @@ def main [script: path, template: path] {
   ^nu $script --template $template --root $fixture --format json --output $output
   let report = (open $output)
   let revision = (^git -C $fixture rev-parse HEAD | str trim)
-  assert equal ($report.annotations | length) 5
+  assert equal ($report.annotations | length) 6
   assert equal $report.repository "https://codeberg.org/example/fixture"
   assert equal $report.revision $revision
   assert ($report.generatedAt | str starts-with "20")
-  assert equal ($report.annotations | get marker | sort) ["NOTE" "NOTE" "TODO" "TODO" "WARN"]
-  assert equal ($report.annotations | get scope | sort) ["architecture" "empty" "secrets" "security" "unscoped"]
+  assert equal ($report.annotations | get marker | sort) ["NOTE" "NOTE" "NOTE" "TODO" "TODO" "WARN"]
+  assert equal ($report.annotations | get scope | sort) ["architecture" "documentation" "empty" "secrets" "security" "unscoped"]
+  assert equal ($report.annotations | where scope == "documentation" | first | get file) "prose.md"
   assert equal ($report.annotations | where scope == "empty" | first | get message) ""
   assert equal ($report.annotations | where scope == "unscoped" | first | get directory) "modules/nested"
   assert equal ($report.annotations | where scope == "secrets" | first | get message) "see [credential guidance](docs/credentials.md)"

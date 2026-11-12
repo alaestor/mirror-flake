@@ -17,6 +17,8 @@ Local Forgejo software-forge configuration.
 Forgejo expects to be reached via shared Caddy reverse proxy (`serve.caddy`),
 which terminates TLS itself. Git-over-SSH is served through
 the host's existing OpenSSH daemon (the upstream module's default).
+State defaults to local storage. Hosts own NAS placement, NAS shutdown
+ordering, and any storage-specific SSH authorized_keys workaround.
 
 ## headscale
 
