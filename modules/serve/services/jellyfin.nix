@@ -1,6 +1,7 @@
 /**
   Local Jellyfin media service and NAS alias-library builder without public
-  ingress policy.
+  ingress policy. Uses a dedicated service account; hosts own any NAS grants
+  and migration of existing state when changing the account.
 */
 { lib, self, ... }:
 let
@@ -62,10 +63,7 @@ in
 
         user = lib.mkOption {
           type = lib.types.nonEmptyStr;
-          default = if config ? hostIdentity then config.hostIdentity.primaryUser else "jellyfin";
-          defaultText = lib.literalExpression ''
-            config.hostIdentity.primaryUser or "jellyfin"
-          '';
+          default = "jellyfin";
           description = "Account under which Jellyfin runs.";
         };
 
@@ -122,11 +120,12 @@ in
         # The alias library is a tree of links into `source`, so Jellyfin reads
         # through to it and holds files open there. Without this, nothing stops
         # Jellyfin before that share is unmounted, and the unmount fails.
-      systemd.services.jellyfin = lib.mkIf cfg.libraryBuilder.enable {
-        # Stop before nas-detach lazily detaches network filesystems.
-        after = [ "nas-detach.service" ];
-        unitConfig.RequiresMountsFor = [ cfg.libraryBuilder.source ];
-      };
+        systemd.services.jellyfin = {
+          serviceConfig.ProtectHome = lib.mkDefault true;
+          # Stop before nas-detach lazily detaches network filesystems.
+          after = lib.optional cfg.libraryBuilder.enable "nas-detach.service";
+          unitConfig.RequiresMountsFor = lib.optional cfg.libraryBuilder.enable cfg.libraryBuilder.source;
+        };
       };
     };
 }

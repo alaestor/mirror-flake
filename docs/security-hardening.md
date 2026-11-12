@@ -23,6 +23,23 @@ CPU-specific mitigations belong with the relevant hardware policy. The generic
 baseline retains forced page-table isolation, but does not force Intel KVM
 cache-flushing parameters on unrelated processors.
 
+## Service accounts and shared storage
+
+Jellyfin defaults to its dedicated account and hides home directories. Grant
+that account read and directory-traversal access to the media it needs at the
+storage owner. Do not reuse an administrator's UID or grant broad group access
+to make a NAS mount readable. NFS access also depends on server-side identity
+mapping and ACLs, so client-side mode bits alone cannot establish access.
+
+Changing an existing service account requires a migration, not just a new unit.
+Stop the service and back up its state first. Check the actual state, cache,
+configuration, and log paths and their mounts. Transfer only the local service
+state to the new account without following media symlinks or traversing NAS
+mounts. Upstream Jellyfin tmpfiles rules set ownership on the configured
+directories, not all existing contents. Verify media access as the service
+account and test playback, scanning, and transcoding before removing a temporary
+host-specific account override.
+
 ## Kernel choices
 
 Keep the kernel's default heap zero-on-allocation. Do not enable page poisoning

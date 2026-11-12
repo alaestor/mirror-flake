@@ -43,6 +43,28 @@ let
     }
   ];
 
+  jellyfinWithIdentity = harness.evaluate [
+    nixos.serve-jellyfin
+    ({ lib, ... }: {
+      options.hostIdentity = lib.mkOption { type = lib.types.attrs; };
+      config = {
+        hostIdentity.primaryUser = "fixture-admin";
+        serve.jellyfin.enable = true;
+      };
+    })
+  ];
+  jellyfinCustomUser = harness.evaluate [
+    nixos.serve-jellyfin
+    {
+      serve.jellyfin = {
+        enable = true;
+        user = "fixture-media";
+        libraryBuilder.enable = false;
+      };
+      systemd.services.jellyfin.serviceConfig.ProtectHome = false;
+    }
+  ];
+
   # A service whose data root can sit on a network share must order itself
   # against that mount, or shutdown tries to unmount the share out from under
   # a service still holding files open on it.
@@ -177,6 +199,19 @@ let
   ];
 
   domainAssertions = [
+    {
+      assertion = jellyfinWithIdentity.services.jellyfin.user == "jellyfin"
+        && jellyfinWithIdentity.users.users.jellyfin.isSystemUser
+        && jellyfinWithIdentity.systemd.services.jellyfin.serviceConfig.ProtectHome;
+      message = "Jellyfin must use its dedicated account and hide home directories even on an identified host";
+    }
+    {
+      assertion = jellyfinCustomUser.services.jellyfin.user == "fixture-media"
+        && !jellyfinCustomUser.systemd.services.jellyfin.serviceConfig.ProtectHome
+        && !(lib.elem "nas-detach.service" jellyfinCustomUser.systemd.services.jellyfin.after)
+        && !(lib.elem "/mnt/Vault/Media" jellyfinCustomUser.systemd.services.jellyfin.unitConfig.RequiresMountsFor);
+      message = "Jellyfin must allow explicit account/home refinements and omit library mount dependencies when disabled";
+    }
     {
       assertion = forgejoWithNas.serve.forgejo.dataRoot == "/var/lib/forgejo";
       message = "Importing NAS changes Forgejo's storage placement";
