@@ -4,13 +4,14 @@
   Forgejo expects to be reached via shared Caddy reverse proxy (`serve.caddy`),
   which terminates TLS itself. Git-over-SSH is served through
   the host's existing OpenSSH daemon (the upstream module's default).
+  State defaults to local storage. Hosts own NAS placement, NAS shutdown
+  ordering, and any storage-specific SSH authorized_keys workaround.
 */
 {
   flake.modules.nixos.serve-forgejo =
-    { config, lib, options, pkgs, ... }:
+    { config, lib, options, ... }:
     let
       cfg = config.serve.forgejo;
-      hasServicesMountpoint = lib.hasAttrByPath [ "nas" "services" "mountpoint" ] options;
       hasSshHostAllowUsers = lib.hasAttrByPath [ "ssh-host" "allowUsers" ] options;
     in
     {
@@ -49,12 +50,7 @@
 
         dataRoot = lib.mkOption {
           type = lib.types.str;
-          default = if hasServicesMountpoint then "${config.nas.services.mountpoint}/forgejo" else "/mnt/Services/forgejo";
-          defaultText = lib.literalExpression ''
-            if NAS module present
-            then "''${config.nas.services.mountpoint}/forgejo"
-            else "/mnt/Services/forgejo"
-          '';
+          default = "/var/lib/forgejo";
           description = "Root directory holding Forgejo's state and LFS data.";
         };
       };
@@ -128,13 +124,10 @@
 
         # `dataRoot` may live on a network share. Do not make the global
         # tmpfiles boot unit depend on that optional share: only Forgejo's own
-        # units wait for it. Explicit nas-detach ordering keeps its data
-        # available until the daemon has stopped.
-      systemd.services = lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
-        # Stop before nas-detach lazily detaches network filesystems.
-        after = [ "nas-detach.service" ];
-        unitConfig.RequiresMountsFor = [ cfg.dataRoot ];
-      });
+        # units wait for it. Hosts own any additional NAS shutdown ordering.
+        systemd.services = lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
+          unitConfig.RequiresMountsFor = [ cfg.dataRoot ];
+        });
 
         # expects REVERSE_PROXY_TRUSTED_PROXIES and and log MODE console.
         # This jail is inert unless fail2ban itself is enabled; mkDefault so
@@ -167,22 +160,6 @@
         # own forced-command authorized_keys written/managed by Forgejo
         # itself; wire directly into sshd's AllowUsers: Don't use ssh-host.
         services.openssh.settings.AllowUsers = lib.mkIf hasSshHostAllowUsers [ "forgejo" ];
-
-        # TODO(serve): maybe this workaround and option defaults should be lanser config?
-        # WORKAROUND(permenant): because forgejo's authorized_keys file may live on zfs, ssh complains about its file permissions and refuses to read.
-        environment.etc."ssh/authorized_keys_command_forgejo" = {
-          mode = "0755";
-          text = ''
-            #!/bin/sh
-            exec ${pkgs.coreutils}/bin/cat ${cfg.dataRoot}/state/.ssh/authorized_keys
-          '';
-        };
-        services.openssh.extraConfig = lib.mkAfter ''
-          Match User forgejo
-            AuthorizedKeysCommand /etc/ssh/authorized_keys_command_forgejo
-            AuthorizedKeysCommandUser root
-          Match all
-        '';
       };
     };
 }

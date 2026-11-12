@@ -23,6 +23,26 @@ let
     { serve.nix-cache = { enable = true; authority = "cache.example.test"; }; }
   ];
 
+  forgejoWithNas = harness.evaluate [
+    nixos.serve-forgejo
+    nixos.nas
+    nixos.user-environment
+    {
+      nas.services.mountpoint = "/mnt/fixture-nas";
+      serve.forgejo = { enable = true; domain = "git.example.test"; };
+    }
+  ];
+  forgejoCustomRoot = harness.evaluate [
+    nixos.serve-forgejo
+    {
+      serve.forgejo = {
+        enable = true;
+        domain = "git.example.test";
+        dataRoot = "/srv/fixture-forgejo";
+      };
+    }
+  ];
+
   # A service whose data root can sit on a network share must order itself
   # against that mount, or shutdown tries to unmount the share out from under
   # a service still holding files open on it.
@@ -67,6 +87,20 @@ let
       enabledConfig.domain = "git.example.test";
       enabledAssertions = [
         (mountOrdering "forgejo" (config: config.serve.forgejo.dataRoot))
+        (mountOrdering "forgejo-secrets" (config: config.serve.forgejo.dataRoot))
+        (config: {
+          assertion = config.serve.forgejo.dataRoot == "/var/lib/forgejo"
+            && config.services.forgejo.stateDir == "/var/lib/forgejo/state"
+            && config.services.forgejo.lfs.contentDir == "/var/lib/forgejo/lfs";
+          message = "Forgejo does not default to local state and LFS storage";
+        })
+        (config: {
+          assertion = !(config.environment.etc ? "ssh/authorized_keys_command_forgejo")
+            && !(lib.hasInfix "AuthorizedKeysCommand" config.services.openssh.extraConfig)
+            && builtins.all (unit: !(lib.elem "nas-detach.service" config.systemd.services.${unit}.after))
+              [ "forgejo" "forgejo-secrets" ];
+          message = "Forgejo installs host-specific NAS or SSH workarounds";
+        })
       ];
     }
     {
@@ -143,6 +177,18 @@ let
   ];
 
   domainAssertions = [
+    {
+      assertion = forgejoWithNas.serve.forgejo.dataRoot == "/var/lib/forgejo";
+      message = "Importing NAS changes Forgejo's storage placement";
+    }
+    {
+      assertion = forgejoCustomRoot.services.forgejo.stateDir == "/srv/fixture-forgejo/state"
+        && forgejoCustomRoot.services.forgejo.lfs.contentDir == "/srv/fixture-forgejo/lfs"
+        && builtins.all (unit:
+          lib.elem "/srv/fixture-forgejo" forgejoCustomRoot.systemd.services.${unit}.unitConfig.RequiresMountsFor
+        ) [ "forgejo" "forgejo-secrets" ];
+      message = "Forgejo ignores the configured data root for state, LFS, or mount dependencies";
+    }
     {
       assertion = !cacheWithoutKey.services.nix-serve.enable
         && cacheWithoutKey.networking.firewall.interfaces.tailscale0.allowedTCPPorts == [ ]

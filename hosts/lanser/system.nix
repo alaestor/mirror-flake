@@ -1,6 +1,7 @@
 { inputs, tailnet, lan }:
 {
   config,
+  lib,
   pkgs,
   ...
 }:
@@ -85,6 +86,7 @@ in
     filebrowser.enable = true;
     forgejo = {
       enable = true;
+      dataRoot = "${config.nas.services.mountpoint}/forgejo";
       # headplane (behind serve.headscale) defaults to 3000 too; avoid the
       # clash since this host runs both.
       port = 3001;
@@ -108,7 +110,29 @@ in
     };
   };
 
+  # Forgejo state is on the NAS. Stop its units before the share is detached.
+  systemd.services = lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
+    after = [ "nas-detach.service" ];
+  });
+
+  # sshd rejects the permissions on the NAS-backed authorized_keys file.
+  # Keep this storage-specific workaround alongside the dataRoot selection.
+  environment.etc."ssh/authorized_keys_command_forgejo" = {
+    mode = "0755";
+    text = ''
+      #!/bin/sh
+      exec ${pkgs.coreutils}/bin/cat ${config.services.forgejo.stateDir}/.ssh/authorized_keys
+    '';
+  };
+
   services = {
+    openssh.extraConfig = lib.mkAfter ''
+      Match User forgejo
+        AuthorizedKeysCommand /etc/ssh/authorized_keys_command_forgejo
+        AuthorizedKeysCommandUser root
+      Match all
+    '';
+
     headscale.settings = {
       dns = {
         magic_dns = true;

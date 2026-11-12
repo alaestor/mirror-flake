@@ -93,6 +93,12 @@ option. Consume shared fleet facts when the same public address is used by
 clients. Tailnet DNS policy, concrete storage locations, network topology,
 credentials, and one-machine exceptions remain host-owned.
 
+Storage-specific workarounds belong beside the host's storage selection.
+For example, a service can default to local state and require the mount holding
+its configured data root. A host placing that state on a NAS owns additional
+NAS shutdown ordering and any SSH key-loading workaround that storage requires.
+Importing a NAS module alone must not change the service's storage placement.
+
 Name a domain module after the site or property it composes, not its TLD.
 `domain-0x04`, not `domain-0x04cc`. The TLD already lives in the module's
 `domain` value, and a name that bakes it in goes stale the moment a domain
