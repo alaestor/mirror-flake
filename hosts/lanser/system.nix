@@ -111,9 +111,34 @@ in
   };
 
   # Forgejo state is on the NAS. Stop its units before the share is detached.
-  systemd.services = lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
+  systemd.services = (lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
     after = [ "nas-detach.service" ];
-  });
+  })) // {
+    # Hide the NAS mount tree, then expose only each workload's data. Bind at
+    # the original paths so Jellyfin's local alias symlinks continue to work.
+    filebrowser = lib.mkIf config.serve.filebrowser.enable {
+      serviceConfig = {
+        TemporaryFileSystem = [ "/mnt:ro" ];
+        BindReadOnlyPaths = [ config.serve.filebrowser.root ];
+      };
+    };
+    jellyfin = lib.mkIf config.serve.jellyfin.enable {
+      serviceConfig = {
+        TemporaryFileSystem = [ "/mnt:ro" ];
+        BindReadOnlyPaths = [ config.serve.jellyfin.libraryBuilder.source ];
+      };
+    };
+    qbittorrent = lib.mkIf config.serve.torrenting.enable {
+      # Pocket is the torrent workspace, including inboxes and integrated data
+      # still being seeded. Preserve per-torrent paths across that share.
+      unitConfig.RequiresMountsFor = [ config.nas.pocket.mountpoint ];
+      serviceConfig = {
+        TemporaryFileSystem = [ "/mnt:ro" ];
+        BindPaths = [ config.nas.pocket.mountpoint ];
+        ReadWritePaths = [ config.nas.pocket.mountpoint ];
+      };
+    };
+  };
 
   # sshd rejects the permissions on the NAS-backed authorized_keys file.
   # Keep this storage-specific workaround alongside the dataRoot selection.

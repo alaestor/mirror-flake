@@ -40,6 +40,48 @@ directories, not all existing contents. Verify media access as the service
 account and test playback, scanning, and transcoding before removing a temporary
 host-specific account override.
 
+## Service filesystem and device boundaries
+
+Media services treat their libraries as read-only input. Filebrowser writes its
+database and cache; Jellyfin writes its configured data, configuration, cache,
+and log directories. qBittorrent writes its profile and download directory.
+Their systemd units make the remaining filesystem read-only and provide private
+temporary storage. They also explicitly protect `/run`: runtime probes on
+systemd 262 found that combining `ProtectControlGroups=yes` with
+`ProtectSystem=strict` left that mount writable unless it was named in
+`ReadOnlyPaths`. Additional writable paths, such as a custom transcode
+directory selected in an application's UI, require an explicit unit refinement.
+Keep write exceptions narrow; making a parent writable can expose unrelated
+state beneath it.
+
+An application's configured default download directory does not describe every
+existing torrent's storage. Before restricting qBittorrent, inspect its saved
+per-torrent paths as well as its default and temporary directories. Hosts own
+any additional write exceptions, bind mounts, and mount dependencies needed to
+preserve those locations. When a whole share is intentionally a torrent
+workspace, expose that share rather than enumerating changing inbox directories.
+
+Read-only access is not confidentiality. Hosts with several NAS shares should
+also hide unrelated shares from each workload. Lanser overlays `/mnt` with an
+empty read-only filesystem inside these units and binds back only the required
+media subtree or torrent workspace. Bind media at its original absolute path so local
+alias symlinks still resolve to their NAS targets. New libraries or symlinks
+outside the exposed subtree require an explicit host policy change. These
+restrictions apply to service processes, not interactive maintenance commands
+such as the alias-library builder.
+
+Jellyfin uses a closed device policy. Declare accelerator access through
+`services.jellyfin.hardwareAcceleration` or explicit `DeviceAllow` refinements;
+changing only the web UI does not grant device access. Retain executable-memory
+support for .NET and test FFmpeg subprocesses rather than applying a generic
+native-daemon sandbox unchanged.
+
+Validate sandbox changes with both successful state/cache writes and denied
+writes outside those directories. Check reads through real media symlinks,
+denied access to hidden shares and devices, and application startup. Playback,
+scanning, transcoding, authentication, and VPN-failure behavior still need
+workload-specific checks before treating the rollout as complete.
+
 ## Kernel choices
 
 Keep the kernel's default heap zero-on-allocation. Do not enable page poisoning

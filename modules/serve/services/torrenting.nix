@@ -1,5 +1,6 @@
 /**
   qBittorrent confined to a WireGuard VPN namespace.
+  Writes are limited to its profile, downloads, and private temporary storage.
 
   This is a private host service, not a public domain composition.
 */
@@ -90,6 +91,17 @@
         };
 
       systemd.services.qbittorrent = {
+        serviceConfig = {
+          # Replace upstream's ordinary definitions; hosts can still mkForce
+          # an exception. PrivateTmp keeps temporary files writable under strict.
+          ProtectSystem = lib.mkOverride 90 "strict";
+          PrivateTmp = lib.mkOverride 90 true;
+          ReadWritePaths = [
+            config.services.qbittorrent.profileDir
+            cfg.downloadPath
+          ];
+          ReadOnlyPaths = [ "/run" ];
+        };
         # Stop before nas-detach lazily detaches network filesystems.
         after = [ "nas-detach.service" ];
         vpnConfinement = {

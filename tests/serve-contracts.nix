@@ -69,6 +69,37 @@ let
     }
   ];
 
+  filebrowserCustomPaths = harness.evaluate [
+    nixos.serve-filebrowser
+    {
+      serve.filebrowser = { enable = true; root = "/srv/fixture-media"; };
+      services.filebrowser.settings.database = "/srv/fixture-filebrowser/database.db";
+    }
+  ];
+  jellyfinCustomPaths = harness.evaluate [
+    nixos.serve-jellyfin
+    {
+      serve.jellyfin = {
+        enable = true;
+        libraryBuilder.source = "/srv/fixture-media";
+      };
+      services.jellyfin = {
+        dataDir = "/srv/fixture-jellyfin/data";
+        configDir = "/srv/fixture-jellyfin/config";
+        cacheDir = "/srv/fixture-jellyfin/cache";
+        logDir = "/srv/fixture-jellyfin/log";
+        hardwareAcceleration = { enable = true; device = "/dev/dri/renderD129"; };
+      };
+    }
+  ];
+  torrentingCustomPaths = harness.evaluate [
+    nixos.serve-torrenting
+    {
+      serve.torrenting = { enable = true; downloadPath = "/srv/fixture-downloads"; };
+      services.qbittorrent.profileDir = "/srv/fixture-qbittorrent";
+    }
+  ];
+
   # A service whose data root can sit on a network share must order itself
   # against that mount, or shutdown tries to unmount the share out from under
   # a service still holding files open on it.
@@ -104,6 +135,13 @@ let
       activationPaths = [ [ "services" "filebrowser" "enable" ] ];
       enabledAssertions = [
         (mountOrdering "filebrowser" (config: config.serve.filebrowser.root))
+        (config: {
+          assertion = with config.systemd.services.filebrowser.serviceConfig;
+            ProtectSystem == "strict" && ProtectHome && PrivateTmp
+            && lib.elem "/run" ReadOnlyPaths && lib.elem config.serve.filebrowser.root ReadOnlyPaths
+            && !(lib.elem config.serve.filebrowser.root ReadWritePaths);
+          message = "Filebrowser must protect the host filesystem and keep media read-only";
+        })
       ];
     }
     {
@@ -143,6 +181,13 @@ let
       activationPaths = [ [ "services" "jellyfin" "enable" ] ];
       enabledAssertions = [
         (mountOrdering "jellyfin" (config: config.serve.jellyfin.libraryBuilder.source))
+        (config: {
+          assertion = with config.systemd.services.jellyfin.serviceConfig;
+            ProtectSystem == "strict" && DevicePolicy == "closed"
+            && lib.elem "/run" ReadOnlyPaths && lib.elem config.serve.jellyfin.libraryBuilder.source ReadOnlyPaths
+            && !(lib.elem config.serve.jellyfin.libraryBuilder.source ReadWritePaths);
+          message = "Jellyfin must protect the host filesystem, keep media read-only, and restrict devices";
+        })
       ];
     }
     {
@@ -167,6 +212,12 @@ let
       activationPaths = [ [ "services" "qbittorrent" "enable" ] ];
       enabledAssertions = [
         (mountOrdering "qbittorrent" (config: config.serve.torrenting.downloadPath))
+        (config: {
+          assertion = with config.systemd.services.qbittorrent.serviceConfig;
+            ProtectSystem == "strict" && PrivateTmp && lib.elem "/run" ReadOnlyPaths
+            && ReadWritePaths == [ config.services.qbittorrent.profileDir config.serve.torrenting.downloadPath ];
+          message = "qBittorrent must restrict writes to its profile, downloads, and private temporary files";
+        })
       ];
     }
   ];
@@ -204,6 +255,28 @@ let
 
   domainAssertions = [
     {
+      assertion = with filebrowserCustomPaths.systemd.services.filebrowser.serviceConfig;
+        ReadWritePaths == [ "/srv/fixture-filebrowser" ]
+        && ReadOnlyPaths == [ "/run" "/srv/fixture-media" ]
+        && StateDirectory == "filebrowser" && CacheDirectory == "filebrowser";
+      message = "Filebrowser must derive write exceptions from its database and preserve managed state/cache directories";
+    }
+    {
+      assertion = with jellyfinCustomPaths.systemd.services.jellyfin.serviceConfig;
+        ReadWritePaths == [
+          "/srv/fixture-jellyfin/data" "/srv/fixture-jellyfin/config"
+          "/srv/fixture-jellyfin/cache" "/srv/fixture-jellyfin/log"
+        ]
+        && ReadOnlyPaths == [ "/run" "/srv/fixture-media" ]
+        && DevicePolicy == "closed" && lib.elem "/dev/dri/renderD129 rw" DeviceAllow;
+      message = "Jellyfin must follow custom application paths and retain explicitly allowed acceleration devices";
+    }
+    {
+      assertion = torrentingCustomPaths.systemd.services.qbittorrent.serviceConfig.ReadWritePaths
+        == [ "/srv/fixture-qbittorrent" "/srv/fixture-downloads" ];
+      message = "qBittorrent must follow custom profile and download paths";
+    }
+    {
       assertion = jellyfinWithIdentity.services.jellyfin.user == "jellyfin"
         && jellyfinWithIdentity.users.users.jellyfin.isSystemUser
         && jellyfinWithIdentity.systemd.services.jellyfin.serviceConfig.ProtectHome;
@@ -212,6 +285,7 @@ let
     {
       assertion = jellyfinCustomUser.services.jellyfin.user == "fixture-media"
         && !jellyfinCustomUser.systemd.services.jellyfin.serviceConfig.ProtectHome
+        && jellyfinCustomUser.systemd.services.jellyfin.serviceConfig.ReadOnlyPaths == [ "/run" ]
         && !(lib.elem "nas-detach.service" jellyfinCustomUser.systemd.services.jellyfin.after)
         && !(lib.elem "/mnt/Vault/Media" jellyfinCustomUser.systemd.services.jellyfin.unitConfig.RequiresMountsFor);
       message = "Jellyfin must allow explicit account/home refinements and omit library mount dependencies when disabled";

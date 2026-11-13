@@ -1,7 +1,8 @@
 /**
   Local Jellyfin media service and NAS alias-library builder without public
-  ingress policy. Uses a dedicated service account; hosts own any NAS grants
-  and migration of existing state when changing the account.
+  ingress policy. Uses a dedicated service account, read-only media, and
+  writable application directories. Accelerator devices must be declared
+  explicitly. Hosts own NAS grants and existing-state account migrations.
 */
 { lib, self, ... }:
 let
@@ -121,7 +122,22 @@ in
         # through to it and holds files open there. Without this, nothing stops
         # Jellyfin before that share is unmounted, and the unmount fails.
         systemd.services.jellyfin = {
-          serviceConfig.ProtectHome = lib.mkDefault true;
+          serviceConfig = {
+            ProtectHome = lib.mkDefault true;
+            # Upstream defines ProtectSystem at ordinary priority. Strengthen
+            # it while leaving mkForce available for host-specific exceptions.
+            ProtectSystem = lib.mkOverride 90 "strict";
+            ReadWritePaths = with config.services.jellyfin; [
+              dataDir
+              configDir
+              cacheDir
+              logDir
+            ];
+            # Protect runtime mounts explicitly as well as the media source.
+            ReadOnlyPaths = [ "/run" ] ++ lib.optional cfg.libraryBuilder.enable cfg.libraryBuilder.source;
+            # Keep the real /dev for explicitly allowed accelerator devices.
+            DevicePolicy = lib.mkDefault "closed";
+          };
           # Stop before nas-detach lazily detaches network filesystems.
           after = lib.optional cfg.libraryBuilder.enable "nas-detach.service";
           unitConfig.RequiresMountsFor = lib.optional cfg.libraryBuilder.enable cfg.libraryBuilder.source;

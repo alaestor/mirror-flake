@@ -1,5 +1,7 @@
 /**
-  Local Filebrowser media service without public ingress policy.
+  Read-only Filebrowser media service without public ingress policy.
+  Only its database directory and cache are writable; media remains read-only
+  even when the underlying storage permits writes.
 */
 {
   flake.modules.nixos.serve-filebrowser =
@@ -51,7 +53,20 @@
         # `root` usually lives on a network share. Without this, nothing stops
         # Filebrowser before that share is unmounted, and the unmount fails
         # against its open files.
-        systemd.services.filebrowser.unitConfig.RequiresMountsFor = [ cfg.root ];
+        systemd.services.filebrowser = {
+          unitConfig.RequiresMountsFor = [ cfg.root ];
+          serviceConfig = {
+            ProtectSystem = lib.mkDefault "strict";
+            ProtectHome = lib.mkDefault true;
+            PrivateTmp = lib.mkDefault true;
+            CapabilityBoundingSet = lib.mkDefault "";
+            ReadWritePaths = [ (builtins.dirOf config.services.filebrowser.settings.database) ];
+            # StateDirectory and CacheDirectory are writable automatically.
+            # Protect runtime mounts explicitly rather than relying on strict
+            # to cover them when combined with the other namespace settings.
+            ReadOnlyPaths = [ "/run" cfg.root ];
+          };
+        };
       };
     };
 }
