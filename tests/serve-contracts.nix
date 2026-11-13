@@ -22,6 +22,10 @@ let
     (cacheModule false)
     { serve.nix-cache = { enable = true; authority = "cache.example.test"; }; }
   ];
+  cacheWithKey = harness.evaluate [
+    (cacheModule true)
+    { serve.nix-cache = { enable = true; authority = "cache.example.test"; }; }
+  ];
 
   forgejoWithNas = harness.evaluate [
     nixos.serve-forgejo
@@ -320,6 +324,7 @@ let
 in
 pkgs.runCommand "serve-contracts-test"
   {
+    nativeBuildInputs = [ pkgs.curl ];
     passAsFile = [ "failureReport" ];
     failureReport = builtins.concatStringsSep "\n" failures;
   }
@@ -328,5 +333,20 @@ pkgs.runCommand "serve-contracts-test"
       cat "$failureReportPath" >&2
       exit 1
     fi
+
+    # Exercise the selected implementation with the NixOS module's CLI syntax.
+    # A dummy store keeps this independent of the build machine's daemon/keys.
+    export NIX_REMOTE=dummy://
+    ${lib.getExe cacheWithKey.services.nix-serve.package} --listen 127.0.0.1:15000 > server.log 2>&1 &
+    server_pid=$!
+    trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" || true' EXIT
+    if ! curl --fail --silent --show-error --noproxy '*' \
+      --retry 10 --retry-connrefused --retry-delay 1 --retry-max-time 15 --max-time 2 \
+      http://127.0.0.1:15000/nix-cache-info > cache-info; then
+      cat server.log >&2
+      exit 1
+    fi
+    grep -Fx 'StoreDir: ${builtins.storeDir}' cache-info
+    grep -Fx 'WantMassQuery: 1' cache-info
     touch "$out"
   ''

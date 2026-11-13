@@ -1,5 +1,5 @@
 /**
-  Private HTTP Nix binary cache backed by the host's Nix store.
+  Private HTTP Nix binary cache backed by the host's Nix store via nix-serve-ng.
 
   Exports `flake.modules.nixos.serve-nix-cache`. Importing it has no effect;
   `serve.nix-cache.enable` must be set explicitly. The listener is exposed only
@@ -9,7 +9,7 @@
 
 {
   flake.modules.nixos.serve-nix-cache =
-    { config, lib, ... }:
+    { config, lib, pkgs, ... }:
     let
       cfg = config.serve.nix-cache;
       keyName = "${cfg.authority}-${toString cfg.rotation}";
@@ -65,6 +65,8 @@
 
         services.nix-serve = lib.mkIf secret.exists {
           enable = true;
+          # Legacy nix-serve requires Perl bindings removed in Nix 2.35.
+          package = lib.mkDefault pkgs.nix-serve-ng;
           bindAddress = cfg.address;
           inherit (cfg) port;
           openFirewall = false;
