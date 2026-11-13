@@ -96,11 +96,36 @@ in
     |---|---|
     | `vpn_P2PUSCA560.conf.age` | Lanser torrent VPN namespace |
     | `headplane_cookie-secret.age` | Headplane session cookies |
+    | `dufs-auth.env.age` | Dufs media-download account hashes |
+
+    #### Adding Dufs Accounts
+
+    1. Generate a new password hash interactively:
+
+    ```sh
+    nix shell --inputs-from . nixpkgs#openssl -c openssl passwd -6
+    ```
+    2. Edit the encrypted accounts file (`cd secrets` first)
+
+    ```sh
+    AGENIX_RULES=./secrets.nix nix run ..#agenix -- -e dufs-auth.env.age
+    ```
+
+    Replace the username or complete $6$… hash, keeping this `USER:HASH@/:ro` format, and deliminating accounts with `|`
+
+    e.g.
+    ```
+    DUFS_AUTH='alice:HASH1@/:ro|bob:HASH2@/:ro'
+    ```
+
+    3. Rebuild host
 
   */
   "vpn_P2PUSCA560.conf.age".publicKeys =
     administrators ++ [ (sshHost "lanser") ];
   "headplane_cookie-secret.age".publicKeys =
+    administrators ++ [ (sshHost "lanser") ];
+  "dufs-auth.env.age".publicKeys =
     administrators ++ [ (sshHost "lanser") ];
 
   /**

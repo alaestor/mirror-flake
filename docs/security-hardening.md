@@ -62,13 +62,20 @@ preserve those locations. When a whole share is intentionally a torrent
 workspace, expose that share rather than enumerating changing inbox directories.
 
 Read-only access is not confidentiality. Hosts with several NAS shares should
-also hide unrelated shares from each workload. Lanser overlays `/mnt` with an
-empty read-only filesystem inside these units and binds back only the required
-media subtree or torrent workspace. Bind media at its original absolute path so local
+also hide unrelated shares from each workload. Jellyfin and qBittorrent can
+overlay the mount tree with an empty read-only filesystem and bind back only the
+required media subtree or torrent workspace. Bind media at its original absolute path so local
 alias symlinks still resolve to their NAS targets. New libraries or symlinks
 outside the exposed subtree require an explicit host policy change. These
 restrictions apply to service processes, not interactive maintenance commands
 such as the alias-library builder.
+
+Dufs uses a private filesystem root instead. Only the selected media shares and
+the read-only Nix store are bound into it. It has no writable application state
+and cannot reach other host directories through its served tree. Its required
+runtime authentication file and startup guard prevent an absent or empty secret
+from silently enabling anonymous downloads. Test unauthenticated listings,
+search, direct files, and archives as well as authenticated reads.
 
 Jellyfin uses a closed device policy. Declare accelerator access through
 `services.jellyfin.hardwareAcceleration` or explicit `DeviceAllow` refinements;

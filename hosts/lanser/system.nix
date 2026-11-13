@@ -23,6 +23,10 @@ in
         group = "headscale";
         mode = "0400";
       };
+      lanser-dufs-auth = {
+        file = secretPath "dufs-auth.env.age";
+        mode = "0400";
+      };
     };
   };
 
@@ -83,7 +87,16 @@ in
       bindAddress = lan.reservations.lanser;
     };
     cinny.enable = true;
-    filebrowser.enable = true;
+    dufs = {
+      enable = true;
+      authFile = config.age.secrets.lanser-dufs-auth.path;
+      shares = {
+        Anime = "${config.nas.vault.mountpoint}/Media/Anime";
+        Movies = "${config.nas.vault.mountpoint}/Media/Movies";
+        Music = "${config.nas.vault.mountpoint}/Media/Music/Library";
+      };
+      # TODO(ui): customize dufs css
+    };
     forgejo = {
       enable = true;
       dataRoot = "${config.nas.services.mountpoint}/forgejo";
@@ -114,14 +127,13 @@ in
   systemd.services = (lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
     after = [ "nas-detach.service" ];
   })) // {
+    dufs = lib.mkIf config.serve.dufs.enable {
+      after = [ "agenix.service" "nas-detach.service" ];
+      # EnvironmentFile is loaded on start, not on credential rotation.
+      restartTriggers = [ (builtins.hashFile "sha256" (secretPath "dufs-auth.env.age")) ];
+    };
     # Hide the NAS mount tree, then expose only each workload's data. Bind at
     # the original paths so Jellyfin's local alias symlinks continue to work.
-    filebrowser = lib.mkIf config.serve.filebrowser.enable {
-      serviceConfig = {
-        TemporaryFileSystem = [ "/mnt:ro" ];
-        BindReadOnlyPaths = [ config.serve.filebrowser.root ];
-      };
-    };
     jellyfin = lib.mkIf config.serve.jellyfin.enable {
       serviceConfig = {
         TemporaryFileSystem = [ "/mnt:ro" ];

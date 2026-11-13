@@ -130,6 +130,33 @@ let
       }) ];
     }
     {
+      name = "dufs";
+      module = nixos.serve-dufs;
+      activationPaths = [ [ "services" "dufs" "enable" ] ];
+      enabledConfig = {
+        authFile = "/run/secrets/fixture-dufs.env";
+        shares = { Films = "/srv/fixture-films"; Audio = "/srv/fixture-audio"; };
+      };
+      enabledAssertions = [
+        (mountOrdering "dufs" (_: "/srv/fixture-films"))
+        (mountOrdering "dufs" (_: "/srv/fixture-audio"))
+        (config: {
+          assertion = with config.systemd.services.dufs.serviceConfig;
+            RootDirectory == "/run/dufs-root"
+            && ProtectSystem == "strict" && ProtectHome && PrivateTmp
+            && ReadWritePaths == [ ] && ReadOnlyPaths == [ "+/run" ]
+            && BindReadOnlyPaths == [ builtins.storeDir "/srv/fixture-audio:/media/Audio" "/srv/fixture-films:/media/Films" ]
+            && EnvironmentFile == [ "/run/secrets/fixture-dufs.env" ]
+            && config.services.dufs.bindAddresses == [ "127.0.0.1" ]
+            && config.services.dufs.settings.allow-search
+            && config.services.dufs.settings.allow-archive
+            && !config.services.dufs.settings.allow-upload
+            && !config.services.dufs.settings.allow-delete;
+          message = "Dufs must expose only selected read-only shares, require runtime accounts, and keep its listener private";
+        })
+      ];
+    }
+    {
       name = "filebrowser";
       module = nixos.serve-filebrowser;
       activationPaths = [ [ "services" "filebrowser" "enable" ] ];
@@ -248,7 +275,11 @@ let
   remotehostEnabled = harness.evaluate [
     nixos.domain-remotehost
     {
-      serve.filebrowser.enable = true;
+      serve.dufs = {
+        enable = true;
+        authFile = "/run/secrets/fixture-dufs.env";
+        shares.Films = "/srv/fixture-films";
+      };
       serve.jellyfin.enable = true;
     }
   ];
@@ -384,7 +415,7 @@ let
         "jellyfin.remotehost.cc, jellyfin.remotehost.cc:44344, shota.zip, shota.zip:44344"
         "media.remotehost.cc"
       ];
-      message = "domain-remotehost did not create the Filebrowser and Jellyfin routes";
+      message = "domain-remotehost did not create the Dufs and Jellyfin routes";
     }
     {
       assertion = remotehostEnabled.networking.firewall.allowedTCPPorts == [ 80 443 44344 ];

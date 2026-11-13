@@ -1,16 +1,16 @@
 /**
-  Public remotehost media composition: Filebrowser and Jellyfin.
+  Public remotehost media composition: Dufs downloads and Jellyfin.
 */
 { inputs, ... }:
 {
   flake.modules.nixos.domain-remotehost =
     { config, lib, ... }:
     let
-      filebrowserEnabled = config.serve.filebrowser.enable;
+      dufsEnabled = config.serve.dufs.enable;
       jellyfinEnabled = config.serve.jellyfin.enable;
-      publicHttpEnabled = filebrowserEnabled || jellyfinEnabled;
+      publicHttpEnabled = dufsEnabled || jellyfinEnabled;
 
-      filebrowser = config.serve.filebrowser;
+      dufs = config.serve.dufs;
       jellyfin = config.serve.jellyfin;
 
       domain = {
@@ -20,7 +20,7 @@
     in
     {
       imports = with inputs.self.modules.nixos; [
-        serve-filebrowser
+        serve-dufs
         serve-jellyfin
       ];
 
@@ -31,7 +31,7 @@
         ]
         ++ lib.optional jellyfinEnabled 44344;
 
-      services.caddy.virtualHosts = lib.optionalAttrs filebrowserEnabled {
+      services.caddy.virtualHosts = lib.optionalAttrs dufsEnabled {
         "media.${domain.primary}" = {
           serverAliases = [ "download.${domain.secondary}" ];
           extraConfig = ''
@@ -44,7 +44,7 @@
             cerberus @challenge {
               base_url "/.cerberus"
             }
-            reverse_proxy ${filebrowser.address}:${toString filebrowser.port}
+            reverse_proxy ${dufs.address}:${toString dufs.port}
           '';
         };
       }

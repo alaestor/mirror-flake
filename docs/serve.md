@@ -163,6 +163,27 @@ file. Credentials and secret runtime files do not belong in `data/` or literal
 Nix configuration. Their encrypted metadata belongs behind `self.secrets`, and
 the consuming host or service owns deployment to a runtime path.
 
+### Read-only downloads
+
+`serve-dufs` exposes named shares inside a private filesystem root. All accounts
+see the same shares; host paths outside that root are unavailable to the daemon.
+The Nix store is bound read-only for the executable and its dependencies. The
+service cannot write to the media, and does not follow symlinks outside its
+served root. Adding a library requires an explicit share definition.
+
+Accounts belong in a required runtime environment file, normally an agenix
+secret. Define `DUFS_AUTH='reader:HASH@/:ro'`, where `HASH` is the complete
+SHA-512 crypt output from `openssl passwd -6`. Separate additional account rules
+with `|`. The startup guard rejects missing authentication, plaintext passwords,
+anonymous rules, and write permissions. Dufs checks authentication before media
+listings, search, downloads, and folder archives. Basic authentication requires
+HTTPS at the reverse proxy; the daemon listens only on loopback.
+
+To change an account, edit and encrypt the secret, then rebuild the host. Hosts
+must add the encrypted payload's hash to the unit's `restartTriggers`, since an
+unchanged runtime secret path alone does not restart a service after rotation.
+Never put plaintext account data or hashes directly in Nix configuration.
+
 ## Extension checklist
 
 When adding a service:
