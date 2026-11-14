@@ -99,6 +99,9 @@
       experimental-features = nix-command flakes
     '';
 
+    # Still needed on-device as of 2026-11-14; tests/droid-nix-path.nix
+    # intentionally fails with GOOD NEWS when upstream lookup starts working.
+    # See docs/hosts-and-homes.md for verification and removal instructions.
     nix.nixPath = [ "nixpkgs=${pkgs.path}" ]; # TODO(workaround): nix-on-droid flakes dont expose nixpkgs in NIX_PATH; see [nix-on-droid#499](https://github.com/nix-community/nix-on-droid/issues/499)
 
   };

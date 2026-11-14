@@ -334,6 +334,39 @@ Nix-on-Droid host normally declares `nixpkgs`, `homeManager.flake`, and, when
 the device is too slow to realize its own bootstrap,
 `nixOnDroid.bootstrapSystem`.
 
+#### NIX_PATH workaround removal check
+
+The global Nix-on-Droid configuration sets `nix.nixPath` to the selected
+Nixpkgs source so legacy `<nixpkgs>` lookup works without channels. This covers
+commands such as `nix-shell -p hello`; flake references such as `nixpkgs#hello`
+use a separate lookup mechanism.
+
+[`tests/droid-nix-path.nix`](../tests/droid-nix-path.nix) is a removal check as
+well as a regression test. It executes the pinned fork's generated session
+setup in a channel-free fixture, both with and without our global module.
+It passes only while upstream lookup fails and our setting resolves the
+selected source. Run it after updating the fork:
+
+```sh
+nix build .#checks.x86_64-linux.droid-nix-path --no-link
+```
+
+A failure headed `GOOD NEWS` means lookup now succeeds without our workaround
+in the fixture. This is an intentional cleanup reminder, not a runtime
+regression. Inspect the reported source and confirm on-device that
+`nix-instantiate --find-file nixpkgs` and `nix-shell -p hello --run hello`
+work without the setting and without separately installed channels. Once
+confirmed, remove the `nix.nixPath` workaround from
+`modules/host-plumbing/global-config.nix`, retire the test, and update this
+section. Do not weaken the assertion just to retain an obsolete workaround.
+
+A failure in the configured case is different: our environment no longer
+resolves the intended source and needs investigation. Fixture setup failures
+also require investigation; they are not evidence that upstream fixed lookup.
+The fixture tests generated session setup, not a full Android activation.
+The check runs through `nix flake check` or the focused command above; it does
+not monitor upstream automatically.
+
 ## Extension checklist
 
 When adding or changing a host-facing capability:
