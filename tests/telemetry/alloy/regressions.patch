@@ -1,0 +1,191 @@
+--- a/internal/component/common/loki/client/internal/marker/tracker_test.go
++++ b/internal/component/common/loki/client/internal/marker/tracker_test.go
+@@ -37,6 +37,8 @@
+ 		st.UpdateReceivedData(11, 10)
+ 		st.UpdateSentData(11, 5)
+ 		st.UpdateSentData(11, 5)
++		st.UpdateReceivedData(12, 1)
++		st.UpdateSentData(12, 1)
+ 
+ 		require.Eventually(t, func() bool {
+ 			return st.LastMarkedSegment() == 11
+@@ -71,30 +73,30 @@
+ }
+ 
+ func TestFindLastMarkableSegment(t *testing.T) {
+-	t.Run("all segments with count zero, highest numbered should be marked", func(t *testing.T) {
+-		now := time.Now()
+-		data := map[int]*countDataItem{
+-			1: {
+-				count:      0,
+-				lastUpdate: now,
+-			},
+-			2: {
+-				count:      0,
+-				lastUpdate: now,
+-			},
+-			3: {
+-				count:      0,
+-				lastUpdate: now,
+-			},
+-			4: {
+-				count:      0,
+-				lastUpdate: now,
+-			},
+-		}
+-		require.Equal(t, 4, findMarkableSegment(data, time.Minute))
+-	})
+-
+-	t.Run("all segments with count zero, and one too old, highest numbered should be marked", func(t *testing.T) {
++	t.Run("zero counts mark the prefix but retain the newest segment", func(t *testing.T) {
++		now := time.Now()
++		data := map[int]*countDataItem{
++			1: {
++				count:      0,
++				lastUpdate: now,
++			},
++			2: {
++				count:      0,
++				lastUpdate: now,
++			},
++			3: {
++				count:      0,
++				lastUpdate: now,
++			},
++			4: {
++				count:      0,
++				lastUpdate: now,
++			},
++		}
++		require.Equal(t, 3, findMarkableSegment(data, time.Minute))
++	})
++
++	t.Run("expiry permits older progress but retains the newest segment", func(t *testing.T) {
+ 		now := time.Now()
+ 		data := map[int]*countDataItem{
+ 			1: {
+@@ -114,9 +116,10 @@
+ 				lastUpdate: now,
+ 			},
+ 		}
+-		require.Equal(t, 4, findMarkableSegment(data, time.Minute))
++		require.Equal(t, 3, findMarkableSegment(data, time.Minute))
+ 		// items that should have been cleanup up
+-		require.Len(t, data, 0)
++		require.Len(t, data, 1)
++		require.Contains(t, data, 4)
+ 	})
+ 	t.Run("should find the zeroed segment before the last non-zero", func(t *testing.T) {
+ 		now := time.Now()
+@@ -166,7 +169,7 @@
+ 		require.Equal(t, -1, findMarkableSegment(data, time.Minute))
+ 		require.Len(t, data, lenBefore, "none key should have been deleted")
+ 	})
+-	t.Run("should find only item with zero, and clean it up", func(t *testing.T) {
++	t.Run("a lone zero-count segment must remain tracked", func(t *testing.T) {
+ 		now := time.Now()
+ 		data := map[int]*countDataItem{
+ 			11: {
+@@ -174,7 +177,39 @@
+ 				lastUpdate: now,
+ 			},
+ 		}
+-		require.Equal(t, 11, findMarkableSegment(data, time.Minute))
+-		require.Len(t, data, 0)
+-	})
+-}
++		require.Equal(t, -1, findMarkableSegment(data, time.Minute))
++		require.Len(t, data, 1)
++		require.Contains(t, data, 11)
++	})
++}
++
++func TestPatchOpenSegmentReusedAfterZero(t *testing.T) {
++	data := map[int]*countDataItem{0: {count: 0, lastUpdate: time.Now()}}
++	require.Equal(t, -1, findMarkableSegment(data, time.Minute))
++	require.Contains(t, data, 0)
++	data[0].count++ // Later unsent entry in the same open segment.
++	require.Equal(t, -1, findMarkableSegment(data, time.Minute))
++	data[1] = &countDataItem{count: 1, lastUpdate: time.Now()}
++	require.Equal(t, -1, findMarkableSegment(data, time.Minute))
++	data[0].count-- // Only now is the older segment resolved.
++	require.Equal(t, 0, findMarkableSegment(data, time.Minute))
++	require.NotContains(t, data, 0)
++	require.Contains(t, data, 1)
++}
++
++func TestPatchNewestSegmentDoesNotExpireIntoCheckpoint(t *testing.T) {
++	data := map[int]*countDataItem{0: {count: 2, lastUpdate: time.Now().Add(-2 * time.Hour)}}
++	require.Equal(t, -1, findMarkableSegment(data, time.Minute))
++	require.Contains(t, data, 0)
++}
++
++func TestPatchEarlyAcknowledgmentDoesNotMarkNewest(t *testing.T) {
++	data := map[int]*countDataItem{0: {count: -1, lastUpdate: time.Now()}}
++	require.Equal(t, -1, findMarkableSegment(data, time.Minute))
++	data[0].count++ // Receive registration arrives after sender completion.
++	require.Equal(t, -1, findMarkableSegment(data, time.Minute))
++	require.Contains(t, data, 0)
++	data[1] = &countDataItem{count: -1, lastUpdate: time.Now()}
++	require.Equal(t, 0, findMarkableSegment(data, time.Minute))
++	require.Contains(t, data, 1)
++}
+--- a/internal/component/common/loki/wal/watcher_test.go
++++ b/internal/component/common/loki/wal/watcher_test.go
+@@ -218,7 +218,7 @@
+ 		}
+ 	},
+ 
+-	"start reading from last segment": func(t *testing.T, res *watcherTestResources) {
++	"start reading from oldest retained segment without marker": func(t *testing.T, res *watcherTestResources) {
+ 		linesAfter := []string{
+ 			"holis2",
+ 			"holus2",
+@@ -233,7 +233,7 @@
+ 			Labels: testLabels,
+ 			Entry: push.Entry{
+ 				Timestamp: time.Now(),
+-				Line:      "this shouldn't be read",
++				Line:      "retained entry",
+ 			},
+ 		})
+ 
+@@ -258,11 +258,13 @@
+ 		res.notifyWrite()
+ 
+ 		require.Eventually(t, func() bool {
+-			return res.writeTo.ReadEntries.Length() == 3
++			return res.writeTo.ReadEntries.Length() == 4
+ 		}, time.Second*10, time.Second, "expected watcher to catch up after new wal segment is cut")
+-		// assert over second half of entries
++		// Assert the retained entry and all new entries.
+ 		defer res.writeTo.ReadEntries.DoneIterate()
+-		for _, readEntry := range res.writeTo.ReadEntries.StartIterate()[3:] {
++		entries := res.writeTo.ReadEntries.StartIterate()
++		require.Equal(t, "retained entry", entries[0].Line)
++		for _, readEntry := range entries[1:] {
+ 			require.Contains(t, linesAfter, readEntry.Line, "not expected log line")
+ 		}
+ 	},
+@@ -481,7 +483,7 @@
+ 		writeTo.AssertContainsLines(t, segment2Lines...)
+ 	})
+ 
+-	t.Run("do not replay at all if invalid marker", func(t *testing.T) {
++	t.Run("replay retained segments if no marker exists", func(t *testing.T) {
+ 		reg := prometheus.NewRegistry()
+ 		logger := autil.TestAlloyLogger(t).Slog()
+ 		dir := t.TempDir()
+@@ -557,9 +559,11 @@
+ 		require.NoError(t, wl.Sync())
+ 
+ 		require.Eventually(t, func() bool {
+-			return writeTo.ReadEntries.Length() == 3 // wait for watcher to catch up with both segments
++			return writeTo.ReadEntries.Length() == 7 // wait for watcher to catch up with both segments
+ 		}, time.Second*10, time.Second, "timed out waiting for watcher to catch up")
++		writeTo.AssertContainsLines(t, segment1Lines...)
+ 		writeTo.AssertContainsLines(t, segment2Lines...)
++		writeTo.AssertContainsLines(t, "this line should appear in received entries")
+ 	})
+ }
+ 

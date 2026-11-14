@@ -81,6 +81,8 @@ in
     services.enable = true;
   };
 
+  telemetry-server.enable = true;
+
   serve = {
     caddy = {
       enable = true;

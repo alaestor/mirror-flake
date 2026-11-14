@@ -1,0 +1,30 @@
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label = "unit"
+  }
+  rule {
+    source_labels = ["__journal_priority"]
+    target_label = "priority"
+  }
+}
+
+loki.source.journal "local" {
+  max_age = "24h"
+  labels = { host = @hostname@, job = "journal" }
+  relabel_rules = loki.relabel.journal.rules
+  forward_to = [loki.write.central.receiver]
+}
+
+loki.write "central" {
+  endpoint {
+    url = @pushUrl@
+    // The WAL must remain queued through an outage, not exhaust HTTP retries.
+    max_backoff_retries = 0
+  }
+  wal {
+    enabled = true
+    max_segment_age = "24h"
+  }
+}

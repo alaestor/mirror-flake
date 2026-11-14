@@ -61,6 +61,27 @@ let
   };
 in
 {
+  options.flake.fleet.telemetry = mkOption {
+    description = "Default telemetry destination and explicit NixOS scrape membership.";
+    type = types.submodule {
+      options = {
+        server = mkOption {
+          type = types.nonEmptyStr;
+          description = "Collector host name.";
+        };
+        tailnet = mkOption {
+          type = types.nonEmptyStr;
+          description = "Named fleet tailnet used for telemetry.";
+        };
+        clients = mkOption {
+          type = types.listOf types.nonEmptyStr;
+          default = [ ];
+          description = "Host names scraped by the collector; enrollment remains host composition policy.";
+        };
+      };
+    };
+  };
+
   options.flake.fleet.channels = mkOption {
     type = types.attrsOf types.nonEmptyStr;
     default = { };

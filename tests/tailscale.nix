@@ -55,6 +55,10 @@ let
 
   assertions = [
     {
+      assertion = aspectConfig.telemetry.enable && !rawConfig.services.alloy.enable;
+      message = "tailnet composition must enroll telemetry without changing the raw Tailscale feature";
+    }
+    {
       assertion = rawConfig.tailscale.loginServer == null;
       message = "raw Tailscale feature did not retain a neutral login-server default";
     }

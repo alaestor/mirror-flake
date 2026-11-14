@@ -1,0 +1,102 @@
+{
+  "uid": "telemetry-fleet",
+  "title": "Fleet telemetry",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Recent journal",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "telemetry-loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{job=\"journal\"}"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "id": 2,
+      "title": "Errors in five minutes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "telemetry-loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (host, unit) (count_over_time({job=\"journal\",priority=~\"[0-3]\"}[5m]))"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "id": 3,
+      "title": "Scrape availability",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "telemetry-prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"node\"}"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "id": 4,
+      "title": "Failed systemd units",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "telemetry-prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (host) (node_systemd_unit_state{state=\"failed\"})"
+        }
+      ],
+      "options": {}
+    }
+  ]
+}

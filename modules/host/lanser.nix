@@ -28,6 +28,7 @@ in
         ssh-host
         server-hardening
         tailnet-client
+        telemetry-server
         serve-caddy
         domain-0x04
         domain-bokunopi
