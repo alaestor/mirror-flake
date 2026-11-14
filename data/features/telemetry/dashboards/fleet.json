@@ -186,7 +186,7 @@
             "desc": true
           }
         ],
-        "enablePagination": true,
+        "enablePagination": false,
         "footer": {
           "show": false,
           "reducer": [
@@ -248,7 +248,7 @@
               "type": "auto"
             },
             "filterable": true,
-            "wrapText": true
+            "wrapText": false
           },
           "noValue": "\u2014"
         },
@@ -957,7 +957,7 @@
             "desc": true
           }
         ],
-        "enablePagination": true,
+        "enablePagination": false,
         "footer": {
           "show": false,
           "reducer": [
@@ -1019,7 +1019,7 @@
               "type": "auto"
             },
             "filterable": true,
-            "wrapText": true
+            "wrapText": false
           },
           "noValue": "\u2014"
         },

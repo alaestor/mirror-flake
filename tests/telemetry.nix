@@ -99,6 +99,8 @@ let
       && builtins.all (
         p:
         p.type == "table"
+        && !p.options.enablePagination
+        && !p.fieldConfig.defaults.custom.wrapText
         && (builtins.head p.targets).queryType == "instant"
         && lib.hasInfix "count_over_time(" (builtins.head p.targets).expr
         && lib.hasInfix "[$__range]" (builtins.head p.targets).expr
