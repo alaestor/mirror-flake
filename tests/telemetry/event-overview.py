@@ -62,6 +62,26 @@ with subtest("event overview condenses classes over the full range and links to 
     fixture(["Request 550e8400-e29b-41d4-a716-446655440000 failed", "Request 550e8400-e29b-41d4-a716-446655440001 failed"])
     fixture(['Could not process "quoted" request & retry: \\backslash\nsecond line ☃'])
     fixture(["Unattributed failure"], unit=None, priority=None, source=None)
+    progress = [
+        "\r  0%|          | 0/8 [00:00<?, ?it/s]"
+        + "".join(
+            "\r" + str(round(i / 8 * 100)).rjust(3) + "%|" + "█" * i
+            + " " * (10 - i) + "| " + str(i) + "/8 [00:01<00:01, 5.59it/s]"
+            for i in range(1, 9)
+        )
+        + "\r100%|██████████| 8/8 [00:01<00:00, 5.59it/s]\n",
+        "\r 12%|█▎        | 12/100 [00:02<00:18, 4.75it/s]",
+        " 50%|#####5     | 50/100 [01:02<01:02, 1.25s/it]\n",
+        "100%|████████████████████| 200/200 [01:02:03<00:00, 3.22it/s]",
+    ]
+    fixture(progress, source="progress-worker")
+    # A bar next to diagnostics is not a progress-only record.
+    mixed_progress = [
+        "ERROR: model failed\n" + progress[1],
+        progress[1] + "\nERROR: device lost",
+        "Loading model: " + progress[1],
+    ]
+    fixture(mixed_progress, source="progress-worker")
     # Keep each shell argument below execve's per-argument size limit.
     for stream in streams:
         for offset in range(0, len(stream["values"]), 100):
@@ -74,7 +94,7 @@ with subtest("event overview condenses classes over the full range and links to 
     collector.wait_until_succeeds(
         "curl -fsSG http://127.0.0.1:3101/loki/api/v1/query --data-urlencode query="
         + shlex.quote(query) + " --data-urlencode time=" + str(now / 10**9 + 1)
-        + " | jq -e '[.data.result[].value[1] | tonumber] | add == 616'",
+        + " | jq -e '[.data.result[].value[1] | tonumber] | add == 623'",
         timeout=60,
     )
     rows = metric_query(query)
@@ -90,6 +110,12 @@ with subtest("event overview condenses classes over the full range and links to 
     assert any(row["metric"]["event"] == "Processed <n> requests in <n> seconds" and row["value"][1] == "2" for row in rows), rows
     assert any(row["metric"]["event"] == "Request <id> failed" and row["value"][1] == "2" for row in rows), rows
     assert any(row["metric"].get("source") == "unknown" for row in rows), rows
+    progress_rows = [row for row in rows if row["metric"]["source"] == "progress-worker"]
+    assert len(progress_rows) == 4, progress_rows
+    assert next(row["value"][1] for row in progress_rows if row["metric"]["event"] == "Iteration progress output") == "4", progress_rows
+    assert any("ERROR: model failed" in row["metric"]["event"] for row in progress_rows), progress_rows
+    assert any("ERROR: device lost" in row["metric"]["event"] for row in progress_rows), progress_rows
+    assert any("Loading model:" in row["metric"]["event"] for row in progress_rows), progress_rows
 
     # Resolve the actual table data link, including JSON/URL escaping and range.
     link = next(
@@ -119,3 +145,8 @@ with subtest("event overview condenses classes over the full range and links to 
         + " --data-urlencode limit=1000"
     ))["data"]["result"]
     assert any(value[1] == duplicates[599] for stream in raw for value in stream["values"]), raw
+    raw_progress = json.loads(collector.succeed(
+        "curl -fsSG http://127.0.0.1:3101/loki/api/v1/query_range --data-urlencode query="
+        + shlex.quote('{job="journal",host="event-fixture-a"} | syslog_identifier="progress-worker"')
+    ))["data"]["result"]
+    assert any(value[1] == progress[0] for stream in raw_progress for value in stream["values"]), raw_progress

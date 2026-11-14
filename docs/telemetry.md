@@ -72,10 +72,15 @@ The event tables summarize recurring message shapes rather than display a raw
 journal. Query-time normalization replaces paths, URLs, quoted dotted names,
 UUIDs, hexadecimal IDs and numbers with placeholders. Stable wording remains,
 so duplicate D-Bus declarations with different names and paths form one class,
-while activation failures remain separate. Classes stay scoped to host, system
-unit, source and numeric priority. Source uses the syslog identifier when
-available, otherwise the system unit or `unknown`; older entries without source
-metadata can therefore appear separately from newer ones.
+while activation failures remain separate. Records consisting entirely of
+tqdm-style progress bars form an `Iteration progress output` class regardless
+of bar width, counters or redraw count. Bars accompanied by other text retain
+that text through ordinary normalization. Counts measure journal records, not
+individual progress redraws; neither stored priority nor raw output changes.
+Classes stay scoped to host, system unit, source and numeric priority. Source
+uses the syslog identifier when available, otherwise the system unit or
+`unknown`; older entries without source metadata can therefore appear
+separately from newer ones.
 
 Counts cover the selected time range, not a sample of recent log lines. Sort by
 count to identify recurring noise, or filter columns to inspect a source. Click
