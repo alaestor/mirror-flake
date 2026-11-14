@@ -121,6 +121,8 @@ let
           ProtectSystem == "strict" && lib.elem "/run" ReadOnlyPaths
           && lib.elem config.services.caddy.dataDir ReadWritePaths
           && lib.elem config.services.caddy.logDir ReadWritePaths
+          && lib.elem "/run/caddy" ReadWritePaths
+          && RuntimeDirectory == [ "caddy" ] && RuntimeDirectoryMode == "0700"
           && AmbientCapabilities == [ "" "CAP_NET_BIND_SERVICE" ]
           && CapabilityBoundingSet == [ "CAP_NET_BIND_SERVICE" ];
         message = "Caddy must restrict filesystem writes and retain only low-port binding capability";

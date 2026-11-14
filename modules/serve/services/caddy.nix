@@ -1,8 +1,9 @@
 /**
   Shared Caddy instance built with the Cerberus challenge plugin.
 
-  The filesystem is read-only outside Caddy's state, logs, and private temporary
-  storage. Hosts own access to static content and additional storage boundaries.
+  The filesystem is read-only outside Caddy's state, logs, private runtime
+  directory, and temporary storage. Hosts own additional storage boundaries.
+  NixOS reloads use a private administrative Unix socket, not a TCP listener.
 */
 { self, ... }:
 {
@@ -10,6 +11,7 @@
     { config, lib, pkgs, ... }:
     let
       cfg = config.serve.caddy;
+      adminSocket = "/run/caddy/admin.sock";
     in
     {
       options.serve.caddy = {
@@ -48,6 +50,7 @@
             format json
           '';
           globalConfig = ''
+            admin unix/${adminSocket}|0600
             default_bind ${cfg.bindAddress}
             cerberus {
               difficulty 12
@@ -69,8 +72,11 @@
         systemd.services.caddy.serviceConfig = {
           ProtectSystem = lib.mkDefault "strict";
           # nixpkgs already grants dataDir; retain configured file-log support.
-          ReadWritePaths = [ config.services.caddy.logDir ];
+          ReadWritePaths = [ config.services.caddy.logDir "/run/caddy" ];
           ReadOnlyPaths = [ "/run" ];
+          # Only the service account and root can reach the reload API.
+          RuntimeDirectory = [ "caddy" ];
+          RuntimeDirectoryMode = "0700";
           StateDirectoryMode = "0700";
           LogsDirectoryMode = "0700";
           UMask = "0077";

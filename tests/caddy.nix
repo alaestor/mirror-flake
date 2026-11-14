@@ -94,6 +94,8 @@ pkgs.testers.runNixOSTest {
         after = [ "caddy.service" ];
         serviceConfig = (builtins.removeAttrs config.systemd.services.caddy.serviceConfig [
           "ExecStart" "ExecReload" "Restart" "RestartSec" "RestartPreventExitStatus"
+          # The probe must not manage the real service's socket lifetime.
+          "RuntimeDirectory" "RuntimeDirectoryMode"
         ]) // {
           Type = "oneshot";
           ExecStart = pkgs.writeShellScript "caddy-sandbox-probe" ''
@@ -110,6 +112,7 @@ pkgs.testers.runNixOSTest {
             test -r /var/lib/caddy-denied/readable
             touch /var/lib/caddy/probe-state
             touch /var/log/caddy/probe-log
+            touch /run/caddy/probe-runtime
             touch /tmp/caddy-private
             test ! -e /tmp/host-private
             must_deny touch /var/lib/caddy-denied/write
@@ -131,6 +134,17 @@ pkgs.testers.runNixOSTest {
     machine.succeed("curl -fsS https://${certs.domain}:15000/roots/0 > /tmp/pebble-root.pem")
     https = "curl -fsS --cacert /tmp/pebble-root.pem https://fixture.test"
     serial = "echo | openssl s_client -connect 127.0.0.1:443 -servername fixture.test 2>/dev/null | openssl x509 -noout -serial"
+
+    def check_admin_boundary():
+        machine.succeed("test $(stat -c %a /run/caddy) = 700 && test $(stat -c %a /run/caddy/admin.sock) = 600")
+        machine.succeed("runuser -u caddy -- curl -fsS --unix-socket /run/caddy/admin.sock http://localhost/config/ > /dev/null")
+        machine.fail("runuser -u nobody -- curl -fsS --max-time 2 --unix-socket /run/caddy/admin.sock http://localhost/config/")
+        machine.succeed("test -z \"$(ss -H -ltn 'sport = :2019')\"")
+        machine.fail("curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:2019/config/")
+        machine.fail("curl --noproxy '*' -g -fsS --max-time 2 http://[::1]:2019/config/")
+
+    with subtest("admin API is available to Caddy but not other local users or TCP clients"):
+        check_admin_boundary()
 
     with subtest("ACME issuance, static content, proxying, and Cerberus"):
         machine.wait_until_succeeds(https + "/ | grep -Fx static-fixture")
@@ -159,5 +173,11 @@ pkgs.testers.runNixOSTest {
         machine.succeed("curl -fsS http://reload.test | grep -Fx reloaded")
         machine.succeed(https + "/proxy | grep -Fx proxy-fixture")
         assert machine.succeed("systemctl show caddy -p MainPID --value").strip() == pid
+        check_admin_boundary()
+
+    with subtest("restart recreates the private admin socket"):
+        machine.succeed("systemctl restart caddy")
+        machine.wait_until_succeeds(https + "/proxy | grep -Fx proxy-fixture")
+        check_admin_boundary()
   '';
 }

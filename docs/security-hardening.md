@@ -44,11 +44,27 @@ host-specific account override.
 
 ### Caddy reverse proxy
 
-Caddy can write only its configured data and log directories and private
-temporary storage. Its data directory contains certificate keys, ACME accounts,
-and saved configuration, so it must remain persistent and private. Custom data
-or log directories require host-owned creation and ownership. Static content
-needs read access, not a write exception. `/run` is explicitly read-only.
+Caddy can write only its configured data and log directories, private runtime
+directory, and private temporary storage. Its data directory contains certificate
+keys, ACME accounts, and saved configuration, so it must remain persistent and
+private. Custom data or log directories require host-owned creation and ownership.
+Static content needs read access, not a write exception. `/run` is read-only
+except `/run/caddy`.
+
+The generated Caddyfile exposes the admin API only at `/run/caddy/admin.sock`,
+mode `0600`, inside a service-owned runtime directory with mode `0700`.
+NixOS uses this API for graceful reloads, even with fully declarative
+configuration. Turning it off would require restarts for configuration changes.
+Other local service accounts must not be able to reconfigure the public proxy;
+loopback TCP does not provide that isolation. The Caddy account and root retain
+full API authority. Keep this boundary when supplying a custom Caddy config.
+
+The transition requires a service restart to create the runtime directory.
+Subsequent Nix configuration changes use the existing NixOS reload command,
+which reads the socket address from the configuration. Use
+`sudo systemctl reload caddy` for a manual reload, rather than a request to
+`localhost:2019`. The socket is recreated after a restart and is not persistent
+application state.
 
 The sandbox retains only `CAP_NET_BIND_SERVICE` for HTTP and HTTPS listeners.
 It resets the packaged unit's ambient capabilities before adding that grant,
@@ -70,6 +86,8 @@ It uses the real Cerberus-enabled package and a disposable Pebble ACME server
 with short-lived certificates. The test covers issuance and automatic renewal,
 static and proxied responses, challenge-page delivery, file logging, a changed
 route through NixOS reload, effective process capabilities, and sandbox denials.
+It also checks authorized socket access, denial for another local user, absence
+of a TCP admin listener, and socket recreation after restart.
 It does not contact a public CA. After an approved production activation, check
 each public route, static-content symlinks, service logs, and normal certificate
 renewal. A fixture cannot establish that live DNS and router forwarding work.
