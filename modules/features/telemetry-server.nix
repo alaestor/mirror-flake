@@ -252,6 +252,7 @@ in
             prometheus
           ];
           settings = {
+            dashboards.default_home_dashboard_path = self.data.path "features/telemetry/dashboards/fleet.json";
             server = {
               http_addr = "127.0.0.1";
               http_port = cfg.grafanaBackendPort;

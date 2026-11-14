@@ -50,8 +50,33 @@ for routine use. Keep the encryption key with any backup of Grafana's database.
 
 ## Search and alerts
 
-The provisioned Fleet telemetry dashboard gives a starting view. Use Explore
-with the Logs data source for LogQL searches, such as
+Fleet telemetry is Grafana's default home dashboard unless a user or organization
+has selected another home dashboard. It defaults to seven days. Horizontal
+solid green gauges at the top show each host's successful scrapes as a
+percentage of recorded scrapes over the selected range. The unfilled remainder
+represents failed scrapes. Periods without recorded scrapes are
+unknown and excluded, not assumed healthy or down.
+Fleet charts and the journal sit above host rows, which repeat from
+node-exporter scrape membership. New scrape members appear without adding
+panels. The compact
+status shows the latest scrape; its history preserves failed scrapes within
+each plotted interval. Missing scrapes remain gaps, not recorded downtime.
+
+Host rows also show CPU non-idle percentage, memory usage estimated from
+available memory, and the hottest reported hardware sensor. These gauges show
+values at the selected range end, not whole-range averages. Temperature may
+come from a CPU, GPU, drive, or another sensor; its display scale is not a
+device-specific alarm limit. Hosts without sensor metrics show no data.
+
+Journal controls select hosts, units, severity, and case-sensitive literal
+message text. Warning and higher is the default. A reversible noise filter
+hides a narrowly matched Qt message. These controls do not change the error
+charts or stored logs. Each journal shows at most 500 matching entries, newest
+first, without wrapping. Consecutive exact duplicates collapse in the viewer;
+this is not similarity grouping. Error bars count non-overlapping time buckets,
+stacked by source, and grow wider for longer dashboard ranges.
+
+Use Explore with the Logs data source for LogQL searches, such as
 `{job="journal",host="example",unit="example.service"}`. Labels deliberately
 exclude process IDs and boot IDs to keep the index small. Priority is the
 journal's numeric syslog priority, not a guess based on message text. Applications

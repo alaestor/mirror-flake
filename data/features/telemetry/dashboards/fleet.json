@@ -1,102 +1,953 @@
 {
-  "uid": "telemetry-fleet",
-  "title": "Fleet telemetry",
-  "schemaVersion": 39,
-  "version": 1,
-  "editable": false,
-  "refresh": "30s",
-  "time": {
-    "from": "now-1h",
-    "to": "now"
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
   },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "clock",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "title": "24 hours",
+      "type": "link",
+      "url": "/d/telemetry-fleet/fleet-telemetry?from=now-24h&to=now"
+    },
+    {
+      "asDropdown": false,
+      "icon": "clock",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "title": "7 days",
+      "type": "link",
+      "url": "/d/telemetry-fleet/fleet-telemetry?from=now-7d&to=now"
+    },
+    {
+      "asDropdown": false,
+      "icon": "clock",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "title": "30 days",
+      "type": "link",
+      "url": "/d/telemetry-fleet/fleet-telemetry?from=now-30d&to=now"
+    }
+  ],
   "panels": [
     {
-      "id": 1,
-      "title": "Recent journal",
-      "type": "logs",
+      "id": 16,
+      "title": "Uptime",
+      "type": "bargauge",
+      "description": "Successful node-exporter scrapes as a percentage of recorded scrapes within the selected dashboard range. Failed scrapes count as downtime; periods without recorded scrapes are unknown and excluded. This is sampled availability, not time since boot. The solid green bar represents successful scrapes; its unfilled remainder represents failed scrapes.",
       "datasource": {
-        "type": "loki",
-        "uid": "telemetry-loki"
+        "type": "prometheus",
+        "uid": "telemetry-prometheus"
       },
       "gridPos": {
-        "x": 0,
-        "y": 0,
+        "h": 7,
         "w": 24,
-        "h": 12
+        "x": 0,
+        "y": 0
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "{job=\"journal\"}"
+          "expr": "100 * avg_over_time(up{job=\"node\",host=~\"${host:regex}\"}[$__range])",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{host}}",
+          "refId": "A"
         }
       ],
-      "options": {}
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "decimals": 2,
+          "noValue": "Unknown",
+          "displayName": "${__field.labels.host}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      }
     },
     {
-      "id": 2,
-      "title": "Errors in five minutes",
-      "type": "timeseries",
       "datasource": {
         "type": "loki",
         "uid": "telemetry-loki"
       },
+      "description": "Stacked counts of journal entries with priority 0\u20133, grouped by host and unit. Each bar covers one non-overlapping query-step bucket, at least five minutes; bucket width grows with the selected dashboard time range. Stack height is the total count. Missing unit labels are grouped as unattributed. Journal search and severity controls do not change this chart.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Error entries per bucket",
+            "barAlignment": -1,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 0,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "decimals": 0,
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "gridPos": {
+        "h": 7,
+        "w": 12,
         "x": 0,
-        "y": 12,
-        "w": 8,
-        "h": 8
+        "y": 7
+      },
+      "id": 2,
+      "interval": "5m",
+      "maxDataPoints": 500,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "sum by (host, unit) (count_over_time({job=\"journal\",priority=~\"[0-3]\"}[5m]))"
+          "editorMode": "code",
+          "expr": "sum by (host, unit) (count_over_time({job=\"journal\",priority=~\"[0-3]\"} | label_format unit=\"{{ if .unit }}{{ .unit }}{{ else }}unattributed{{ end }}\"[$__auto]))",
+          "legendFormat": "{{host}} / {{unit}}",
+          "queryType": "range",
+          "refId": "A"
         }
       ],
-      "options": {}
+      "title": "Fleet \u00b7 journal errors by source",
+      "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "telemetry-prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum by (host) (node_systemd_unit_state{state=\"failed\"})",
+          "legendFormat": "{{host}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fleet \u00b7 failed systemd units",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "telemetry-loki"
+      },
+      "description": "Latest 500 matching journal entries within the dashboard time range. Defaults to warning and higher, based on journal priority, not message text. Host, unit, severity, and case-sensitive literal text filters are applied in Loki. Blank text matches all messages. Expand entries for labels, or open Explore for deeper investigation. These filters do not change health charts. Known Qt noise hides only the exact qmlRegisterType requires absolute URLs. message; choose Show all to disable this exclusion. Consecutive identical displayed messages are collapsed. Filtering and deduplication do not delete stored logs or alter error charts. Displayed severity is derived from journal priority, overriding unrecognized detected_level metadata.",
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 1,
+      "options": {
+        "dedupStrategy": "exact",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showControls": true,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"journal\",host=~\"${host:regex}\",unit=~\"${journal_unit:regex}\",priority=~\"${journal_severity:raw}\"} |= ${journal_search:doublequote} !~ ${journal_noise:doublequote} | label_format level=`{{ if or (eq .priority \"0\") (eq .priority \"1\") }}fatal{{ else if eq .priority \"2\" }}critical{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warn{{ else if or (eq .priority \"5\") (eq .priority \"6\") }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}`,detected_level=`{{ if or (eq .priority \"0\") (eq .priority \"1\") }}fatal{{ else if eq .priority \"2\" }}critical{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warn{{ else if or (eq .priority \"5\") (eq .priority \"6\") }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}` | line_format \"{{.host}} \u00b7 {{.unit}} | {{ __line__ }}\"",
+          "maxLines": 500,
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Fleet journal \u00b7 latest 500 matches",
+      "type": "logs"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 11,
+      "panels": [],
+      "repeat": "host",
+      "title": "$host",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "telemetry-prometheus"
+      },
+      "description": "Latest node-exporter scrape result. Up means reachable by Prometheus, not that every service is healthy. Missing data is Unknown.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "Down"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "Up"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "Unknown",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 0,
+        "y": 27
+      },
       "id": 3,
-      "title": "Scrape availability",
-      "type": "stat",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"node\",host=~\"${host:regex}\"}",
+          "instant": true,
+          "legendFormat": "{{host}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Status",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "telemetry-prometheus"
+      },
+      "description": "1 = successful scrapes, 0 = at least one failed scrape in the plotted interval. Uses the minimum over each adaptive interval to preserve brief outages in 7-day and 30-day views. Missing intervals remain gaps. Scrapes are every 30 seconds; unsampled outages cannot be detected. Green marks successful intervals; red marks failed intervals. Thin gray connectors show transitions. Colors use separate filtered series, not a vertical gradient. Only Up intervals have a green area fill; Down remains an unfilled red line at zero.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "gray",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "Scrape availability",
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": true,
+                  "tooltip": true,
+                  "viz": false
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              },
+              {
+                "id": "custom.pointSize",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 15
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              },
+              {
+                "id": "custom.pointSize",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 21,
+        "x": 3,
+        "y": 27
+      },
+      "id": 6,
+      "interval": "30s",
+      "maxDataPoints": 4000,
+      "options": {
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "min_over_time(up{job=\"node\",host=~\"${host:regex}\"}[$__interval])",
+          "instant": false,
+          "interval": "30s",
+          "legendFormat": "Availability",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "expr": "(min_over_time(up{job=\"node\",host=~\"${host:regex}\"}[$__interval])) == 1",
+          "instant": false,
+          "interval": "30s",
+          "legendFormat": "Up",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "expr": "(min_over_time(up{job=\"node\",host=~\"${host:regex}\"}[$__interval])) == 0",
+          "instant": false,
+          "interval": "30s",
+          "legendFormat": "Down",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Scrape history",
+      "type": "timeseries"
+    },
+    {
+      "id": 17,
+      "title": "CPU busy",
+      "type": "gauge",
+      "description": "CPU non-idle percentage averaged across logical CPUs over the adaptive rate interval, at the selected range end. Includes I/O wait. Not a whole-range average; missing metrics remain Unknown.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "telemetry-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "100 * (1 - avg by (host) (rate(node_cpu_seconds_total{job=\"node\",host=~\"${host:regex}\",mode=\"idle\"}[$__rate_interval])))",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{host}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "decimals": 1,
+          "noValue": "Unknown",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      }
+    },
+    {
+      "id": 18,
+      "title": "RAM used",
+      "type": "gauge",
+      "description": "Physical memory usage estimated as 100 * (1 - MemAvailable / MemTotal), at the selected range end. Reclaimable cache counts as available. Excludes swap; missing metrics remain Unknown.",
       "datasource": {
         "type": "prometheus",
         "uid": "telemetry-prometheus"
       },
       "gridPos": {
         "x": 8,
-        "y": 12,
+        "y": 34,
         "w": 8,
-        "h": 8
+        "h": 6
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "up{job=\"node\"}"
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{job=\"node\",host=~\"${host:regex}\"} / node_memory_MemTotal_bytes{job=\"node\",host=~\"${host:regex}\"})",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{host}}",
+          "refId": "A"
         }
       ],
-      "options": {}
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "decimals": 1,
+          "noValue": "Unknown",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      }
     },
     {
-      "id": 4,
-      "title": "Failed systemd units",
-      "type": "timeseries",
+      "id": 19,
+      "title": "Hottest sensor",
+      "type": "gauge",
+      "description": "Highest reported hwmon temperature across this host's sensors at the selected range end. May be CPU, GPU, storage, or another device. The 0\u2013100 \u00b0C gauge is a visual scale, not a hardware-specific alarm limit. Missing sensors remain Unknown.",
       "datasource": {
         "type": "prometheus",
         "uid": "telemetry-prometheus"
       },
       "gridPos": {
         "x": 16,
-        "y": 12,
+        "y": 34,
         "w": 8,
-        "h": 8
+        "h": 6
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "sum by (host) (node_systemd_unit_state{state=\"failed\"})"
+          "expr": "max by (host) (node_hwmon_temp_celsius{job=\"node\",host=~\"${host:regex}\"})",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{host}}",
+          "refId": "A"
         }
       ],
-      "options": {}
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "celsius",
+          "decimals": 1,
+          "noValue": "Unknown",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      }
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "telemetry-loki"
+      },
+      "description": "Stacked counts of journal entries with priority 0\u20133, grouped by unit. Each bar covers one non-overlapping query-step bucket, at least five minutes; bucket width grows with the selected dashboard time range. Stack height is the total count. Missing unit labels are grouped as unattributed. Journal search and severity controls do not change this chart.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Error entries per bucket",
+            "barAlignment": -1,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 0,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "decimals": 0,
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "id": 13,
+      "interval": "5m",
+      "maxDataPoints": 500,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (unit) (count_over_time({job=\"journal\",host=~\"${host:regex}\",priority=~\"[0-3]\"} | label_format unit=\"{{ if .unit }}{{ .unit }}{{ else }}unattributed{{ end }}\"[$__auto]))",
+          "legendFormat": "{{unit}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "$host \u00b7 journal errors by unit",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "telemetry-prometheus"
+      },
+      "description": "Number of failed systemd units on this host over time. Missing metrics remain unknown rather than being replaced with zero.",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "sum by (host) (node_systemd_unit_state{state=\"failed\",host=~\"${host:regex}\"})",
+          "legendFormat": "{{host}}",
+          "refId": "A"
+        }
+      ],
+      "title": "$host \u00b7 failed systemd units",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "telemetry-loki"
+      },
+      "description": "Latest 500 matching journal entries within the dashboard time range. Defaults to warning and higher, based on journal priority, not message text. Host, unit, severity, and case-sensitive literal text filters are applied in Loki. Blank text matches all messages. Expand entries for labels, or open Explore for deeper investigation. These filters do not change health charts. Known Qt noise hides only the exact qmlRegisterType requires absolute URLs. message; choose Show all to disable this exclusion. Consecutive identical displayed messages are collapsed. Filtering and deduplication do not delete stored logs or alter error charts. Displayed severity is derived from journal priority, overriding unrecognized detected_level metadata.",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 47
+      },
+      "id": 15,
+      "options": {
+        "dedupStrategy": "exact",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showControls": true,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"journal\",host=~\"${host:regex}\",unit=~\"${journal_unit:regex}\",priority=~\"${journal_severity:raw}\"} |= ${journal_search:doublequote} !~ ${journal_noise:doublequote} | label_format level=`{{ if or (eq .priority \"0\") (eq .priority \"1\") }}fatal{{ else if eq .priority \"2\" }}critical{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warn{{ else if or (eq .priority \"5\") (eq .priority \"6\") }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}`,detected_level=`{{ if or (eq .priority \"0\") (eq .priority \"1\") }}fatal{{ else if eq .priority \"2\" }}critical{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warn{{ else if or (eq .priority \"5\") (eq .priority \"6\") }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}` | line_format \"{{.host}} \u00b7 {{.unit}} | {{ __line__ }}\"",
+          "maxLines": 500,
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "$host \u00b7 journal \u00b7 latest 500 matches",
+      "type": "logs"
     }
-  ]
+  ],
+  "refresh": "30s",
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "telemetry-prometheus"
+        },
+        "definition": "label_values(up{job=\"node\"}, host)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Hosts",
+        "multi": true,
+        "name": "host",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          }
+        ],
+        "query": {
+          "query": "label_values(up{job=\"node\"}, host)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "telemetry-loki"
+        },
+        "definition": "label_values({job=\"journal\",host=~\"${host:regex}\"}, unit)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Journal unit",
+        "multi": true,
+        "name": "journal_unit",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          }
+        ],
+        "query": "label_values({job=\"journal\",host=~\"${host:regex}\"}, unit)",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "Warning and higher",
+          "value": "[0-4]"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Journal severity",
+        "multi": false,
+        "name": "journal_severity",
+        "options": [
+          {
+            "selected": false,
+            "text": "All",
+            "value": ".*"
+          },
+          {
+            "selected": true,
+            "text": "Warning and higher",
+            "value": "[0-4]"
+          },
+          {
+            "selected": false,
+            "text": "Error and higher",
+            "value": "[0-3]"
+          }
+        ],
+        "query": "All : .*,Warning and higher : [0-4],Error and higher : [0-3]",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "hide": 0,
+        "label": "Journal contains",
+        "name": "journal_search",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "Hide known Qt noise",
+          "value": "^qmlRegisterType requires absolute URLs[.]$"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Journal noise",
+        "multi": false,
+        "name": "journal_noise",
+        "options": [
+          {
+            "selected": true,
+            "text": "Hide known Qt noise",
+            "value": "^qmlRegisterType requires absolute URLs[.]$"
+          },
+          {
+            "selected": false,
+            "text": "Show all",
+            "value": "a^"
+          }
+        ],
+        "query": "Hide known Qt noise : ^qmlRegisterType requires absolute URLs[.]$,Show all : a^",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Fleet telemetry",
+  "uid": "telemetry-fleet",
+  "version": 1,
+  "weekStart": ""
 }

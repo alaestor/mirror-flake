@@ -29,7 +29,79 @@ let
       };
     }
   ];
+  dashboard = inputs.self.data.readJSON "features/telemetry/dashboards/fleet.json";
+  panel =
+    id: lib.findFirst (p: p.id == id) (throw "Missing telemetry panel ${toString id}") dashboard.panels;
+  variable =
+    name:
+    lib.findFirst (
+      v: v.name == name
+    ) (throw "Missing telemetry variable ${name}") dashboard.templating.list;
+  journals = builtins.filter (p: p.type == "logs") dashboard.panels;
   checks = [
+    (dashboard.uid == "telemetry-fleet" && !dashboard.editable && dashboard.time.from == "now-7d")
+    (
+      (builtins.fromJSON (
+        builtins.readFile server.services.grafana.settings.dashboards.default_home_dashboard_path
+      )).uid == dashboard.uid
+    )
+    (
+      (builtins.head dashboard.panels).id == 16
+      && (panel 16).gridPos.y == 0
+      && (panel 16).gridPos.w == 24
+      && (panel 16).fieldConfig.defaults.min == 0
+      && (panel 16).fieldConfig.defaults.max == 100
+      && (panel 16).fieldConfig.defaults.unit == "percent"
+      && (panel 16).type == "bargauge"
+      && (panel 16).options.displayMode == "basic"
+      && (panel 16).options.orientation == "horizontal"
+      &&
+        (panel 16).fieldConfig.defaults.color == {
+          mode = "fixed";
+          fixedColor = "green";
+        }
+      && (builtins.head (panel 16).targets).instant
+      && !(builtins.head (panel 16).targets).range
+      &&
+        (builtins.head (panel 16).targets).expr
+        == "100 * avg_over_time(up{job=\"node\",host=~\"\${host:regex}\"}[$__range])"
+      && (builtins.head (panel 16).targets).legendFormat == "{{host}}"
+    )
+    ((variable "host").multi && (variable "host").includeAll && (panel 11).repeat == "host")
+    (builtins.all
+      (
+        id:
+        (panel id).type == "gauge"
+        && (panel id).gridPos.y > (panel 11).gridPos.y
+        && (panel id).gridPos.y < (panel 13).gridPos.y
+        && (panel id).fieldConfig.defaults.noValue == "Unknown"
+        && (builtins.head (panel id).targets).instant
+        && lib.hasInfix "\${host:regex}" (builtins.head (panel id).targets).expr
+      )
+      [
+        17
+        18
+        19
+      ]
+    )
+    (lib.hasInfix "rate(node_cpu_seconds_total" (builtins.head (panel 17).targets).expr)
+    (lib.hasInfix "node_memory_MemAvailable_bytes" (builtins.head (panel 18).targets).expr)
+    (lib.hasInfix "max by (host) (node_hwmon_temp_celsius" (builtins.head (panel 19).targets).expr)
+    ((variable "journal_severity").current.value == "[0-4]")
+    ((panel 1).gridPos.y < (panel 11).gridPos.y)
+    ((panel 3).gridPos.x + (panel 3).gridPos.w == (panel 6).gridPos.x)
+    ((builtins.head (panel 4).targets).legendFormat == "{{host}}")
+    (
+      builtins.length journals == 2
+      && builtins.all (
+        p:
+        !p.options.wrapLogMessage
+        && lib.hasInfix "\${journal_search:doublequote}" (builtins.head p.targets).expr
+        && lib.hasInfix "\${journal_noise:doublequote}" (builtins.head p.targets).expr
+        && !lib.hasInfix ":json}" (builtins.head p.targets).expr
+      ) journals
+    )
+    (builtins.all (link: !lib.hasInfix "wip" link.url) dashboard.links)
     (client.services.alloy.package.drvPath != pkgs.grafana-alloy.drvPath)
     (!client.services.vector.enable)
     (lib.hasInfix "max_backoff_retries = 0" (builtins.readFile client.services.alloy.configPath))
