@@ -11,8 +11,15 @@ def main [--include-root] {
         }
     }
 
-    # Find all directories that contain .nix files (recursive search)
-    mut dirs = (glob **/*.nix | path dirname | uniq)
+    # Let Git apply ignore rules, including local and global excludes.
+    let discovery = (^git ls-files --cached --others --exclude-standard -z -- '*.nix' | complete)
+    if $discovery.exit_code != 0 {
+        error make {msg: $"Cannot discover Nix files: ($discovery.stderr | str trim)"}
+    }
+    let files = ($discovery.stdout | split row (char nul) | where {|f|
+        ($f | is-not-empty) and (($f | path type) == "file")
+    } | sort | uniq)
+    mut dirs = ($files | path dirname | uniq)
 
     # Omit PWD unless `--include-root` was passed
     if not $include_root {
@@ -22,15 +29,8 @@ def main [--include-root] {
     # Process each directory - only document .nix files at that depth
     # Returns list of relative paths to created README files
     $dirs | each {|dir|
-        # List only .nix files directly in this directory
-        let nix_files = (
-            ls $dir
-            | where type == "file"
-            | where name =~ '\.nix$'
-            | get name
-        )
-
-        if ($nix_files | is-empty) { return null }
+        # Reuse the filtered list so ignored siblings cannot slip back in.
+        let nix_files = ($files | where {|f| ($f | path dirname) == $dir })
 
         # Extract docs for each file and add filename header
         let sections = (
@@ -56,7 +56,7 @@ def main [--include-root] {
             let readme_path = [$dir "README.md"] | path join
             $full_doc + "\n" | save -f $readme_path
             # Return relative path
-            $readme_path | path relative-to $env.PWD
+            $readme_path | path expand | path relative-to $env.PWD
         } else {
             null
         }
