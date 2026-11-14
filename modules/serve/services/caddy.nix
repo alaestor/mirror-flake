@@ -1,5 +1,8 @@
 /**
   Shared Caddy instance built with the Cerberus challenge plugin.
+
+  The filesystem is read-only outside Caddy's state, logs, and private temporary
+  storage. Hosts own access to static content and additional storage boundaries.
 */
 { self, ... }:
 {
@@ -61,6 +64,35 @@
             }
             key_type rsa4096
           '';
+        };
+
+        systemd.services.caddy.serviceConfig = {
+          ProtectSystem = lib.mkDefault "strict";
+          # nixpkgs already grants dataDir; retain configured file-log support.
+          ReadWritePaths = [ config.services.caddy.logDir ];
+          ReadOnlyPaths = [ "/run" ];
+          StateDirectoryMode = "0700";
+          LogsDirectoryMode = "0700";
+          UMask = "0077";
+          PrivateTmp = lib.mkDefault true;
+          # Reset the packaged unit's ambient set, which includes NET_ADMIN.
+          AmbientCapabilities = [ "" "CAP_NET_BIND_SERVICE" ];
+          CapabilityBoundingSet = [ "CAP_NET_BIND_SERVICE" ];
+          ProtectKernelTunables = lib.mkDefault true;
+          ProtectKernelModules = lib.mkDefault true;
+          ProtectKernelLogs = lib.mkDefault true;
+          ProtectControlGroups = lib.mkDefault true;
+          ProtectClock = lib.mkDefault true;
+          ProtectHostname = lib.mkDefault true;
+          ProtectProc = lib.mkDefault "invisible";
+          RestrictNamespaces = lib.mkDefault true;
+          RestrictSUIDSGID = lib.mkDefault true;
+          RestrictRealtime = lib.mkDefault true;
+          LockPersonality = lib.mkDefault true;
+          MemoryDenyWriteExecute = lib.mkDefault true;
+          SystemCallArchitectures = lib.mkDefault "native";
+          SystemCallFilter = [ "@system-service" ];
+          RestrictAddressFamilies = [ "AF_UNIX" "AF_INET" "AF_INET6" ];
         };
       };
     };

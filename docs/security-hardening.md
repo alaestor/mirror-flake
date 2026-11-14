@@ -42,6 +42,38 @@ host-specific account override.
 
 ## Service filesystem and device boundaries
 
+### Caddy reverse proxy
+
+Caddy can write only its configured data and log directories and private
+temporary storage. Its data directory contains certificate keys, ACME accounts,
+and saved configuration, so it must remain persistent and private. Custom data
+or log directories require host-owned creation and ownership. Static content
+needs read access, not a write exception. `/run` is explicitly read-only.
+
+The sandbox retains only `CAP_NET_BIND_SERVICE` for HTTP and HTTPS listeners.
+It resets the packaged unit's ambient capabilities before adding that grant,
+so `CAP_NET_ADMIN` does not survive through an inherited unit setting. Kernel,
+device, namespace, and syscall restrictions also apply to reload commands.
+Keep upstream's socket-buffer sysctls rather than granting network administration
+to the proxy.
+
+Hosts own content visibility. A host can hide its NAS tree with an empty
+read-only mount and bind back only enabled static-site roots at their original
+paths. Add mount dependencies for those roots. Symlinks into hidden shares will
+not resolve, so adding content outside those roots requires a policy change.
+Proxied applications do not need their storage exposed to Caddy.
+Replacing a bound content-root directory itself also requires a Caddy restart
+to refresh the mount; updating files inside that directory does not.
+
+Run `nix build .#checks.x86_64-linux.caddy --no-link` for the isolated VM test.
+It uses the real Cerberus-enabled package and a disposable Pebble ACME server
+with short-lived certificates. The test covers issuance and automatic renewal,
+static and proxied responses, challenge-page delivery, file logging, a changed
+route through NixOS reload, effective process capabilities, and sandbox denials.
+It does not contact a public CA. After an approved production activation, check
+each public route, static-content symlinks, service logs, and normal certificate
+renewal. A fixture cannot establish that live DNS and router forwarding work.
+
 ### Headplane administration
 
 Headplane runs as its own `headplane` account, not the coordinator's account.

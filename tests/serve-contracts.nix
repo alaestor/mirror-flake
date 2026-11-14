@@ -116,6 +116,15 @@ let
       name = "caddy";
       module = nixos.serve-caddy;
       activationPaths = [ [ "services" "caddy" "enable" ] ];
+      enabledAssertions = [ (config: {
+        assertion = with config.systemd.services.caddy.serviceConfig;
+          ProtectSystem == "strict" && lib.elem "/run" ReadOnlyPaths
+          && lib.elem config.services.caddy.dataDir ReadWritePaths
+          && lib.elem config.services.caddy.logDir ReadWritePaths
+          && AmbientCapabilities == [ "" "CAP_NET_BIND_SERVICE" ]
+          && CapabilityBoundingSet == [ "CAP_NET_BIND_SERVICE" ];
+        message = "Caddy must restrict filesystem writes and retain only low-port binding capability";
+      }) ];
     }
     {
       name = "cinny";

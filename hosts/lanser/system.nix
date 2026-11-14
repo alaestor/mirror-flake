@@ -127,6 +127,20 @@ in
   systemd.services = (lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
     after = [ "nas-detach.service" ];
   })) // {
+    caddy = lib.mkIf config.serve.caddy.enable (
+      let
+        staticRoots =
+          lib.optional config.serve.static-site-0x04.enable config.serve.static-site-0x04.root
+          ++ lib.optional config.serve.static-site-bokunopi.enable config.serve.static-site-bokunopi.root;
+      in {
+        after = lib.optional (staticRoots != [ ]) "nas-detach.service";
+        unitConfig.RequiresMountsFor = staticRoots;
+        serviceConfig = {
+          TemporaryFileSystem = [ "/mnt:ro" ];
+          BindReadOnlyPaths = staticRoots;
+        };
+      }
+    );
     headplane = lib.mkIf config.serve.headscale.enable {
       after = [ "agenix.service" ];
       restartTriggers = [ (builtins.hashFile "sha256" (secretPath "headplane_cookie-secret.age")) ];
