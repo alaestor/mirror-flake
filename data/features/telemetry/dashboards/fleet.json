@@ -177,25 +177,7 @@
         "y": 14
       },
       "id": 1,
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "Count",
-            "desc": true
-          }
-        ],
-        "enablePagination": false,
-        "footer": {
-          "show": false,
-          "reducer": [
-            "sum"
-          ],
-          "countRows": false,
-          "fields": ""
-        }
-      },
+      "options": {},
       "targets": [
         {
           "refId": "A",
@@ -205,7 +187,7 @@
         }
       ],
       "title": "Fleet \u00b7 event families",
-      "type": "table",
+      "type": "fleet-event-families-panel",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -242,57 +224,15 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "wrapText": false
-          },
           "noValue": "\u2014"
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "Host"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Source"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 180
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "Severity"
             },
             "properties": [
-              {
-                "id": "custom.width",
-                "value": 90
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
               {
                 "id": "mappings",
                 "value": [
@@ -376,34 +316,6 @@
               {
                 "id": "decimals",
                 "value": 0
-              },
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "unit"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "details"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
               }
             ]
           }
@@ -948,25 +860,7 @@
         "y": 47
       },
       "id": 15,
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": [
-          {
-            "displayName": "Count",
-            "desc": true
-          }
-        ],
-        "enablePagination": false,
-        "footer": {
-          "show": false,
-          "reducer": [
-            "sum"
-          ],
-          "countRows": false,
-          "fields": ""
-        }
-      },
+      "options": {},
       "targets": [
         {
           "refId": "A",
@@ -976,7 +870,7 @@
         }
       ],
       "title": "$host \u00b7 event families",
-      "type": "table",
+      "type": "fleet-event-families-panel",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -1013,57 +907,15 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "wrapText": false
-          },
           "noValue": "\u2014"
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "Host"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Source"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 180
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "Severity"
             },
             "properties": [
-              {
-                "id": "custom.width",
-                "value": 90
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
               {
                 "id": "mappings",
                 "value": [
@@ -1147,34 +999,6 @@
               {
                 "id": "decimals",
                 "value": 0
-              },
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "unit"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "details"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
               }
             ]
           }

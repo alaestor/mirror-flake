@@ -27,6 +27,17 @@ in
     }:
     let
       cfg = config.telemetry-server;
+      eventPanelManifest = self.data.readJSON "features/telemetry/event-panel/plugin.json";
+      eventPanel =
+        pkgs.runCommand eventPanelManifest.id
+          {
+            pname = eventPanelManifest.id;
+            version = eventPanelManifest.info.version;
+          }
+          ''
+            mkdir -p "$out"
+            cp ${self.data.path "features/telemetry/event-panel"}/{plugin.json,module.js,model.js,logo.svg} "$out/"
+          '';
       ingressFile = pkgs.writeText "telemetry-ingress.Caddyfile" (
         lib.replaceStrings
           [ "@ingressBackendPort@" "@lokiPort@" ]
@@ -250,6 +261,7 @@ in
           declarativePlugins = with pkgs.grafanaPlugins; [
             loki
             prometheus
+            eventPanel
           ];
           settings = {
             dashboards.default_home_dashboard_path = self.data.path "features/telemetry/dashboards/fleet.json";
@@ -271,7 +283,11 @@ in
               check_for_plugin_updates = false;
             };
             smtp.enabled = false;
-            plugins.preinstall_disabled = true;
+            plugins = {
+              preinstall_disabled = true;
+              # This repository owns the panel source and packages it in Nix.
+              allow_loading_unsigned_plugins = eventPanel.pname;
+            };
             "unified_alerting.state_history" = {
               enabled = true;
               backend = "loki";

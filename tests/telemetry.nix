@@ -98,9 +98,7 @@ let
       !(builtins.any (p: p.type == "logs") dashboard.panels)
       && builtins.all (
         p:
-        p.type == "table"
-        && !p.options.enablePagination
-        && !p.fieldConfig.defaults.custom.wrapText
+        p.type == "fleet-event-families-panel"
         && (builtins.head p.targets).queryType == "instant"
         && lib.hasInfix "count_over_time(" (builtins.head p.targets).expr
         && lib.hasInfix "[$__range]" (builtins.head p.targets).expr
@@ -109,30 +107,18 @@ let
         && !lib.hasInfix ":json}" (builtins.head p.targets).expr
         && (builtins.head p.transformations).id == "labelsToFields"
         && (builtins.elemAt p.transformations 1).options.renameByName."Value #A" == "Count"
-        &&
-          builtins.all
-            (
-              name:
-              builtins.any (
-                override:
-                override.matcher.options == name
-                && builtins.any (property: property.id == "custom.hidden" && property.value) override.properties
-              ) p.fieldConfig.overrides
-            )
-            [
-              "unit"
-              "details"
-            ]
-        &&
-          p.options.sortBy == [
-            {
-              displayName = "Count";
-              desc = true;
-            }
-          ]
+        && builtins.any (
+          override:
+          override.matcher.options == "Event family"
+          && builtins.any (property: property.id == "links") override.properties
+        ) p.fieldConfig.overrides
       ) eventOverviews
     )
     ((builtins.head (panel 1).targets).expr == (builtins.head (panel 15).targets).expr)
+    (
+      server.services.grafana.settings.plugins.allow_loading_unsigned_plugins
+      == "fleet-event-families-panel"
+    )
     ((variable "journal_noise").current.value == "a^")
     (dashboard.links == [ ] && !(dashboard.timepicker.hidden or false))
     (client.services.alloy.package.drvPath != pkgs.grafana-alloy.drvPath)
@@ -182,6 +168,7 @@ pkgs.runCommand "telemetry-config-validation"
     nativeBuildInputs = [
       server.services.alloy.package
       pkgs.prometheus.cli
+      pkgs.nodejs
     ];
     config = server.services.alloy.configPath;
     # Referencing ExecStart also builds nixpkgs' native Loki config validator.
@@ -196,5 +183,7 @@ pkgs.runCommand "telemetry-config-validation"
   ''
     alloy validate "$config"
     promtool check config "$prometheusConfig"
+    EVENT_PANEL_MODEL=${inputs.self.data.path "features/telemetry/event-panel/model.js"} \
+      node --test ${inputs.self}/tests/telemetry/event-panel.test.cjs
     touch "$out"
   ''

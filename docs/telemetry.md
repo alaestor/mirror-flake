@@ -90,6 +90,30 @@ differently worded messages can describe the same underlying problem. Inspect
 the original messages before deciding that a class is harmless. No normalized
 message or event ID is added to the index, and stored messages remain intact.
 
+The event tables use a repository-owned Grafana panel with scrolling,
+single-line truncated rows, column filters and sorting. **Dim family** reduces
+a row's contrast; **Undim family** restores it. **Show dimmed** includes or
+hides dimmed rows without changing their counts, stored logs or alerts.
+Dimming matches the complete family identity, including host, system unit,
+source and numeric priority. It does not follow a class onto another host or
+dim a higher-priority variant. Changed family wording appears undimmed.
+
+Dimming and the Show dimmed preference are saved per Grafana user in Grafana's
+database and shared by the fleet and host tables. They survive rebuilds and
+browser changes, but are not shared between users. Concurrent saves merge
+against current server state; another tab refreshes its preferences when it
+regains focus. If loading preferences fails, all families remain visible and
+dimming controls stay disabled until retry. Failed saves leave the previous
+view unchanged and display an error. Family identities are stored as user
+preferences, not as journal metadata; include Grafana's database in backups.
+
+The telemetry-server feature packages the panel from
+`data/features/telemetry/event-panel/` and allows only that plugin ID to load
+unsigned. Other plugin signature checks remain enabled. Its AMD entry point
+uses Grafana's React and runtime APIs, without npm dependencies, a separate
+backend or browser-injected scripts. Keep its storage schema versioned and
+rerun the browser check when changing the panel or upgrading Grafana.
+
 Overview controls select hosts, system units, severity and case-sensitive literal
 message text. Warning and higher is the default; known noise remains visible so
 its volume can be measured. A reversible filter can hide a narrowly matched Qt
@@ -207,6 +231,7 @@ Run focused checks before activation:
 
 ```sh
 nix build .#checks.x86_64-linux.telemetry --no-link
+nix build .#checks.x86_64-linux.telemetry-panel --no-link
 nix build .#checks.x86_64-linux.tailscale --no-link
 nix build .#checks.x86_64-linux.telemetry-alloy-wal --no-link
 nix build .#checks.x86_64-linux.telemetry-runtime --no-link
@@ -221,10 +246,13 @@ pattern severity with deliberately contradictory message text. Metadata must
 remain outside the index and survive the same outage/replay cases as messages.
 The overview regression groups more than 500 changing messages, checks source
 and priority isolation, preserves distinct failure wording, and verifies
-selected-range counts, filters and escaped Explore links. Check table rendering
-when changing transformations or upgrading Grafana; query validation alone
-does not verify field names, hidden helper columns or display overrides.
-The test also checks gateway
+selected-range counts, filters and escaped Explore links. The panel check runs
+real Grafana and Chromium with synthetic Loki responses. It exercises GUI
+dimming, hiding and restoring families, persistence across fresh browser
+profiles, Viewer-account isolation, scrolling, truncation, Explore links and
+visible storage failures. Query validation alone does not verify rendering or
+interactive state.
+The runtime test also checks gateway
 method/path restrictions and acknowledgment failure when Loki is stopped,
 queued-log replay after overlapping outages and client reboots, simultaneous
 shutdown, and power loss after disk synchronization. Removing a disposable

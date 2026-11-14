@@ -1,0 +1,16 @@
+{
+  "type": "panel",
+  "name": "Fleet event families",
+  "id": "fleet-event-families-panel",
+  "info": {
+    "description": "Recurring journal families with per-user cosmetic dimming",
+    "author": { "name": "Fleet telemetry" },
+    "keywords": ["logs", "telemetry"],
+    "logos": { "small": "logo.svg", "large": "logo.svg" },
+    "links": [],
+    "screenshots": [],
+    "version": "1.0.0",
+    "updated": "2026-11-14"
+  },
+  "dependencies": { "grafanaDependency": ">=13.3.0", "plugins": [] }
+}
