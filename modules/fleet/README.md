@@ -44,3 +44,7 @@ Public facts for the 0x04.cc tailnet.
 
 Fleet declarations define shared facts only. Hosts retain ownership of
 service credentials, storage paths, and machine-specific topology.
+
+## telemetry
+
+Default collector and explicit scrape membership, without cross-host evaluation.

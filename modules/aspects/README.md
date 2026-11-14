@@ -24,8 +24,9 @@ Composes cryptographic capabilities, currently YubiKey tooling and stubs.
 Fleet-aware Tailscale client composition.
 
 Configures the shared tailnet's coordination URL and DNS suffix for NixOS
-clients. Both compositions add known-host entries for every registered SSH
-host identity at its tailnet DNS name, through the shared
+clients, and enables telemetry collection by default on NixOS. Both
+compositions add known-host entries for every registered SSH host identity
+at its tailnet DNS name, through the shared
 `homeManager.tailnet-known-hosts` module. SSH client identity deployment
 remains an explicit host concern. The Nix-on-Droid composition otherwise
 configures terminal integration only: Android's Tailscale application owns

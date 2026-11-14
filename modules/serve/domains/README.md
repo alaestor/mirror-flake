@@ -12,4 +12,4 @@ Public bokunopi.co domain composition: static site (meme site).
 
 ## remotehost
 
-Public remotehost media composition: Filebrowser and Jellyfin.
+Public remotehost media composition: Dufs downloads and Jellyfin.

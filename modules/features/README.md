@@ -103,6 +103,10 @@ Enables CUPS, a PDF printer, and the configured Brother HL-L2320D printer.
 
 Baseline kernel and service hardening for network-facing server hosts.
 
+Routing and address-family policy belong to the host. AppArmor is available
+for service-owned profiles; enabling it does not confine every workload.
+See docs/security-hardening.md for the policy and validation requirements.
+
 ## ssh-client
 
 Exports `flake.modules.nixos.ssh-client`, the dormant Home Manager option
@@ -233,6 +237,7 @@ feature imports it to supply the suffix. The Nix-on-Droid adapter shares the
 terminal programs and Nushell configuration, but omits Ghostty.
 Bash and Nushell functions adapt the external ncd helper so it can change
 the current shell's directory to the cached local flake root.
+`nwhere` prints that cached flake reference without fetching or changing it.
 
 ## steam-gaming
 
@@ -252,6 +257,25 @@ one, use `tailscale up --login-server <URL>` to authenticate interactively.
 
 Attached user environments receive `standard-terminal.tailscale.domain`
 through the dormant `standard-terminal-tailnet` option interface.
+
+## telemetry-server
+
+Central telemetry storage, authenticated Grafana, and inbox-only alerts.
+
+Extends telemetry so the collector also ships its own journal. Loki and
+Prometheus remain on loopback; a push-only HTTP gateway and Grafana are
+exposed through interface-bound sockets, without public domain routes.
+Local state is disposable observability data, not a backup of source hosts.
+See docs/telemetry.md before changing retention, auth, or notification policy.
+
+## telemetry
+
+Journal collection and host metrics, with interface-bound tailnet ingress.
+
+Fleet defaults select the collector without evaluating another host. Importing
+this feature does nothing until telemetry.enable is set. The server uses the
+same client and contributes private listeners; extraConfig extends Alloy.
+See docs/telemetry.md for the trust boundary and operational limits.
 
 ## yubikey
 
