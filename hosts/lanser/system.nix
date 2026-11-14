@@ -19,8 +19,6 @@ in
       };
       lanser-headplane-cookie-secret = {
         file = secretPath "headplane_cookie-secret.age";
-        owner = "headscale";
-        group = "headscale";
         mode = "0400";
       };
       lanser-dufs-auth = {
@@ -129,6 +127,12 @@ in
   systemd.services = (lib.genAttrs [ "forgejo-secrets" "forgejo" ] (_: {
     after = [ "nas-detach.service" ];
   })) // {
+    headplane = lib.mkIf config.serve.headscale.enable {
+      after = [ "agenix.service" ];
+      restartTriggers = [ (builtins.hashFile "sha256" (secretPath "headplane_cookie-secret.age")) ];
+      # The administrative UI has no reason to inspect the host's NAS shares.
+      serviceConfig.TemporaryFileSystem = [ "/mnt:ro" ];
+    };
     dufs = lib.mkIf config.serve.dufs.enable {
       after = [ "agenix.service" "nas-detach.service" ];
       # EnvironmentFile is loaded on start, not on credential rotation.

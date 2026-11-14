@@ -42,6 +42,47 @@ host-specific account override.
 
 ## Service filesystem and device boundaries
 
+### Headplane administration
+
+Headplane runs as its own `headplane` account, not the coordinator's account.
+It administers Headscale through the authenticated HTTP API and reads the
+generated configuration, but cannot access the coordinator's private state or
+Unix socket. Native process integration is disabled: Nix owns configuration
+changes and service reloads, not the web UI. API-key login, user and machine
+management, and enrollment through the API remain available. This separation
+does not reduce the authority of an administrator's API credential.
+
+The service makes the host filesystem read-only except for its configured data
+directory and private temporary storage. It hides home directories and private
+coordinator paths, drops capabilities, restricts devices and process visibility,
+and retains executable-memory support for Node's JIT. Hosts own additional
+confidentiality boundaries, such as hiding their NAS mount tree.
+
+The default cookie secret is generated once inside Headplane's private state.
+A custom `serve.headscale.cookieSecretFile` is instead a required systemd
+credential source. PID 1 reads it, so its source should remain root-owned and
+mode `0400`; Headplane receives only a private, read-only credential copy.
+A missing managed secret fails startup rather than silently generating a new
+cookie secret. Hosts must order the service after secret provisioning and add
+the encrypted payload to restart triggers so rotation refreshes that copy.
+
+Before activating this account change on an existing installation, stop
+Headplane and back up its complete data directory, including SQLite sidecars.
+Inspect its actual paths, ownership, mounts, and symlinks first. Systemd's
+`StateDirectory` ownership handling can recursively transfer an existing local
+directory to the new account; do not let that traverse unrelated or shared
+state. A custom data directory requires explicit creation and ownership policy.
+Preserve the cookie secret to avoid unnecessarily invalidating sessions, and
+keep rollback ownership details. Do not change Headscale's state ownership.
+
+Run `nix build .#checks.x86_64-linux.headplane --no-link` for the isolated VM
+test. It exercises API-key login and user administration, default-secret
+persistence, required-secret failure, and allowed and denied sandbox operations.
+Production rollout still requires approval and a check of existing sessions,
+administration, and coordinator health after activation.
+
+### Media services
+
 Media services treat their libraries as read-only input. Filebrowser writes its
 database and cache; Jellyfin writes its configured data, configuration, cache,
 and log directories. qBittorrent writes its profile and download directory.

@@ -201,6 +201,18 @@ let
         [ "services" "headscale" "enable" ]
         [ "services" "headplane" "enable" ]
       ];
+      enabledAssertions = [
+        (config: {
+          assertion = with config.systemd.services.headplane.serviceConfig;
+            User == "headplane" && Group == "headplane"
+            && User != config.services.headscale.user
+            && ProtectSystem == "strict" && ProtectHome && PrivateTmp
+            && lib.elem "/run" ReadOnlyPaths
+            && lib.elem "/var/lib/headscale" InaccessiblePaths
+            && !config.services.headplane.settings.integration.proc.enabled;
+          message = "Headplane must isolate its account and filesystem without Headscale process control";
+        })
+      ];
     }
     {
       name = "jellyfin";
