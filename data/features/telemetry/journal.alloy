@@ -8,13 +8,41 @@ loki.relabel "journal" {
     source_labels = ["__journal_priority"]
     target_label = "priority"
   }
+  // Temporary labels carried only as far as loki.process.journal.
+  rule {
+    source_labels = ["__journal__systemd_user_unit"]
+    target_label = "user_unit"
+  }
+  rule {
+    source_labels = ["__journal_syslog_identifier"]
+    target_label = "syslog_identifier"
+  }
 }
 
 loki.source.journal "local" {
   max_age = "24h"
   labels = { host = @hostname@, job = "journal" }
   relabel_rules = loki.relabel.journal.rules
+  forward_to = [loki.process.journal.receiver]
+}
+
+loki.process "journal" {
   forward_to = [loki.write.central.receiver]
+
+  // Journal priority is authoritative, even when the message claims otherwise.
+  stage.template {
+    source = "detected_level"
+    template = `{{ if or (eq .priority "0") (eq .priority "1") }}fatal{{ else if eq .priority "2" }}critical{{ else if eq .priority "3" }}error{{ else if eq .priority "4" }}warn{{ else if or (eq .priority "5") (eq .priority "6") }}info{{ else if eq .priority "7" }}debug{{ else }}unknown{{ end }}`
+  }
+  // This stage moves the temporary source labels out of the indexed label set.
+  // Raw user-unit names can contain instance hashes and process IDs.
+  stage.structured_metadata {
+    values = {
+      user_unit = "",
+      syslog_identifier = "",
+      detected_level = "",
+    }
+  }
 }
 
 loki.write "central" {

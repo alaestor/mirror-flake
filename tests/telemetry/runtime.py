@@ -26,6 +26,119 @@ with subtest("tailnet push and scrape, no backend read access"):
     for port in [3101, 9090, 3031, 13100, 19100, 12345]:
         sender.fail(f"curl --connect-timeout 2 --max-time 3 -sS http://collector:{port}/")
 
+def assert_journal_metadata(selector, message, expected, absent=()):
+    query = selector + " |= " + json.dumps(message)
+    condition = "any(.data.result[]; " + " and ".join(
+        ["any(.values[]; .[1] == " + json.dumps(message) + ")"]
+        + [".stream[" + json.dumps(key) + "] == " + json.dumps(value)
+           for key, value in expected.items()]
+        + ["(.stream | has(" + json.dumps(key) + ") | not)" for key in absent]
+    ) + ")"
+    command = (
+        "curl -fsSG http://127.0.0.1:3101/loki/api/v1/query_range"
+        + " --data-urlencode query=" + shlex.quote(query)
+    )
+    try:
+        collector.wait_until_succeeds(command + " | jq -e " + shlex.quote(condition), timeout=60)
+    except Exception:
+        print("Journal metadata query result:", collector.succeed(command))
+        raise
+
+
+with subtest("journal priority overrides message severity for every syslog level"):
+    levels = ["fatal", "fatal", "critical", "error", "warn", "info", "info", "debug"]
+    # Deliberately contradict journal priority in the message. Preserve its text.
+    script = "; ".join(
+        "echo " + shlex.quote(f"<{priority}>level=error telemetry-priority-{priority}")
+        for priority in range(8)
+    )
+    sender.succeed("systemd-run --unit telemetry-priority --wait /bin/sh -c " + shlex.quote(script))
+    for priority, level in enumerate(levels):
+        assert_journal_metadata(
+            '{job="journal",host="sender",unit="telemetry-priority.service"}',
+            f"level=error telemetry-priority-{priority}",
+            {"priority": str(priority), "detected_level": level, "syslog_identifier": "sh"},
+            absent=["user_unit"],
+        )
+
+with subtest("user services retain the system unit and add source metadata"):
+    journal = json.loads(sender.succeed("journalctl -t telemetry-user-fixture -n 1 -o json --no-pager"))
+    assert journal.get("_SYSTEMD_UNIT") == "user@1000.service", journal
+    assert journal.get("_SYSTEMD_USER_UNIT") == "telemetry-user-fixture.service", journal
+    assert_journal_metadata(
+        '{job="journal",host="sender",unit="user@1000.service"}',
+        "telemetry-user-metadata",
+        {"priority": "4", "detected_level": "warn",
+         "user_unit": "telemetry-user-fixture.service", "syslog_identifier": "telemetry-user-fixture"},
+    )
+
+with subtest("kernel messages have source metadata without an invented unit"):
+    # Use a genuine boot message, not a userspace write into /dev/kmsg.
+    journal = json.loads(sender.succeed("journalctl -k -g '^Linux version ' -n 1 -o json --no-pager"))
+    assert "_SYSTEMD_UNIT" not in journal and "_SYSTEMD_USER_UNIT" not in journal, journal
+    assert journal["SYSLOG_IDENTIFIER"] == "kernel", journal
+    assert_journal_metadata(
+        '{job="journal",host="sender"}', journal["MESSAGE"],
+        {"priority": journal["PRIORITY"], "detected_level": levels[int(journal["PRIORITY"])],
+         "syslog_identifier": "kernel"},
+        absent=["unit", "user_unit"],
+    )
+
+with subtest("missing and invalid source fields stay unknown without losing entries"):
+    for priority in [None, "9"]:
+        labels = {"host": "sender", "job": "journal-metadata-fixture"}
+        if priority is not None:
+            labels["priority"] = priority
+        message = "level=error telemetry-missing-fields-" + str(priority)
+        payload = {"streams": [{"stream": labels, "values": [[
+            sender.succeed("date +%s%N").strip(), message,
+        ]]}]}
+        sender.succeed(
+            "curl -fsS -H 'Content-Type: application/json' -d " + shlex.quote(json.dumps(payload))
+            + " http://127.0.0.1:12346/loki/api/v1/push"
+        )
+        assert_journal_metadata(
+            '{job="journal-metadata-fixture",host="sender"}', message,
+            {"detected_level": "unknown", **({"priority": priority} if priority else {})},
+            absent=["unit", "user_unit", "syslog_identifier"] + ([] if priority else ["priority"]),
+        )
+
+with subtest("source details and severity are metadata, not indexed labels"):
+    collector.succeed(
+        "curl -fsSG http://127.0.0.1:3101/loki/api/v1/series"
+        + " --data-urlencode " + shlex.quote('match[]={job="journal",host="sender"}')
+        + " | jq -e " + shlex.quote(
+            '(.data | length > 0) and all(.data[]; '
+            '(has("user_unit") or has("syslog_identifier") or has("detected_level")) | not)'
+        )
+    )
+
+with subtest("native patterns use journal severity rather than the message claim"):
+    sender.succeed(
+        "systemd-run --unit telemetry-pattern --wait /bin/sh -c "
+        + shlex.quote('i=1; while [ "$i" -le 40 ]; do echo "<4>level=error fixture=telemetry-pattern-fixture source=fixture event=processed item=$i"; i=$((i + 1)); done; /run/current-system/sw/bin/sleep 1')
+    )
+    assert_journal_metadata(
+        '{job="journal",host="sender",unit="telemetry-pattern.service"}',
+        "level=error fixture=telemetry-pattern-fixture source=fixture event=processed item=1",
+        {"priority": "4", "detected_level": "warn"},
+    )
+    pattern_command = (
+        "curl -fsSG http://127.0.0.1:3101/loki/api/v1/patterns"
+        + " --data-urlencode " + shlex.quote('query={job="journal",host="sender",unit="telemetry-pattern.service",priority="4"}')
+        + " --data-urlencode start=$(date -d '5 minutes ago' +%s%N) --data-urlencode end=$(date +%s%N)"
+    )
+    try:
+        collector.wait_until_succeeds(
+            pattern_command
+            + " | jq -e 'any(.data[]; .level == \"warn\" and (.pattern | contains(\"telemetry-pattern-fixture\")) "
+            + "and (.pattern | contains(\"<_>\")) and ([.samples[][1]] | add) == 40)'",
+            timeout=60,
+        )
+    except Exception:
+        print("Native pattern result:", collector.succeed(pattern_command))
+        raise
+
 with subtest("push gateway forwards Loki acknowledgments and rejects other requests"):
     payload = shlex.quote(json.dumps({"streams": [{
         "stream": {"job": "gateway-fixture"},
@@ -123,6 +236,12 @@ def assert_recovery_batch(prefix: str) -> None:
         + " --data-urlencode limit=1000 --data-urlencode query=" + query
         + " | jq -e '[.data.result[].values[][1]] | (length == 12) and (unique | length == 12)'",
         timeout=120,
+    )
+    # Metadata must survive the same delivery/replay path as message text.
+    assert_journal_metadata(
+        '{host="sender"}', prefix + "-12",
+        {"detected_level": "info", "syslog_identifier": "telemetry-recovery"},
+        absent=["user_unit"],
     )
 
 

@@ -83,6 +83,23 @@ journal's numeric syslog priority, not a guess based on message text. Applicatio
 that log everything at info will not produce priority alerts; spam alerts still
 count those lines.
 
+The indexed `unit` label remains the system unit, including the user manager
+for desktop applications. Collection adds `user_unit` and `syslog_identifier`
+as structured metadata when the journal provides them. Raw user-unit names can
+contain instance hashes or process IDs and must not become indexed labels.
+Filter metadata after a stream selector, for example
+`{job="journal",host="example"} | syslog_identifier="example-app"`.
+Missing source fields stay absent; kernel entries do not acquire an invented
+unit.
+
+Collection also writes `detected_level` metadata from numeric priority:
+0 and 1 map to `fatal`, 2 to `critical`, 3 to `error`, 4 to `warn`, 5 and 6 to
+`info`, and 7 to `debug`. Missing or invalid priority maps to `unknown`, never
+message-text inference. This makes priority authoritative for consumers such
+as native log patterns as well as alerts. Older entries are not rewritten;
+the dashboard retains its query-time priority mapping for them. Message text,
+journal cursors, and the delivery WAL are unchanged.
+
 Grafana evaluates rules for journal errors, critical messages, per-unit spam,
 failed systemd units, and low local disk space. Critical messages also match the
 broader error rule. Temporarily offline laptops are not alerted on by default;
@@ -171,7 +188,11 @@ nix build .#checks.x86_64-linux.telemetry-runtime --no-link
 The runtime test uses a trusted interface in place of Tailscale and a second,
 untrusted LAN. It checks journal ingestion, metrics scraping, backend privacy,
 Grafana authentication and provisioning, interface recovery, and journal cursor
-resumption after stopping and starting collection. It also checks gateway
+resumption after stopping and starting collection. It also checks
+source metadata, all eight priority mappings, missing source fields, and native
+pattern severity with deliberately contradictory message text. Metadata must
+remain outside the index and survive the same outage/replay cases as messages.
+The test also checks gateway
 method/path restrictions and acknowledgment failure when Loki is stopped,
 queued-log replay after overlapping outages and client reboots, simultaneous
 shutdown, and power loss after disk synchronization. Removing a disposable
