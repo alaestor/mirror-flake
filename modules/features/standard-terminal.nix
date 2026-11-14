@@ -11,6 +11,13 @@
   Bash and Nushell functions adapt the external ncd helper so it can change
   the current shell's directory to the cached local flake root.
   `nwhere` prints that cached flake reference without fetching or changing it.
+  `ngc` previews profile pruning and requires confirmation before store GC.
+  It retains generations newer than `--older-than 14d`, the newest
+  `--keep-last 5` per profile, and the selected generation. NixOS runs it
+  through sudo; Droid runs it without elevation. It inspects standard system,
+  per-user, and XDG profile directories, including the caller's XDG_STATE_HOME.
+  `--clean-roots` also unregisters aged build-result and direnv roots, leaving
+  project symlinks and manual roots alone. Store GC itself is not age-limited.
 */
 { inputs, self, ... }:
 let
