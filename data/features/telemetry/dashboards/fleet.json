@@ -18,38 +18,7 @@
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "links": [
-    {
-      "asDropdown": false,
-      "icon": "clock",
-      "includeVars": true,
-      "keepTime": false,
-      "targetBlank": false,
-      "title": "24 hours",
-      "type": "link",
-      "url": "/d/telemetry-fleet/fleet-telemetry?from=now-24h&to=now"
-    },
-    {
-      "asDropdown": false,
-      "icon": "clock",
-      "includeVars": true,
-      "keepTime": false,
-      "targetBlank": false,
-      "title": "7 days",
-      "type": "link",
-      "url": "/d/telemetry-fleet/fleet-telemetry?from=now-7d&to=now"
-    },
-    {
-      "asDropdown": false,
-      "icon": "clock",
-      "includeVars": true,
-      "keepTime": false,
-      "targetBlank": false,
-      "title": "30 days",
-      "type": "link",
-      "url": "/d/telemetry-fleet/fleet-telemetry?from=now-30d&to=now"
-    }
-  ],
+  "links": [],
   "panels": [
     {
       "id": 16,
@@ -200,7 +169,7 @@
         "type": "loki",
         "uid": "telemetry-loki"
       },
-      "description": "Latest 500 matching journal entries within the dashboard time range. Defaults to warning and higher, based on journal priority, not message text. Host, unit, severity, and case-sensitive literal text filters are applied in Loki. Blank text matches all messages. Expand entries for labels, or open Explore for deeper investigation. These filters do not change health charts. Known Qt noise hides only the exact qmlRegisterType requires absolute URLs. message; choose Show all to disable this exclusion. Consecutive identical displayed messages are collapsed. Filtering and deduplication do not delete stored logs or alter error charts. Displayed severity is derived from journal priority, overriding unrecognized detected_level metadata.",
+      "description": "Recurring message shapes, counted across the full selected time range and sorted by volume. Paths, quoted dotted names, UUIDs, hexadecimal IDs and numbers become placeholders; stable wording, source, host, system unit and priority keep classes separate. This is heuristic grouping, not a diagnosis. Click an event family to inspect its exact occurrences in Explore. Overview filters do not change stored logs or alerts. No 500-line sampling or minimum occurrence count. Narrow the host, unit or time range if Loki reports a series limit. Explore opens the whole family without the Message contains or Known noise filters.",
       "gridPos": {
         "h": 12,
         "w": 24,
@@ -209,28 +178,237 @@
       },
       "id": 1,
       "options": {
-        "dedupStrategy": "exact",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showControls": true,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Count",
+            "desc": true
+          }
+        ],
+        "enablePagination": true,
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
       },
       "targets": [
         {
-          "direction": "backward",
-          "editorMode": "code",
-          "expr": "{job=\"journal\",host=~\"${host:regex}\",unit=~\"${journal_unit:regex}\",priority=~\"${journal_severity:raw}\"} |= ${journal_search:doublequote} !~ ${journal_noise:doublequote} | label_format level=`{{ if or (eq .priority \"0\") (eq .priority \"1\") }}fatal{{ else if eq .priority \"2\" }}critical{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warn{{ else if or (eq .priority \"5\") (eq .priority \"6\") }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}`,detected_level=`{{ if or (eq .priority \"0\") (eq .priority \"1\") }}fatal{{ else if eq .priority \"2\" }}critical{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warn{{ else if or (eq .priority \"5\") (eq .priority \"6\") }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}` | line_format \"{{.host}} \u00b7 {{.unit}} | {{ __line__ }}\"",
-          "maxLines": 500,
-          "queryType": "range",
-          "refId": "A"
+          "refId": "A",
+          "expr": "sum by (host,unit,source,priority,event,details) (count_over_time({job=\"journal\",host=~\"${host:regex}\",unit=~\"${journal_unit:regex}\",priority=~\"${journal_severity:raw}\"} |= ${journal_search:doublequote} !~ ${journal_noise:doublequote} | label_format source=\"{{ if .syslog_identifier }}{{ .syslog_identifier }}{{ else if .unit }}{{ .unit }}{{ else }}unknown{{ end }}\",event=\"{{ $event := regexReplaceAll \\\"[\\\\\\\\p{C}\\\\\\\\s]+\\\" (__line__) \\\" \\\" }}{{ $event = regexReplaceAll \\\"\\\\\\\\b(?:https?|wss?)://[^\\\\\\\\s\\\\\\\\x22\\\\\\\\x27<>]+\\\" $event \\\"<url>\\\" }}{{ $event = regexReplaceAll \\\"[\\\\\\\\x22\\\\\\\\x27][A-Za-z_][A-Za-z0-9_-]*(?:[.][A-Za-z0-9_-]+)+[\\\\\\\\x22\\\\\\\\x27]\\\" $event \\\"<name>\\\" }}{{ $event = regexReplaceAll \\\"(?:/[A-Za-z0-9_.@%+,:=~${}-]+)+\\\" $event \\\"<path>\\\" }}{{ $event = regexReplaceAll \\\"\\\\\\\\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\\\\\\\\b\\\" $event \\\"<id>\\\" }}{{ $event = regexReplaceAll \\\"\\\\\\\\b(?:0x[0-9a-fA-F]+|[0-9a-fA-F]{16,})\\\\\\\\b\\\" $event \\\"<id>\\\" }}{{ $event = regexReplaceAll \\\"\\\\\\\\b[0-9]+(?:[.][0-9]+)*\\\\\\\\b\\\" $event \\\"<n>\\\" }}{{ $event }}\" | label_format details=\"{{ $query := printf \\\"{job=%q,host=%q,unit=%q,priority=%q} %s | source=%q | event=%q\\\" \\\"journal\\\" .host .unit .priority \\\"| label_format source=\\\\\\\"{{ if .syslog_identifier }}{{ .syslog_identifier }}{{ else if .unit }}{{ .unit }}{{ else }}unknown{{ end }}\\\\\\\",event=\\\\\\\"{{ $event := regexReplaceAll \\\\\\\\\\\\\\\"[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\p{C}\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\s]+\\\\\\\\\\\\\\\" (__line__) \\\\\\\\\\\\\\\" \\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b(?:https?|wss?)://[^\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\s\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x22\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x27<>]+\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<url>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x22\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x27][A-Za-z_][A-Za-z0-9_-]*(?:[.][A-Za-z0-9_-]+)+[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x22\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x27]\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<name>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"(?:/[A-Za-z0-9_.@%+,:=~${}-]+)+\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<path>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<id>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b(?:0x[0-9a-fA-F]+|[0-9a-fA-F]{16,})\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<id>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b[0-9]+(?:[.][0-9]+)*\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<n>\\\\\\\\\\\\\\\" }}{{ $event }}\\\\\\\"\\\" .source .event }}{{ printf \\\"%q\\\" $query | urlencode }}\" | keep host,unit,source,priority,event,details [$__range]))",
+          "queryType": "instant",
+          "editorMode": "code"
         }
       ],
-      "title": "Fleet journal \u00b7 latest 500 matches",
-      "type": "logs"
+      "title": "Fleet \u00b7 event families",
+      "type": "table",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "host": 0,
+              "source": 1,
+              "priority": 2,
+              "event": 3,
+              "Value": 4,
+              "unit": 5,
+              "details": 6,
+              "Value #A": 4
+            },
+            "renameByName": {
+              "host": "Host",
+              "source": "Source",
+              "priority": "Severity",
+              "event": "Event family",
+              "Value": "Count",
+              "Value #A": "Count"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "wrapText": true
+          },
+          "noValue": "\u2014"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Host"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Source"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "fatal",
+                        "color": "red",
+                        "index": 0
+                      },
+                      "1": {
+                        "text": "fatal",
+                        "color": "red",
+                        "index": 1
+                      },
+                      "2": {
+                        "text": "critical",
+                        "color": "red",
+                        "index": 2
+                      },
+                      "3": {
+                        "text": "error",
+                        "color": "red",
+                        "index": 3
+                      },
+                      "4": {
+                        "text": "warn",
+                        "color": "orange",
+                        "index": 4
+                      },
+                      "5": {
+                        "text": "info",
+                        "color": "green",
+                        "index": 5
+                      },
+                      "6": {
+                        "text": "info",
+                        "color": "green",
+                        "index": 6
+                      },
+                      "7": {
+                        "text": "debug",
+                        "color": "blue",
+                        "index": 7
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Event family"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Explore matching occurrences",
+                    "url": "/explore?schemaVersion=1&panes=%7B%22events%22%3A%7B%22datasource%22%3A%22telemetry-loki%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22telemetry-loki%22%7D%2C%22expr%22%3A${__data.fields.details:raw}%2C%22queryType%22%3A%22range%22%2C%22editorMode%22%3A%22code%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unit"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "details"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "collapsed": false,
@@ -762,7 +940,7 @@
         "type": "loki",
         "uid": "telemetry-loki"
       },
-      "description": "Latest 500 matching journal entries within the dashboard time range. Defaults to warning and higher, based on journal priority, not message text. Host, unit, severity, and case-sensitive literal text filters are applied in Loki. Blank text matches all messages. Expand entries for labels, or open Explore for deeper investigation. These filters do not change health charts. Known Qt noise hides only the exact qmlRegisterType requires absolute URLs. message; choose Show all to disable this exclusion. Consecutive identical displayed messages are collapsed. Filtering and deduplication do not delete stored logs or alter error charts. Displayed severity is derived from journal priority, overriding unrecognized detected_level metadata.",
+      "description": "Recurring message shapes, counted across the full selected time range and sorted by volume. Paths, quoted dotted names, UUIDs, hexadecimal IDs and numbers become placeholders; stable wording, source, host, system unit and priority keep classes separate. This is heuristic grouping, not a diagnosis. Click an event family to inspect its exact occurrences in Explore. Overview filters do not change stored logs or alerts. No 500-line sampling or minimum occurrence count. Narrow the host, unit or time range if Loki reports a series limit. Explore opens the whole family without the Message contains or Known noise filters.",
       "gridPos": {
         "h": 10,
         "w": 24,
@@ -771,28 +949,237 @@
       },
       "id": 15,
       "options": {
-        "dedupStrategy": "exact",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showControls": true,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Count",
+            "desc": true
+          }
+        ],
+        "enablePagination": true,
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
       },
       "targets": [
         {
-          "direction": "backward",
-          "editorMode": "code",
-          "expr": "{job=\"journal\",host=~\"${host:regex}\",unit=~\"${journal_unit:regex}\",priority=~\"${journal_severity:raw}\"} |= ${journal_search:doublequote} !~ ${journal_noise:doublequote} | label_format level=`{{ if or (eq .priority \"0\") (eq .priority \"1\") }}fatal{{ else if eq .priority \"2\" }}critical{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warn{{ else if or (eq .priority \"5\") (eq .priority \"6\") }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}`,detected_level=`{{ if or (eq .priority \"0\") (eq .priority \"1\") }}fatal{{ else if eq .priority \"2\" }}critical{{ else if eq .priority \"3\" }}error{{ else if eq .priority \"4\" }}warn{{ else if or (eq .priority \"5\") (eq .priority \"6\") }}info{{ else if eq .priority \"7\" }}debug{{ else }}unknown{{ end }}` | line_format \"{{.host}} \u00b7 {{.unit}} | {{ __line__ }}\"",
-          "maxLines": 500,
-          "queryType": "range",
-          "refId": "A"
+          "refId": "A",
+          "expr": "sum by (host,unit,source,priority,event,details) (count_over_time({job=\"journal\",host=~\"${host:regex}\",unit=~\"${journal_unit:regex}\",priority=~\"${journal_severity:raw}\"} |= ${journal_search:doublequote} !~ ${journal_noise:doublequote} | label_format source=\"{{ if .syslog_identifier }}{{ .syslog_identifier }}{{ else if .unit }}{{ .unit }}{{ else }}unknown{{ end }}\",event=\"{{ $event := regexReplaceAll \\\"[\\\\\\\\p{C}\\\\\\\\s]+\\\" (__line__) \\\" \\\" }}{{ $event = regexReplaceAll \\\"\\\\\\\\b(?:https?|wss?)://[^\\\\\\\\s\\\\\\\\x22\\\\\\\\x27<>]+\\\" $event \\\"<url>\\\" }}{{ $event = regexReplaceAll \\\"[\\\\\\\\x22\\\\\\\\x27][A-Za-z_][A-Za-z0-9_-]*(?:[.][A-Za-z0-9_-]+)+[\\\\\\\\x22\\\\\\\\x27]\\\" $event \\\"<name>\\\" }}{{ $event = regexReplaceAll \\\"(?:/[A-Za-z0-9_.@%+,:=~${}-]+)+\\\" $event \\\"<path>\\\" }}{{ $event = regexReplaceAll \\\"\\\\\\\\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\\\\\\\\b\\\" $event \\\"<id>\\\" }}{{ $event = regexReplaceAll \\\"\\\\\\\\b(?:0x[0-9a-fA-F]+|[0-9a-fA-F]{16,})\\\\\\\\b\\\" $event \\\"<id>\\\" }}{{ $event = regexReplaceAll \\\"\\\\\\\\b[0-9]+(?:[.][0-9]+)*\\\\\\\\b\\\" $event \\\"<n>\\\" }}{{ $event }}\" | label_format details=\"{{ $query := printf \\\"{job=%q,host=%q,unit=%q,priority=%q} %s | source=%q | event=%q\\\" \\\"journal\\\" .host .unit .priority \\\"| label_format source=\\\\\\\"{{ if .syslog_identifier }}{{ .syslog_identifier }}{{ else if .unit }}{{ .unit }}{{ else }}unknown{{ end }}\\\\\\\",event=\\\\\\\"{{ $event := regexReplaceAll \\\\\\\\\\\\\\\"[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\p{C}\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\s]+\\\\\\\\\\\\\\\" (__line__) \\\\\\\\\\\\\\\" \\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b(?:https?|wss?)://[^\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\s\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x22\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x27<>]+\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<url>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x22\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x27][A-Za-z_][A-Za-z0-9_-]*(?:[.][A-Za-z0-9_-]+)+[\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x22\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\x27]\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<name>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"(?:/[A-Za-z0-9_.@%+,:=~${}-]+)+\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<path>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<id>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b(?:0x[0-9a-fA-F]+|[0-9a-fA-F]{16,})\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<id>\\\\\\\\\\\\\\\" }}{{ $event = regexReplaceAll \\\\\\\\\\\\\\\"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b[0-9]+(?:[.][0-9]+)*\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\b\\\\\\\\\\\\\\\" $event \\\\\\\\\\\\\\\"<n>\\\\\\\\\\\\\\\" }}{{ $event }}\\\\\\\"\\\" .source .event }}{{ printf \\\"%q\\\" $query | urlencode }}\" | keep host,unit,source,priority,event,details [$__range]))",
+          "queryType": "instant",
+          "editorMode": "code"
         }
       ],
-      "title": "$host \u00b7 journal \u00b7 latest 500 matches",
-      "type": "logs"
+      "title": "$host \u00b7 event families",
+      "type": "table",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "host": 0,
+              "source": 1,
+              "priority": 2,
+              "event": 3,
+              "Value": 4,
+              "unit": 5,
+              "details": 6,
+              "Value #A": 4
+            },
+            "renameByName": {
+              "host": "Host",
+              "source": "Source",
+              "priority": "Severity",
+              "event": "Event family",
+              "Value": "Count",
+              "Value #A": "Count"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "wrapText": true
+          },
+          "noValue": "\u2014"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Host"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Source"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "fatal",
+                        "color": "red",
+                        "index": 0
+                      },
+                      "1": {
+                        "text": "fatal",
+                        "color": "red",
+                        "index": 1
+                      },
+                      "2": {
+                        "text": "critical",
+                        "color": "red",
+                        "index": 2
+                      },
+                      "3": {
+                        "text": "error",
+                        "color": "red",
+                        "index": 3
+                      },
+                      "4": {
+                        "text": "warn",
+                        "color": "orange",
+                        "index": 4
+                      },
+                      "5": {
+                        "text": "info",
+                        "color": "green",
+                        "index": 5
+                      },
+                      "6": {
+                        "text": "info",
+                        "color": "green",
+                        "index": 6
+                      },
+                      "7": {
+                        "text": "debug",
+                        "color": "blue",
+                        "index": 7
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Event family"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Explore matching occurrences",
+                    "url": "/explore?schemaVersion=1&panes=%7B%22events%22%3A%7B%22datasource%22%3A%22telemetry-loki%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22telemetry-loki%22%7D%2C%22expr%22%3A${__data.fields.details:raw}%2C%22queryType%22%3A%22range%22%2C%22editorMode%22%3A%22code%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unit"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "details"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "refresh": "30s",
@@ -845,7 +1232,7 @@
         "definition": "label_values({job=\"journal\",host=~\"${host:regex}\"}, unit)",
         "hide": 0,
         "includeAll": true,
-        "label": "Journal unit",
+        "label": "System unit",
         "multi": true,
         "name": "journal_unit",
         "options": [
@@ -869,7 +1256,7 @@
         },
         "hide": 0,
         "includeAll": false,
-        "label": "Journal severity",
+        "label": "Severity",
         "multi": false,
         "name": "journal_severity",
         "options": [
@@ -899,7 +1286,7 @@
           "value": ""
         },
         "hide": 0,
-        "label": "Journal contains",
+        "label": "Message contains",
         "name": "journal_search",
         "options": [
           {
@@ -914,22 +1301,22 @@
       },
       {
         "current": {
-          "text": "Hide known Qt noise",
-          "value": "^qmlRegisterType requires absolute URLs[.]$"
+          "text": "Show all",
+          "value": "a^"
         },
         "hide": 0,
         "includeAll": false,
-        "label": "Journal noise",
+        "label": "Known noise",
         "multi": false,
         "name": "journal_noise",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "Hide known Qt noise",
             "value": "^qmlRegisterType requires absolute URLs[.]$"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "Show all",
             "value": "a^"
           }

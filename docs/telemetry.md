@@ -56,7 +56,7 @@ solid green gauges at the top show each host's successful scrapes as a
 percentage of recorded scrapes over the selected range. The unfilled remainder
 represents failed scrapes. Periods without recorded scrapes are
 unknown and excluded, not assumed healthy or down.
-Fleet charts and the journal sit above host rows, which repeat from
+Fleet charts and the event overview sit above host rows, which repeat from
 node-exporter scrape membership. New scrape members appear without adding
 panels. The compact
 status shows the latest scrape; its history preserves failed scrapes within
@@ -68,13 +68,35 @@ values at the selected range end, not whole-range averages. Temperature may
 come from a CPU, GPU, drive, or another sensor; its display scale is not a
 device-specific alarm limit. Hosts without sensor metrics show no data.
 
-Journal controls select hosts, units, severity, and case-sensitive literal
-message text. Warning and higher is the default. A reversible noise filter
-hides a narrowly matched Qt message. These controls do not change the error
-charts or stored logs. Each journal shows at most 500 matching entries, newest
-first, without wrapping. Consecutive exact duplicates collapse in the viewer;
-this is not similarity grouping. Error bars count non-overlapping time buckets,
-stacked by source, and grow wider for longer dashboard ranges.
+The event tables summarize recurring message shapes rather than display a raw
+journal. Query-time normalization replaces paths, URLs, quoted dotted names,
+UUIDs, hexadecimal IDs and numbers with placeholders. Stable wording remains,
+so duplicate D-Bus declarations with different names and paths form one class,
+while activation failures remain separate. Classes stay scoped to host, system
+unit, source and numeric priority. Source uses the syslog identifier when
+available, otherwise the system unit or `unknown`; older entries without source
+metadata can therefore appear separately from newer ones.
+
+Counts cover the selected time range, not a sample of recent log lines. Sort by
+count to identify recurring noise, or filter columns to inspect a source. Click
+an event family to open its original occurrences in Explore with the same time
+range. Grouping is heuristic: variable values can matter diagnostically, and
+differently worded messages can describe the same underlying problem. Inspect
+the original messages before deciding that a class is harmless. No normalized
+message or event ID is added to the index, and stored messages remain intact.
+
+Overview controls select hosts, system units, severity and case-sensitive literal
+message text. Warning and higher is the default; known noise remains visible so
+its volume can be measured. A reversible filter can hide a narrowly matched Qt
+message. Text and noise filters apply before grouping; Explore links open the
+whole family rather than carry these two filters forward. None of these
+controls changes error charts, alerts or storage. The tables use ordinary
+LogQL aggregation across retained logs, not the experimental pattern ingester,
+and have no minimum occurrence count. Large ranges or many distinct message
+shapes can reach Loki's series limit; narrow the host, unit or time range rather
+than treating a failed query as an empty overview. Error bars count
+non-overlapping time buckets, stacked by source, and grow wider for longer
+dashboard ranges.
 
 Use Explore with the Logs data source for LogQL searches, such as
 `{job="journal",host="example",unit="example.service"}`. Labels deliberately
@@ -97,7 +119,7 @@ Collection also writes `detected_level` metadata from numeric priority:
 `info`, and 7 to `debug`. Missing or invalid priority maps to `unknown`, never
 message-text inference. This makes priority authoritative for consumers such
 as native log patterns as well as alerts. Older entries are not rewritten;
-the dashboard retains its query-time priority mapping for them. Message text,
+the dashboard displays severity from their numeric priority. Message text,
 journal cursors, and the delivery WAL are unchanged.
 
 Grafana evaluates rules for journal errors, critical messages, per-unit spam,
@@ -192,6 +214,11 @@ resumption after stopping and starting collection. It also checks
 source metadata, all eight priority mappings, missing source fields, and native
 pattern severity with deliberately contradictory message text. Metadata must
 remain outside the index and survive the same outage/replay cases as messages.
+The overview regression groups more than 500 changing messages, checks source
+and priority isolation, preserves distinct failure wording, and verifies
+selected-range counts, filters and escaped Explore links. Check table rendering
+when changing transformations or upgrading Grafana; query validation alone
+does not verify field names, hidden helper columns or display overrides.
 The test also checks gateway
 method/path restrictions and acknowledgment failure when Loki is stopped,
 queued-log replay after overlapping outages and client reboots, simultaneous

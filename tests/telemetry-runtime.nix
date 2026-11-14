@@ -77,5 +77,7 @@ pkgs.testers.runNixOSTest {
     };
   };
   testScript =
-    builtins.readFile ./telemetry/runtime.py + builtins.readFile ./telemetry/outage-replay.py;
+    builtins.readFile ./telemetry/runtime.py
+    + builtins.readFile ./telemetry/event-overview.py
+    + builtins.readFile ./telemetry/outage-replay.py;
 }

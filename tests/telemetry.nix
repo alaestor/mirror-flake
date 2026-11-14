@@ -37,7 +37,10 @@ let
     lib.findFirst (
       v: v.name == name
     ) (throw "Missing telemetry variable ${name}") dashboard.templating.list;
-  journals = builtins.filter (p: p.type == "logs") dashboard.panels;
+  eventOverviews = map panel [
+    1
+    15
+  ];
   checks = [
     (dashboard.uid == "telemetry-fleet" && !dashboard.editable && dashboard.time.from == "now-7d")
     (
@@ -92,16 +95,44 @@ let
     ((panel 3).gridPos.x + (panel 3).gridPos.w == (panel 6).gridPos.x)
     ((builtins.head (panel 4).targets).legendFormat == "{{host}}")
     (
-      builtins.length journals == 2
+      !(builtins.any (p: p.type == "logs") dashboard.panels)
       && builtins.all (
         p:
-        !p.options.wrapLogMessage
+        p.type == "table"
+        && (builtins.head p.targets).queryType == "instant"
+        && lib.hasInfix "count_over_time(" (builtins.head p.targets).expr
+        && lib.hasInfix "[$__range]" (builtins.head p.targets).expr
         && lib.hasInfix "\${journal_search:doublequote}" (builtins.head p.targets).expr
         && lib.hasInfix "\${journal_noise:doublequote}" (builtins.head p.targets).expr
         && !lib.hasInfix ":json}" (builtins.head p.targets).expr
-      ) journals
+        && (builtins.head p.transformations).id == "labelsToFields"
+        && (builtins.elemAt p.transformations 1).options.renameByName."Value #A" == "Count"
+        &&
+          builtins.all
+            (
+              name:
+              builtins.any (
+                override:
+                override.matcher.options == name
+                && builtins.any (property: property.id == "custom.hidden" && property.value) override.properties
+              ) p.fieldConfig.overrides
+            )
+            [
+              "unit"
+              "details"
+            ]
+        &&
+          p.options.sortBy == [
+            {
+              displayName = "Count";
+              desc = true;
+            }
+          ]
+      ) eventOverviews
     )
-    (builtins.all (link: !lib.hasInfix "wip" link.url) dashboard.links)
+    ((builtins.head (panel 1).targets).expr == (builtins.head (panel 15).targets).expr)
+    ((variable "journal_noise").current.value == "a^")
+    (dashboard.links == [ ] && !(dashboard.timepicker.hidden or false))
     (client.services.alloy.package.drvPath != pkgs.grafana-alloy.drvPath)
     (!client.services.vector.enable)
     (lib.hasInfix "max_backoff_retries = 0" (builtins.readFile client.services.alloy.configPath))

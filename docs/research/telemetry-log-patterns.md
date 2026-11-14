@@ -10,9 +10,33 @@
 
 Keep Alloy's journal reader and delivery WAL. Similarity grouping belongs on
 the collector, alongside the raw journal, rather than replacing log delivery
-or discarding duplicates at the source. The existing dashboard remains the
-seven-day health and journal view. Trial Loki's native pattern ingester through
-Logs Drilldown before building a separate clustering service.
+or discarding duplicates at the source. The dashboard is a health and event-class
+overview; Explore owns the raw journal. Native patterns remain an independent
+experiment rather than a dependency of the overview.
+
+## Query-time overview
+
+The dashboard groups recurring message shapes using deterministic LogQL
+normalization and counts them across the selected range. Paths, quoted dotted
+names, URLs, UUIDs, hexadecimal IDs and numbers become placeholders. It keeps
+ordinary failure wording and scopes classes by host, system unit, source and
+priority. See the [overview contract](../telemetry.md#search-and-alerts) for
+filters, Explore links and limits. This is structural grouping, not semantic
+classification or a root-cause diagnosis.
+
+A read-only seven-day query condensed 3,952 warnings/errors into 325 scoped
+families in 0.84 seconds. Counts for the five largest families matched their
+Explore queries. The screenshot's varying D-Bus declarations became
+`Ignoring duplicate name <name> in service file '<path>'`, while activation
+failures and the I/O-pressure warning remained separate. This does not establish
+universal coverage or a performance bound for a larger fleet.
+
+The VM regression groups 600 changing declarations without sampling, checks
+distinct sources, priorities and failure reasons, and verifies query ranges,
+filters, raw-message preservation and escaped Explore links. A local browser
+preview with synthetic data checked the table against the packaged Grafana and
+data-source plugins. It caught count-column naming and hidden-field differences
+that backend query validation did not cover.
 
 ## What the trial established
 
@@ -87,8 +111,9 @@ they do not establish universal field availability.
 The pipeline preserves the existing `unit` field rather than changing per-unit
 alerts. It derives `detected_level` metadata from numeric priority without
 parsing message text. Missing or invalid priority maps to `unknown`. The
-dashboard retains query-time mapping for older entries. The journal reader,
-cursor, raw message text, and write-ahead log configuration are unchanged.
+dashboard displays severity from numeric priority for older entries. The
+journal reader, cursor, raw message text and write-ahead log configuration are
+unchanged.
 
 The [pattern stream reader](https://github.com/grafana/loki/blob/v3.7.9/pkg/pattern/stream.go)
 uses structured metadata named
@@ -123,11 +148,10 @@ the rebuild, but its flag remains absent from the configured service command.
    before adoption; one running-process memory reading cannot attribute cost
    to pattern ingestion. Compare shutdown behavior with and without the
    experimental ingester before adopting it.
-3. Check whether a recent-pattern view is sufficient. If arbitrary seven-day
-   grouping is required, evaluate persistent pattern summaries or a bounded
-   query-time clustering service with links back to raw records. Test changing
-   hexadecimal IDs, numeric counters, unrelated messages with similar prefixes,
-   and interleaved sources before choosing it.
+3. Compare the deterministic overview with native templates on real recurring
+   classes. Look for significant numeric codes that normalization merges and
+   differently worded instances it leaves separate. Consider learned or
+   persistent summaries only if those gaps justify another moving part.
 
 The trial plugin and pattern-ingester flag are not part of the adopted flake
 dashboard. They remain experimental runtime state until coverage and resource
