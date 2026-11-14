@@ -1,6 +1,8 @@
 /**
   Authenticated, read-only media downloads with search and folder ZIPs.
   A private filesystem root exposes only named shares and the Nix store.
+  A service-owned AppArmor profile limits reads, executable mappings, and
+  execution to the daemon and its fixed account-validation dependencies.
   Accounts come from a required runtime environment file, normally agenix;
   missing, anonymous, plaintext, or writable account rules fail startup.
 */
@@ -16,6 +18,11 @@
         name = "dufs-validate-auth";
         text = self.data.read "serve/dufs/validate-auth.sh";
       };
+      libraryRules = packages: pkgs.apparmorRulesFromClosure {
+        name = "dufs-libraries";
+        # No blanket execution grant, including for libexec helpers.
+        baseRules = [ "$path/lib/** mr" "$path/lib64/** mr" ];
+      } packages;
     in
     {
       options.serve.dufs = {
@@ -48,6 +55,34 @@
       };
 
       config = lib.mkIf cfg.enable {
+        security.apparmor = {
+          enable = true;
+          policies.serve-dufs.profile = ''
+            profile serve-dufs flags=(chroot_relative) {
+              ${lib.getExe config.services.dufs.package} rix,
+              # The fixed ExecStartPre guard needs Bash. It inherits this same
+              # policy, including the absence of general write permissions.
+              ${lib.getExe validateAuth} rix,
+              ${lib.getExe pkgs.bash} rix,
+              ${builtins.storeDir}/** r,
+              include "${libraryRules [ config.services.dufs.package pkgs.bash ]}"
+              owner /proc/[0-9]*/{maps,cgroup} r,
+              /media/ r,
+              ${lib.concatMapStringsSep "\n" (name: ''
+                /media/${name}/ r,
+                /media/${name}/** r,
+              '') (builtins.attrNames cfg.shares)}
+              /dev/null rw,
+              /dev/tty rw,
+              /dev/urandom r,
+              network inet stream,
+              network inet6 stream,
+              signal (receive) peer=unconfined,
+              signal (send, receive) peer=serve-dufs,
+            }
+          '';
+        };
+
         assertions = [
           {
             assertion = cfg.authFile != null;
@@ -85,8 +120,14 @@
         # Root ownership prevents this account from changing the host-side root.
         systemd.tmpfiles.rules = [ "d ${root} 0755 root root -" ];
         systemd.services.dufs = {
+          requires = [ "apparmor.service" ];
+          after = [ "apparmor.service" ];
+          # Refuse startup on a kernel without AppArmor instead of silently
+          # starting unconfined. AppArmorProfile also requires a loaded profile.
+          unitConfig.AssertSecurity = "apparmor";
           unitConfig.RequiresMountsFor = builtins.attrValues cfg.shares;
           serviceConfig = {
+            AppArmorProfile = "serve-dufs";
             RootDirectory = root;
             BindReadOnlyPaths = [ builtins.storeDir ] ++ lib.mapAttrsToList
               (name: source: "${source}:/media/${name}") cfg.shares;

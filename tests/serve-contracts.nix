@@ -143,7 +143,7 @@ let
     {
       name = "dufs";
       module = nixos.serve-dufs;
-      activationPaths = [ [ "services" "dufs" "enable" ] ];
+      activationPaths = [ [ "services" "dufs" "enable" ] [ "security" "apparmor" "enable" ] ];
       enabledConfig = {
         authFile = "/run/secrets/fixture-dufs.env";
         shares = { Films = "/srv/fixture-films"; Audio = "/srv/fixture-audio"; };
@@ -158,6 +158,12 @@ let
             && ReadWritePaths == [ ] && ReadOnlyPaths == [ "+/run" ]
             && BindReadOnlyPaths == [ builtins.storeDir "/srv/fixture-audio:/media/Audio" "/srv/fixture-films:/media/Films" ]
             && EnvironmentFile == [ "/run/secrets/fixture-dufs.env" ]
+            && AppArmorProfile == "serve-dufs"
+            && config.security.apparmor.enable
+            && config.security.apparmor.policies.serve-dufs.state == "enforce"
+            && config.systemd.services.dufs.unitConfig.AssertSecurity == "apparmor"
+            && builtins.elem "apparmor.service" config.systemd.services.dufs.requires
+            && builtins.elem "apparmor.service" config.systemd.services.dufs.after
             && config.services.dufs.bindAddresses == [ "127.0.0.1" ]
             && config.services.dufs.settings.allow-search
             && config.services.dufs.settings.allow-archive

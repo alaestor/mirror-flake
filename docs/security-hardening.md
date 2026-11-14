@@ -180,6 +180,41 @@ denied access to hidden shares and devices, and application startup. Playback,
 scanning, transcoding, authentication, and VPN-failure behavior still need
 workload-specific checks before treating the rollout as complete.
 
+### Dufs AppArmor policy
+
+Enabling `serve-dufs` also enables AppArmor. The kernel must already support
+AppArmor at activation time, or a reboot is required before starting Dufs.
+The unit asserts that AppArmor is active, requires its policy loader, and uses
+`AppArmorProfile=serve-dufs` without ignoring errors. A missing profile must
+fail startup, not silently run the daemon unconfined.
+
+The policy uses paths relative to the private root. Named shares are readable
+under `/media`, with no media write grants. Store files are readable, but
+executable mappings are limited to libraries in the generated package closures.
+There is no blanket store execution rule. Only the selected Dufs executable,
+the fixed authentication guard, and its Bash interpreter have execution grants.
+The guard and daemon inherit the same profile, so this is not a shell-execution
+prohibition. A shell still has no additional filesystem or network authority.
+Keeping one inherited profile avoids a profile transition that would conflict
+with `NoNewPrivileges`. TCP socket grants complement the unit's loopback-only
+network restriction; AppArmor does not replace it. The profile grants no general
+filesystem writes. Existing systemd mount restrictions remain in place.
+
+Run `nix build .#checks.x86_64-linux.dufs-apparmor --no-link` before rollout.
+The VM exercises normal operations in complain mode, rejects unexpected audit
+events, then repeats listing, downloads, ranges, search, and folder ZIPs in
+enforce mode. It checks the actual daemon's process label, unsafe-authentication
+failure, and startup failure with a missing profile. A separate probe enters
+the same policy without a systemd mount sandbox and requires AppArmor to deny
+DAC-permitted reads, writes, execution of an unrelated store executable, and
+executable mappings outside the selected library closures.
+
+For an existing deployment, arrange a controlled restart after loading the
+policy, inspect `/proc/<MainPID>/attr/current` for `serve-dufs (enforce)`, and
+check authenticated public downloads and the kernel audit log. Loading a profile
+alone does not confine an already unconfined process. Do not rely on the global
+`killUnconfinedConfinables` setting to perform this rollout.
+
 ## Kernel choices
 
 Keep the kernel's default heap zero-on-allocation. Do not enable page poisoning
