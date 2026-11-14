@@ -152,3 +152,9 @@ For host and Home Manager attachment mechanics, see
 [Hosted services and domains](serve.md). For the worked example of a mechanism
 that several features share one instance of, see
 [Coding agents and their isolation](agents.md).
+
+Fleet-wide observability uses the `telemetry` client feature and its
+`telemetry-server` extension. The tailnet aspect owns default client enrollment;
+fleet facts own destination and scrape membership. These features expose no
+public ingress. See [Fleet telemetry](telemetry.md) for their trust boundary,
+alert policy, and rollout requirements.
