@@ -82,6 +82,27 @@ with subtest("event overview condenses classes over the full range and links to 
         "Loading model: " + progress[1],
     ]
     fixture(mixed_progress, source="progress-worker")
+    # Crash handlers get a fresh system unit per crash. Those hidden units
+    # must not split otherwise identical families or narrow their Explore links.
+    crash_source = "systemd-coredump"
+    crash_family = "Process <n> (chromium) of user <n> terminated abnormally without generating a coredump."
+    socket_family = 'The socket path doesn\'t exist @ "<path>"'
+    crash_message = "Process 2866847 (chromium) of user 30011 terminated abnormally without generating a coredump."
+    for index, pid in enumerate([2866847, 2861178, 2868910]):
+        instance = "292-49181-" + str(pid) + "_15416743-0.service"
+        fixture([crash_message.replace("2866847", str(pid))],
+                unit="systemd-coredump@" + instance, priority="2", source=crash_source)
+        fixture(['The socket path doesn\'t exist @ "/run/user/' + str(30011 + index) + '/drkonqi-coredump-launcher"'],
+                unit="drkonqi-coredump-processor@" + instance, priority="4", source="drkonqi-coredump-processor")
+    # Instance identity still matters for ordinary templates.
+    for unit in ["worker@alpha.service", "worker@beta.service"]:
+        fixture([crash_message], unit=unit, priority="2", source=crash_source)
+    fixture([crash_message], unit="systemd-coredump@other.service", priority="3", source=crash_source)
+    fixture([crash_message], host="event-fixture-b", unit="systemd-coredump@other.service", priority="2", source=crash_source)
+    fixture([crash_message.replace("chromium", "firefox")], unit="systemd-coredump@other.service", priority="2", source=crash_source)
+    # Missing identifiers fall back to the normalized template, not an instance.
+    for unit in ["systemd-coredump@first.service", "systemd-coredump@second.service"]:
+        fixture([crash_message], unit=unit, priority="2", source=None)
     # Keep each shell argument below execve's per-argument size limit.
     for stream in streams:
         for offset in range(0, len(stream["values"]), 100):
@@ -94,7 +115,7 @@ with subtest("event overview condenses classes over the full range and links to 
     collector.wait_until_succeeds(
         "curl -fsSG http://127.0.0.1:3101/loki/api/v1/query --data-urlencode query="
         + shlex.quote(query) + " --data-urlencode time=" + str(now / 10**9 + 1)
-        + " | jq -e '[.data.result[].value[1] | tonumber] | add == 623'",
+        + " | jq -e '[.data.result[].value[1] | tonumber] | add == 636'",
         timeout=60,
     )
     rows = metric_query(query)
@@ -116,6 +137,17 @@ with subtest("event overview condenses classes over the full range and links to 
     assert any("ERROR: model failed" in row["metric"]["event"] for row in progress_rows), progress_rows
     assert any("ERROR: device lost" in row["metric"]["event"] for row in progress_rows), progress_rows
     assert any("Loading model:" in row["metric"]["event"] for row in progress_rows), progress_rows
+
+    crash_rows = [row for row in rows if row["metric"]["event"] == crash_family
+                  and row["metric"]["unit"] == "systemd-coredump@.service"]
+    assert sorted(int(row["value"][1]) for row in crash_rows) == [1, 1, 2, 3], crash_rows
+    assert any(row["metric"]["source"] == "systemd-coredump@.service" and row["value"][1] == "2"
+               for row in crash_rows), crash_rows
+    socket_rows = [row for row in rows if row["metric"]["event"] == socket_family]
+    assert len(socket_rows) == 1 and socket_rows[0]["value"][1] == "3", socket_rows
+    assert socket_rows[0]["metric"]["unit"] == "drkonqi-coredump-processor@.service", socket_rows
+    worker_rows = [row for row in rows if row["metric"].get("unit", "").startswith("worker@")]
+    assert len(worker_rows) == 2 and all(row["value"][1] == "1" for row in worker_rows), worker_rows
 
     # Resolve the actual table data link, including JSON/URL escaping and range.
     link = next(

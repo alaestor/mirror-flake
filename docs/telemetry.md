@@ -77,7 +77,12 @@ tqdm-style progress bars form an `Iteration progress output` class regardless
 of bar width, counters or redraw count. Bars accompanied by other text retain
 that text through ordinary normalization. Counts measure journal records, not
 individual progress redraws; neither stored priority nor raw output changes.
-Classes stay scoped to host, system unit, source and numeric priority. Source
+Classes stay scoped to host, system unit, source and numeric priority. The
+`systemd-coredump@` and `drkonqi-coredump-processor@` crash handlers group by
+their service templates rather than their per-crash instances. Other unit
+instances remain distinct. This normalization happens only in overview queries;
+stored units stay intact, and Explore links include every instance in the family.
+Unit filters still select original units before grouping. Source
 uses the syslog identifier when available, otherwise the system unit or
 `unknown`; older entries without source metadata can therefore appear
 separately from newer ones.
