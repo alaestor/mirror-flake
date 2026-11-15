@@ -36,6 +36,20 @@ test('preferences reject malformed or future state instead of overwriting it', (
   }
 });
 
+test('pages preserve all sorted and filtered families with a bounded render size', () => {
+  const rows = Array.from({ length: 623 }, (_, count) => ({ ...row, count, event: `Family ${count}`, key: String(count) }));
+  const selected = model.selectRows(rows, defaultView(), {}, { key: 'count', desc: true });
+  const pages = Array.from({ length: 7 }, (_, page) => model.paginateRows(selected, page));
+  assert.deepEqual(pages.map(page => page.rows.length), [100, 100, 100, 100, 100, 100, 23]);
+  assert.deepEqual(pages.flatMap(page => page.rows), selected);
+  assert.equal(pages[0].rows[0].count, 622);
+  assert.equal(model.paginateRows(selected, 99).page, 6);
+  assert.equal(model.paginateRows([], 6).page, 0);
+  assert.equal(model.paginateRows([], 6).pages, 1);
+  const filtered = model.selectRows(rows, defaultView(), { event: 'Family 622' }, { key: 'count', desc: true });
+  assert.deepEqual(model.paginateRows(filtered, 6).rows, [rows[622]]);
+});
+
 test('missing or invalid severity stays unknown rather than becoming fatal', () => {
   for (const value of ['', null, undefined, '9', 'invalid']) assert.equal(model.severity(value), 'unknown');
   assert.equal(model.severity('3'), 'error');

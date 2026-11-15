@@ -144,6 +144,9 @@ let
     )
     (server.telemetry.enable && server.telemetry.pushUrl == "http://127.0.0.1:3101/loki/api/v1/push")
     (server.networking.firewall.allowedTCPPorts == [ ])
+    (server.services.loki.configuration.limits_config.max_query_series == 5000)
+    (server.services.loki.configuration.server.grpc_server_max_recv_msg_size == 32 * 1024 * 1024)
+    (server.services.loki.configuration.limits_config.split_instant_metric_queries_by_interval == "24h")
     (server.services.grafana.settings.server.http_addr == "127.0.0.1")
     (
       !server.services.grafana.settings."auth.anonymous".enabled

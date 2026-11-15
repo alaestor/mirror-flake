@@ -191,6 +191,9 @@ in
               http_listen_address = "127.0.0.1";
               http_listen_port = cfg.lokiPort;
               grpc_listen_address = "127.0.0.1";
+              # Full family vectors carry Explore links through the frontend.
+              # Keep their transport budget bounded alongside max_query_series.
+              grpc_server_max_recv_msg_size = 32 * 1024 * 1024;
             };
             common = {
               path_prefix = config.services.loki.dataDir;
@@ -223,8 +226,14 @@ in
               retention_period = cfg.logRetention;
               ingestion_rate_mb = 8;
               ingestion_burst_size_mb = 16;
+              # Event families are query-time series, not indexed streams.
+              # Bound the full overview independently of its browser page size.
+              max_query_series = 5000;
               max_query_parallelism = 4;
               split_queries_by_interval = "24h";
+              # Instant range aggregations have a separate split setting.
+              # Hourly splits turn the seven-day overview into 168 jobs.
+              split_instant_metric_queries_by_interval = "24h";
             };
           };
         };

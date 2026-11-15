@@ -20,6 +20,8 @@ define(['exports', 'react', '@grafana/data', '@grafana/runtime', '@grafana/ui', 
       const state = React.useSyncExternalStore(store.subscribe, store.getSnapshot);
       const [filters, setFilters] = React.useState({});
       const [sort, setSort] = React.useState({ key: 'count', desc: true });
+      const [page, setPage] = React.useState(0);
+      const scroll = React.useRef(null);
       React.useEffect(() => {
         if (!store.getSnapshot().ready) store.load(storage);
         const refresh = () => store.load(storage);
@@ -30,6 +32,11 @@ define(['exports', 'react', '@grafana/data', '@grafana/runtime', '@grafana/ui', 
       try { rows = model.rowsFromFrames(data.series); }
       catch (error) { queryError = error.message; }
       const visible = model.selectRows(rows, state.preferences, filters, sort);
+      const paged = model.paginateRows(visible, page);
+      React.useEffect(() => {
+        setPage(paged.page);
+        if (scroll.current) scroll.current.scrollTop = 0;
+      }, [paged.page, filters, sort, state.preferences.showDimmed]);
       const dimmed = new Set(state.preferences.dimmed);
       const disabled = !state.ready || state.busy;
       const cell = { overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', padding: '6px 8px', borderBottom: `1px solid ${theme.colors.border.weak}`, height: 32 };
@@ -37,24 +44,27 @@ define(['exports', 'react', '@grafana/data', '@grafana/runtime', '@grafana/ui', 
       const text = { ...button, width: '100%', minWidth: 0, padding: '2px 4px', fontWeight: 'normal' };
       const message = [state.error, queryError].filter(Boolean).join(' ');
       return h('div', { 'data-testid': 'event-families', style: { height, display: 'flex', flexDirection: 'column', minHeight: 0, color: theme.colors.text.primary } },
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '0 8px 8px', flexShrink: 0 } },
+        h('div', { style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '0 8px 8px', flexShrink: 0 } },
           h('label', { style: { display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' } },
             h('input', { type: 'checkbox', checked: state.preferences.showDimmed, disabled,
-              onChange: event => store.setShowDimmed(storage, event.target.checked) }), 'Show dimmed'),
+              onChange: event => { setPage(0); store.setShowDimmed(storage, event.target.checked); } }), 'Show dimmed'),
           h('span', { style: { color: theme.colors.text.secondary } }, `${visible.length} of ${rows.length} families`),
+          h('button', { type: 'button', style: button, 'aria-label': 'Previous page', disabled: paged.page === 0, onClick: () => setPage(paged.page - 1) }, 'Previous'),
+          h('span', { 'data-testid': 'event-page' }, `Page ${paged.page + 1} of ${paged.pages} · 100 rows per page`),
+          h('button', { type: 'button', style: button, 'aria-label': 'Next page', disabled: paged.page + 1 === paged.pages, onClick: () => setPage(paged.page + 1) }, 'Next'),
           state.busy && h('span', { role: 'status' }, state.operation === 'save' ? 'Saving…' : 'Loading view preferences…')),
         message && h('div', { role: 'alert', style: { color: theme.colors.error.text, padding: '0 8px 8px' } },
           message, state.error && h('button', { type: 'button', disabled: state.busy, style: { ...button, marginLeft: 8 }, onClick: () => store.load(storage) }, 'Retry')),
-        h('div', { 'data-testid': 'event-scroll', style: { overflow: 'auto', flex: 1, minHeight: 0 } },
+        h('div', { ref: scroll, 'data-testid': 'event-scroll', style: { overflow: 'auto', flex: 1, minHeight: 0 } },
           h('table', { style: { width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 } },
             h('colgroup', null, ...columns.map(([key, , width]) => h('col', { key, style: width ? { width } : {} })), h('col', { style: { width: 112 } })),
             h('thead', { style: { position: 'sticky', top: 0, zIndex: 1, background: theme.colors.background.primary } },
               h('tr', null, ...columns.map(([key, name]) => h('th', { key, scope: 'col', style: { ...cell, textAlign: key === 'count' ? 'right' : 'left', verticalAlign: 'top' }, 'aria-sort': sort.key === key ? (sort.desc ? 'descending' : 'ascending') : 'none' },
-                h('button', { type: 'button', style: { ...button, border: 0, padding: 0 }, onClick: () => setSort({ key, desc: sort.key === key ? !sort.desc : key === 'count' }) }, name, sort.key === key ? (sort.desc ? ' ↓' : ' ↑') : ''),
+                h('button', { type: 'button', style: { ...button, border: 0, padding: 0 }, onClick: () => { setPage(0); setSort({ key, desc: sort.key === key ? !sort.desc : key === 'count' }); } }, name, sort.key === key ? (sort.desc ? ' ↓' : ' ↑') : ''),
                 h('input', { type: 'search', 'aria-label': `Filter ${name}`, placeholder: 'Filter', value: filters[key] || '',
-                  style: { ...text, display: 'block', marginTop: 4 }, onChange: event => setFilters({ ...filters, [key]: event.target.value }) }))),
+                  style: { ...text, display: 'block', marginTop: 4 }, onChange: event => { setPage(0); setFilters({ ...filters, [key]: event.target.value }); } }))),
                 h('th', { scope: 'col', style: cell }, 'Dim family'))),
-            h('tbody', null, ...visible.map(row => {
+            h('tbody', null, ...paged.rows.map(row => {
               const dim = dimmed.has(row.key);
               const level = model.severity(row.priority);
               const color = /^[0-3]$/.test(row.priority) ? theme.colors.error.text

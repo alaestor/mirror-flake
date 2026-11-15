@@ -28,7 +28,7 @@ async function main() {
   const pluginPaths = JSON.parse(process.env.TELEMETRY_PLUGIN_PATHS);
   const base = { host: 'example', unit: 'user@1000.service', source: 'broker', priority: '3', event: 'Ignoring duplicate name <name>' };
   const fixtures = [base, ...['host', 'unit', 'source', 'priority'].map(key => ({ ...base, [key]: key === 'priority' ? '4' : 'different' })),
-    ...Array.from({ length: 100 }, (_, index) => ({ ...base, event: `Other family ${index}: ` + 'long diagnostic detail '.repeat(30) }))];
+    ...Array.from({ length: 600 }, (_, index) => ({ ...base, event: `Other family ${index}: ` + 'long diagnostic detail '.repeat(30) }))];
   const mock = http.createServer((request, response) => {
     const url = new URL(request.url, 'http://localhost');
     const query = url.searchParams.get('query') || '';
@@ -176,9 +176,20 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
     await waitFor(() => first.evaluate(rowCount + ' === 1'), 'Column filter');
     await first.evaluate("document.querySelector('[aria-label=\"Filter Event family\"]').select()");
     await first.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
-    await waitFor(() => first.evaluate(rowCount + ' === 105'), 'Clear column filter');
+    await waitFor(() => first.evaluate(rowCount + ' === 100'), 'Clear column filter');
+    assert.ok(await first.evaluate("document.querySelector('[data-testid=event-page]').textContent.includes('Page 1 of 7')"));
+    for (let page = 0; page < 6; page++) {
+      await first.evaluate("document.querySelector('[aria-label=\"Next page\"]').click()");
+      await waitFor(() => first.evaluate(`document.querySelector('[data-testid=event-page]').textContent.includes('Page ${page + 2} of 7')`), 'Next page');
+    }
+    await waitFor(() => first.evaluate(rowCount + ' === 5'), 'Last page has all remaining families');
+    assert.ok(await first.evaluate("document.querySelector('[aria-label=\"Next page\"]').disabled"));
+    assert.equal(await first.evaluate("document.querySelector('tbody tr:last-child').children[4].textContent"), '396');
+    await first.evaluate("document.querySelector('[aria-label=\"Previous page\"]').click()");
+    await waitFor(() => first.evaluate(rowCount + ' === 100'), 'Previous page');
     await first.evaluate("document.querySelectorAll('thead button')[4].click()");
-    assert.equal(await first.evaluate("document.querySelector('tbody tr').children[4].textContent"), '896', 'Numeric ascending count sort');
+    await waitFor(() => first.evaluate("document.querySelector('[data-testid=event-page]').textContent.includes('Page 1 of 7') && document.querySelector('tbody tr').children[4].textContent === '396'"), 'Sorting returns to first page');
+    assert.equal(await first.evaluate("document.querySelector('tbody tr').children[4].textContent"), '396', 'Numeric ascending count sort');
     await first.evaluate("document.querySelectorAll('thead button')[4].click()");
     await first.evaluate(`${target}.querySelector('button').click()`);
     await waitFor(() => first.evaluate(`${target}?.dataset.dimmed === 'true'`), 'Family dimmed');
@@ -194,7 +205,7 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
     assert.equal(pane.queries[0].expr, `{job="journal",host="example"} |= ${JSON.stringify(base.event)}`);
     assert.ok(Number(pane.range.to) > Number(pane.range.from), 'Explore time range');
     await first.evaluate("document.querySelector('input[type=checkbox]').click()");
-    await waitFor(() => first.evaluate(rowCount + ' === 104'), 'Hide dimmed');
+    await waitFor(() => first.evaluate("document.querySelector('[data-testid=event-families]').textContent.includes('604 of 605 families')"), 'Hide dimmed');
     assert.equal(await first.evaluate(target + ' === undefined'), true);
 
     const second = await browser('viewer-b');
@@ -206,9 +217,9 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
 
     // New browser profile: neither cookies nor localStorage from the first one.
     const fresh = await browser('viewer-a');
-    assert.equal(await fresh.evaluate(rowCount), 104, 'Preferences persisted in Grafana');
+    assert.ok(await fresh.evaluate("document.querySelector('[data-testid=event-families]').textContent.includes('604 of 605 families')"), 'Preferences persisted in Grafana');
     await fresh.evaluate("document.querySelector('input[type=checkbox]').click()");
-    await waitFor(() => fresh.evaluate(rowCount + ' === 105'), 'Show dimmed');
+    await waitFor(() => fresh.evaluate("document.querySelector('[data-testid=event-families]').textContent.includes('605 of 605 families')"), 'Show dimmed');
     await fresh.navigate(15);
     assert.equal(await fresh.evaluate(`${target}.dataset.dimmed`), 'true', 'Both panels share preferences');
     await fresh.fail('write');
@@ -222,14 +233,14 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
     await fresh.fail('all');
     await fresh.send('Page.reload');
     await waitFor(() => fresh.evaluate("document.querySelector('[role=alert]')?.textContent.includes('All families remain visible')"), 'Visible load failure');
-    assert.equal(await fresh.evaluate(rowCount), 105);
+    assert.equal(await fresh.evaluate(rowCount), 100);
     assert.equal(await fresh.evaluate("document.querySelectorAll('tr[data-dimmed=true]').length"), 0);
     await fresh.recover();
     await fresh.evaluate("document.querySelector('[role=alert] button').click()");
     await waitFor(() => fresh.evaluate(`${target}?.dataset.dimmed === 'true' && !${target}.querySelector('button').disabled`), 'Read failure recovery');
     await fresh.evaluate(`${target}.querySelector('button').click()`);
     await waitFor(() => fresh.evaluate(`${target}?.dataset.dimmed === 'false'`), 'Undim family');
-    console.log('PASS: GUI dim/hide/undim, server persistence across profiles, user and family isolation, shared panels, scrolling, truncation, Explore links, and visible storage failures');
+    console.log('PASS: GUI dim/hide/undim, server persistence across profiles, user and family isolation, shared panels, pagination, global filtering/sorting, scrolling, truncation, Explore links, and visible storage failures');
   } catch (error) {
     for (const name of await fs.readdir(root)) {
       if (name.startsWith('chromium-') && name.endsWith('.log')) {

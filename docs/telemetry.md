@@ -90,10 +90,12 @@ differently worded messages can describe the same underlying problem. Inspect
 the original messages before deciding that a class is harmless. No normalized
 message or event ID is added to the index, and stored messages remain intact.
 
-The event tables use a repository-owned Grafana panel with scrolling,
-single-line truncated rows, column filters and sorting. **Dim family** reduces
-a row's contrast; **Undim family** restores it. **Show dimmed** includes or
-hides dimmed rows without changing their counts, stored logs or alerts.
+The event tables use a repository-owned Grafana panel with 100-row pages,
+scrolling within each page and single-line truncated rows. Column filters and
+sorting apply to the complete result before paging, so every returned family
+remains reachable. **Dim family** reduces a row's contrast; **Undim family**
+restores it. **Show dimmed** includes or hides dimmed rows without changing
+their counts, stored logs or alerts.
 Dimming matches the complete family identity, including host, system unit,
 source and numeric priority. It does not follow a class onto another host or
 dim a higher-priority variant. Changed family wording appears undimmed.
@@ -122,10 +124,28 @@ whole family rather than carry these two filters forward. None of these
 controls changes error charts, alerts or storage. The tables use ordinary
 LogQL aggregation across retained logs, not the experimental pattern ingester,
 and have no minimum occurrence count. Large ranges or many distinct message
-shapes can reach Loki's series limit; narrow the host, unit or time range rather
-than treating a failed query as an empty overview. Error bars count
-non-overlapping time buckets, stacked by source, and grow wider for longer
-dashboard ranges.
+shapes can reach Loki's bounded 5,000-series query limit. This is independent of
+the panel's page size: Loki evaluates the full result before browser pagination.
+Raising the limit allows larger overviews at the cost of query memory and
+response size, especially because each family carries an Explore query. Outer
+aggregations such as `topk` can still hit an intermediate query limit and would
+omit families even if they succeeded. Narrow the host, unit or time range when
+the limit is reached rather than treating a failed query as an empty overview.
+Error bars count non-overlapping time buckets, stacked by source, and grow wider
+for longer dashboard ranges.
+
+Loki splits both range queries and instant metric aggregations into daily jobs,
+with bounded parallelism. These use separate settings. Changing only
+`split_queries_by_interval` leaves instant overviews on Loki's hourly default,
+creating 168 jobs for a seven-day count and risking HTTP timeouts even on a
+small fixture. Keep the seven-day runtime regression when tuning query limits
+or splitting.
+
+The loopback gRPC receiver allows messages up to 32 MiB so full family vectors
+can reach the query frontend. Loki's default 4 MiB transport cap cannot carry a
+5,000-family result with these links, even when the series limit permits it.
+Keep the transport and series budgets bounded together rather than disabling
+either limit.
 
 Use Explore with the Logs data source for LogQL searches, such as
 `{job="journal",host="example",unit="example.service"}`. Labels deliberately
@@ -246,12 +266,15 @@ pattern severity with deliberately contradictory message text. Metadata must
 remain outside the index and survive the same outage/replay cases as messages.
 The overview regression groups more than 500 changing messages, checks source
 and priority isolation, preserves distinct failure wording, and verifies
-selected-range counts, filters and escaped Explore links. The panel check runs
-real Grafana and Chromium with synthetic Loki responses. It exercises GUI
-dimming, hiding and restoring families, persistence across fresh browser
-profiles, Viewer-account isolation, scrolling, truncation, Explore links and
-visible storage failures. Query validation alone does not verify rendering or
-interactive state.
+selected-range counts, filters and escaped Explore links. A separate case checks
+1,500 distinct normalized families in a seven-day query, exact counts and drilldown
+links, so changing raw values that collapse into one family cannot mask the
+series-limit regression. The panel check runs real Grafana and Chromium with
+synthetic Loki responses. It exercises GUI dimming, hiding and restoring
+families, persistence across fresh browser
+profiles, Viewer-account isolation, pagination, global filtering and sorting,
+scrolling, truncation, Explore links and visible storage failures. Query
+validation alone does not verify rendering or interactive state.
 The runtime test also checks gateway
 method/path restrictions and acknowledgment failure when Loki is stopped,
 queued-log replay after overlapping outages and client reboots, simultaneous

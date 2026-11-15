@@ -150,3 +150,33 @@ with subtest("event overview condenses classes over the full range and links to 
         + shlex.quote('{job="journal",host="event-fixture-a"} | syslog_identifier="progress-worker"')
     ))["data"]["result"]
     assert any(value[1] == progress[0] for stream in raw_progress for value in stream["values"]), raw_progress
+
+with subtest("seven-day overview returns more than 500 distinct normalized families without truncation"):
+    import itertools
+    import string
+
+    # Alphabetic suffixes survive normalization. Numeric fixture IDs would
+    # collapse to <n> and miss the production cardinality failure.
+    messages = ["Distinct failure " + "".join(letters)
+                for letters in itertools.islice(itertools.product(string.ascii_lowercase, repeat=3), 1500)]
+    streams = []
+    fixture(messages, host="event-cardinality", age=10 * 60 * 10**9)
+    fixture(messages, host="event-cardinality")
+    for stream in streams:
+        for offset in range(0, len(stream["values"]), 100):
+            payload = json.dumps({"streams": [{**stream, "values": stream["values"][offset:offset + 100]}]})
+            collector.succeed(
+                "curl -fsS -H 'Content-Type: application/json' -d " + shlex.quote(payload)
+                + " http://127.0.0.1:3101/loki/api/v1/push"
+            )
+    rows = metric_query(event_query(host="event-cardinality", window="7d"))
+    assert len(rows) == 1500, len(rows)
+    assert {row["metric"]["event"] for row in rows} == set(messages)
+    assert all(row["value"][1] == "2" for row in rows), rows
+    # details must be a function of identity, not of the raw record or time.
+    for row in [rows[0], rows[-1]]:
+        raw_query = json.loads(urllib.parse.unquote_plus(row["metric"]["details"]))
+        matches = metric_query("sum(count_over_time(" + raw_query + " [7d]))")
+        assert matches[0]["value"][1] == "2", matches
+    recent = metric_query(event_query(host="event-cardinality", window="5m"))
+    assert len(recent) == 1500 and all(row["value"][1] == "1" for row in recent)

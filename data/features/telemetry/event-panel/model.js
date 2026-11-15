@@ -110,5 +110,12 @@
     };
   }
 
-  return { preferenceKey, severity, parsePreferences, familyKey, rowsFromFrames, selectRows, createPreferenceStore };
+  function paginateRows(rows, requestedPage) {
+    const pageSize = 100;
+    const pages = Math.max(1, Math.ceil(rows.length / pageSize));
+    const page = Math.max(0, Math.min(requestedPage, pages - 1));
+    return { page, pages, rows: rows.slice(page * pageSize, (page + 1) * pageSize) };
+  }
+
+  return { preferenceKey, severity, parsePreferences, familyKey, rowsFromFrames, selectRows, paginateRows, createPreferenceStore };
 });
