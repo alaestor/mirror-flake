@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   /**
     Global configurations included automatically into all hosts of a class.
@@ -11,6 +12,9 @@
     default_timezone = "America/Toronto";
   in
   {
+
+    system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
+    system.nixos.tags = [ (inputs.self.shortRev or inputs.self.dirtyShortRev or "dirty") ];
 
     nix = {
       gc = {
