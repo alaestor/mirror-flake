@@ -12,5 +12,14 @@
     })
   ];
 
-  homeManager = [ ];
+  homeManager = [
+    ({ pkgs, ... }: {
+      home.packages = [ pkgs.htop ];
+      programs.bash.profileExtra = ''
+        if [[ $- == *i* ]] && [[ "$(tty)" == /dev/tty1 ]]; then
+          ${pkgs.htop}/bin/htop
+        fi
+      '';
+    })
+  ];
 }
