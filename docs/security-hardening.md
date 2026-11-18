@@ -6,8 +6,27 @@ topology or promise that every service is confined.
 
 ## Ownership
 
-Hosts own address-family support, routing, and exceptions to reverse-path
-validation. Use `networking.firewall.checkReversePath` for firewall validation;
+Registry-managed NixOS hosts default to IPv4-only networking through
+`global-config`. With `networking.enableIPv6 = false`, it also adds
+`ipv6.disable=1` to the kernel command line. This disables the complete IPv6
+stack, including loopback and overlay addresses, rather than relying on
+per-interface sysctls that NetworkManager can reverse. Android networking and
+guests built outside the host registry do not inherit this policy.
+
+Changing this boot-time policy requires a reboot. A rebuild alone does not
+remove an active IPv6 stack. Check `/proc/cmdline`, the IPv6 module's `disable`
+parameter, interface addresses, and service health after boot. IPv4-only hosts
+must use explicit IPv4 listener addresses where software cannot fall back from
+IPv6 sockets. Existing NetworkManager profiles need not be rewritten to enforce
+the kernel boundary. The [kernel documentation](https://docs.kernel.org/networking/ipv6.html)
+describes the distinction between disabling addresses and disabling all IPv6
+operations.
+
+A host can explicitly set `networking.enableIPv6 = true` to opt into dual-stack
+networking and omit the disabling boot argument. Review both firewall families,
+listeners, DNS, and overlay reachability before doing so. Hosts still own routing
+and exceptions to reverse-path validation. Use
+`networking.firewall.checkReversePath` for firewall validation;
 the kernel's per-interface `rp_filter` is an independent mechanism. Combining
 them needs an explicit reason and runtime verification. In particular, a zero
 interface value cannot opt out of a global value of one. Network managers can
@@ -237,6 +256,20 @@ Run `nix build .#checks.x86_64-linux.server-hardening --no-link` and evaluate th
 affected host's toplevel before committing policy changes. Evaluation cannot
 prove that a running kernel accepts a sysctl or that a workload can access its
 data.
+
+For address-family policy changes, also run:
+
+```sh
+nix build .#checks.x86_64-linux.ipv4-only --no-link
+nix build .#checks.x86_64-linux.ipv4-only-runtime --no-link
+```
+
+The policy check covers NetworkManager and an explicit dual-stack exception.
+The runtime test boots the IPv4-only policy with NetworkManager, rpcbind, and
+tailscaled, requires IPv6 socket creation to fail, and fetches metrics through
+the device-bound proxy from a peer. It does not enroll in a real tailnet or
+test production DNS and ACLs. Verify those and application compatibility after
+deploying to each host.
 
 After activating through the normal deployment workflow, require a successful
 `systemd-sysctl.service` and inspect its journal. Boot-parameter changes need a

@@ -119,9 +119,10 @@ in
         systemd.sockets = lib.mapAttrs (_: value: {
           wantedBy = [ device ];
           socketConfig = {
-            ListenStream = "[::]:${toString value.port}";
-            BindIPv6Only = "both";
+            ListenStream = "${if config.networking.enableIPv6 then "[::]" else "0.0.0.0"}:${toString value.port}";
             BindToDevice = cfg.interface;
+          } // lib.optionalAttrs config.networking.enableIPv6 {
+            BindIPv6Only = "both";
           };
         }) listeners;
         systemd.services =

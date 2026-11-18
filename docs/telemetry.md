@@ -16,6 +16,11 @@ log shipping; also add its name to scrape membership for metrics. Override
 
 ## Network and trust
 
+Socket proxies use explicit IPv4 listeners when `networking.enableIPv6` is
+false, and dual-stack listeners otherwise. Both retain device binding and the
+same interface-scoped firewall rules. A dual-stack socket cannot serve as the
+IPv4 listener when the kernel's IPv6 stack is disabled.
+
 All application listeners bind loopback. Systemd socket proxies expose only
 Grafana, host metrics, and a push-only log proxy on the selected interface.
 `BindToDevice` restricts the sockets in the kernel, in addition to interface-only

@@ -8,7 +8,6 @@
 
   networking = {
     domain = tailnet.dnsSuffix;
-    enableIPv6 = false;
     networkmanager.enable = true;
     useDHCP = false;
     interfaces = {

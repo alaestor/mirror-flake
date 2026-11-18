@@ -6,7 +6,7 @@
     export is a reusable feature, and hosts never import them explicitly.
   */
 
-  flake.modules.nixos.global-config = { pkgs, lib, options, ... } :
+  flake.modules.nixos.global-config = { config, pkgs, lib, options, ... } :
   let
     default_locale = "en_CA.UTF-8";
     default_timezone = "America/Toronto";
@@ -15,6 +15,11 @@
 
     system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
     system.nixos.tags = [ (inputs.self.shortRev or inputs.self.dirtyShortRev or "dirty") ];
+
+    # Fleet policy includes loopback and overlays. Sysctls alone are not
+    # sufficient: NetworkManager can re-enable IPv6 in an existing profile.
+    networking.enableIPv6 = lib.mkDefault false;
+    boot.kernelParams = lib.optionals (!config.networking.enableIPv6) [ "ipv6.disable=1" ];
 
     nix = {
       gc = {

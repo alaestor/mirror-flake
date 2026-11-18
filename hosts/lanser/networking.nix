@@ -1,7 +1,6 @@
 { lan }:
 {
   networking = {
-    enableIPv6 = false;
     useDHCP = false;
     wireless.enable = false;
     interfaces = {
