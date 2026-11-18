@@ -230,6 +230,8 @@ in
 
   users.users.${username} = {
     isNormalUser = true;
+    # The guest mirrors this identity and stops with this fixed user manager.
+    uid = 1000;
     description = username;
     extraGroups = [
       "networkmanager"

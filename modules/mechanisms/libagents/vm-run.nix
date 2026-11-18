@@ -36,7 +36,7 @@
   directory. VM lifecycle management belongs to microvm.nix's own host
   module (`microvm.vms.<name>`, which generates a `microvm@<name>.service`
   that already depends on its virtiofsd units and carries the
-  reference-counted linger policy — see `vm-host.nix`) rather than to this
+  user-scope idle policy — see `vm-host.nix`) rather than to this
   wrapper, which stays a dev tool for throwaway guests. Everything below is
   scoped to running one VM interactively, from a directory outside the flake
   (a QMP socket dropped into the source tree makes the flake itself

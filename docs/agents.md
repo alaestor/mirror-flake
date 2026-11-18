@@ -387,11 +387,40 @@ CIDs are per-VM and derived from the guest name so no registry is needed.
 ## Lifecycle
 
 The guest does not run at boot. `agent-vm-session` is the single entry point: it
-starts the VM unit if needed, waits for sshd, and runs the requested command
-inside a transient systemd scope. Reference counting falls out of that: a
-scope's lifetime is its cgroup's, so it ends when the session process does, with
-no release step to be skipped or killed. A linger hold keeps the guest up for a
-grace period so consecutive sessions do not reboot it.
+registers a user-manager scope before startup, starts the fixed installed VM
+unit if needed, waits for sshd, and executes the requested command over SSH.
+A scope remains active while it has processes, with no release step to miss
+when a wrapper dies. Startup counts as an active session. Long sessions do not
+expire merely because they outlast the idle interval.
+
+A supervised user controller checks only this guest's scopes. After the final
+scope disappears it waits the configured idle interval, then stops the VM.
+Acquisition, idle shutdown and recovery use the same user-owned lock. A failed
+scope query restarts the controller rather than pretending no sessions exist.
+Controller failure may extend idle resource use until it restarts. The VM is
+also bound to the owner's user manager, so logout and manager failure tear it
+down. The host account must have a fixed matching UID; enabling this mechanism
+does not enable login linger.
+
+`agent-vm-stop` requests immediate shutdown once existing sessions finish. A
+new session cancels that request. `agent-vm-restart` is disruptive recovery: it
+stops the guest and shares, interrupts sessions, and leaves the next session to
+start fresh. Neither command deletes persistent state.
+
+The polkit grant names only the exact installed VM start/stop and shares stop
+operations for the owner. It grants no transient root-unit definitions,
+prefix-based unit names, property changes, or auxiliary units. Session scopes
+and the idle controller run entirely in the user manager. Do not restore a
+system-manager scope grant to solve a lifecycle problem.
+
+An exact-name grant is safe only if the installed unit cannot execute
+user-replaceable privileged scripts. Upstream MicroVM metadata is writable by
+the `kvm` group, so this mechanism protects the metadata parent and removes
+group write access to its instance. Root-run helpers use immutable store paths;
+supervisor logs and PID state use a root-only runtime directory. Optional
+root registration hooks are disabled for this guest. Existing block-image and
+socket paths do not move. Other users in `kvm` can still run their own VMs,
+but cannot imperatively manage this metadata directory through group writes.
 
 The host key the guest presents is pinned in a scratch `known_hosts` computed
 from the same source the guest uses, so no session ever prompts for or writes a
@@ -452,20 +481,29 @@ nix run .#agent-vm-run -- agent-vm-smoke-test   # boots a throwaway guest
 Booting a guest by its runner alone is not enough: virtiofs shares need their
 daemons started first, which is what `agent-vm-run` exists to do.
 
-The smoke target is a manual fixture, not an automated flake check. Building
-it or passing the wrapper tests does not establish guest isolation or host-side
-authorization. A repeatable acceptance check for the actual MicroVM/virtiofs
-boundary remains missing. Until it exists, VM security and lifecycle changes
-need explicit manual evidence for:
+The smoke target is manual and contains personal configuration. Do not use it
+as an unattended acceptance check. Focused automated checks use disposable
+identities and state instead:
 
-- successful isolated dispatch and refusal outside shared roots;
-- allowed project/state access, read-only shares, and denied unrelated paths;
-- the intended authority of each channel and host-side service-control entry point;
-- overlapping sessions, startup failures, and teardown without orphaned access.
+```sh
+timeout 120s nix build .#checks.x86_64-linux.agent-wrappers \
+  .#checks.x86_64-linux.agent-vm-scripts --no-link
+timeout 900s nix build .#checks.x86_64-linux.agent-vm --no-link
+```
 
-Use temporary project/state directories and disposable identities. A test using
-different mount technology does not prove the production boundary. Keep this
-gap separate from service VM tests, which exercise different mechanisms.
+The wrapper check records successful isolated dispatch, exact cwd and argv,
+refusal outside shared roots, and failure without host-native fallback. The
+script check executes the generated lifecycle packages against recording
+commands. These are cheap regressions, not proof of guest isolation.
+
+The runtime check boots the production MicroVM inside a disposable NixOS host,
+using actual QEMU, virtiofs and vsock. It requires nested KVM and forwards the
+host CPU to the outer test VM. It exercises real system-manager authorization, session lifecycle,
+shared paths and numeric ownership, a read-only store, guest-local block state,
+and host Nix/restricted GPG channels. Tests must cover both an allowed operation
+and a denied one; configuration evaluation alone does not establish a boundary.
+Record executed coverage separately from a fixture that merely builds. No
+test uses personal private keys or accesses the production user manager.
 
 **Inspecting the guest's own evaluated config from the host flake.**
 `microvm.vms.<name>` is a `types.submodule` option, so
