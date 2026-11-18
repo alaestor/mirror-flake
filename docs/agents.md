@@ -443,6 +443,21 @@ nix run .#agent-vm-run -- agent-vm-smoke-test   # boots a throwaway guest
 Booting a guest by its runner alone is not enough: virtiofs shares need their
 daemons started first, which is what `agent-vm-run` exists to do.
 
+The smoke target is a manual fixture, not an automated flake check. Building
+it or passing the wrapper tests does not establish guest isolation or host-side
+authorization. A repeatable acceptance check for the actual MicroVM/virtiofs
+boundary remains missing. Until it exists, VM security and lifecycle changes
+need explicit manual evidence for:
+
+- successful isolated dispatch and refusal outside shared roots;
+- allowed project/state access, read-only shares, and denied unrelated paths;
+- the intended authority of each channel and host-side service-control entry point;
+- overlapping sessions, startup failures, and teardown without orphaned access.
+
+Use temporary project/state directories and disposable identities. A test using
+different mount technology does not prove the production boundary. Keep this
+gap separate from service VM tests, which exercise different mechanisms.
+
 **Inspecting the guest's own evaluated config from the host flake.**
 `microvm.vms.<name>` is a `types.submodule` option, so
 `nixosConfigurations.<host>.config.microvm.vms.<name>.config` is the
