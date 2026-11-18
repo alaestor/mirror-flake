@@ -11,9 +11,6 @@
     }:
     let
       shortcuts = self.data.read "programs/nushell/shortcuts.nu";
-      passwordHelper = builtins.replaceStrings [ "@DICEWARE@" ] [ (lib.getExe pkgs.diceware) ] (
-        self.data.read "programs/nushell/diceware-helper.nu"
-      );
     in
     {
       home.packages = with pkgs; [
@@ -45,7 +42,6 @@
         extraConfig = lib.mkAfter ''
           ${shortcuts}
           ${self.data.read "programs/nushell/fish-protocol.nu"}
-          ${passwordHelper}
         '';
       } // lib.optionalAttrs (options.programs.nushell ? loadSessionVariables) {
         loadSessionVariables = lib.mkDefault true;

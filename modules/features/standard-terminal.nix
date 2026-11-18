@@ -15,6 +15,10 @@
   `nup` updates the cached flake, automatically repairing and verifying the
   Caddy plugin source hash for local checkouts containing its source manifest.
   `nup-refresh-caddy` performs only that repair from the current flake root.
+  `pw` generates Diceware passphrases in any shell, defaulting to 4 to 7 words
+  joined by underscores and a random number of fully uppercased words.
+  --words, --caps, and --sep override those defaults. Random choices use the
+  operating system's random source, including word positions to uppercase.
   `ngc` previews profile pruning and requires confirmation before store GC.
   It retains generations newer than `--older-than 14d`, the newest
   `--keep-last 5` per profile, and the selected generation. NixOS runs it
