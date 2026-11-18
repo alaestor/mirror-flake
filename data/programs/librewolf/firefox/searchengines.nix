@@ -107,9 +107,10 @@
 # Content
   (a "w"     "wikipedia")
   (n "yt"    "Youtube"              [{ template = "https://www.youtube.com/results?search_query={searchTerms}"; }])
+  (n "ani"   "Anilist"              [{ template = "https://anilist.co/search/anime?search={searchTerms}"; }])
   (n "mal"   "My Anime List"        [{ template = "http://myanimelist.net/anime.php?q={searchTerms}"; }])
   (n "nya"   "Nyaa.si"              [{ template = "https://nyaa.si/?q={searchTerms}&f=0&c=0_0&s=seeders&o=desc"; }])
-  (n "to"    "Anime Tosho New"          [{ template = "https://animetosho.net/search?q={searchTerms}"; }])
+  (n "to"    "Anime Tosho New"      [{ template = "https://animetosho.net/search?q={searchTerms}"; }])
   (n "bh"    "bthub"                [{ template = "https://bthub.cc/en/search/kw-{searchTerms}-1.html"; }])
   (n "im"    "IMDb"                 [{ template = "https://www.imdb.com/find/?q={searchTerms}"; }])
 # Applications, gaming, stores
