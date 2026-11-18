@@ -19,7 +19,9 @@ Use spatial relationships to convey meaning.
 - Prefer contextual controls over detached toolbars when practical.
 - Remove labels and explanations that merely repeat what the layout already communicates.
 
-For example, two media players with their own adjacent playback controls need no text explaining which buttons belong to which player.
+For example, two media players with their own adjacent playback controls need no text explaining which buttons belong to which player. You should reason about lines of attention and the visual flow of the interface you're building. Think about how you can communicate and guide the user through layout, shapes, and alignment; try to know when to have symmetry and rhyme, and when to break it.
+
+The human visual system is primed to detect motion. An app can look pleasant with smooth and carefully applied animations, or janky with shifting text, jittering elements, and flickering icons. Prefer stability where possible and think about how elements update and wrap; excess visual motion sends empty information to the user that is not only meaningless, but can be nausiating or distracting. Every aesthetic choice you make should be purposeful and tasteful.
 
 Relevant concepts: Gestalt principles, proximity, visual hierarchy, direct manipulation.
 
