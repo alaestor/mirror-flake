@@ -508,6 +508,10 @@ let
 
       services.openssh = {
         enable = true;
+        # Only the credential service may create this identity. Automatic
+        # key generation races materialization and can replace the pinned
+        # key on a fresh tmpfs root, making later boots fail strict checking.
+        generateHostKeys = false;
         hostKeys = [
           {
             path = "/etc/ssh/ssh_host_ed25519_key";
