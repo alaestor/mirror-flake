@@ -2,7 +2,9 @@
 """Exercise the public CLI with isolated stores, including refusal paths."""
 
 import concurrent.futures
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import shlex
@@ -52,6 +54,7 @@ class MemoryTests(unittest.TestCase):
             text=True,
             check=False,
             capture_output=True,
+            timeout=10,
         )
         if ok:
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -75,6 +78,96 @@ class MemoryTests(unittest.TestCase):
 
     def configure(self, **values):
         self.settings.write_text(json.dumps({**self.defaults, **values}))
+
+    def source_module(self):
+        source = Path(
+            os.environ.get(
+                "MEMORY_SOURCE",
+                Path(__file__).resolve().parents[1] / "src" / "memory.py",
+            )
+        )
+        spec = importlib.util.spec_from_file_location("memory_under_test", source)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_crlf_is_preserved_and_counted_for_stdin_and_files(self):
+        body = "A café constraint.\r\nSecond line.\r\n"
+        for name, source in (("stdin", "-"), ("file", str(self.root / "input.md"))):
+            if source != "-":
+                Path(source).write_bytes(body.encode("utf-8"))
+            result = self.data(
+                "add", f"project:{name}", "--trigger", "When needed", "--file", source,
+                body=body if source == "-" else None,
+            )
+            self.assertEqual(self.data("show", f"project:{name}")["content"], body)
+            self.assertEqual(
+                (Path(result["path"]) / "README.md").read_bytes(), body.encode("utf-8")
+            )
+            self.data(
+                "edit", f"project:{name}", "--expect", result["revision"],
+                "--file", "-", body=body,
+            )
+        self.assertEqual(
+            self.data("status")[0]["usage"]["content_bytes"], 2 * len(body.encode("utf-8"))
+        )
+
+    def test_corrupt_sibling_does_not_hide_results_or_double_feedback(self):
+        healthy = self.add()
+        broken = self.add("project:broken")
+        (Path(broken["path"]) / "README.md").write_text("Changed externally")
+        result = self.data("feedback", "project:lesson", "useful")
+        self.assertEqual(result["outcome"], "feedback")
+        shown = self.data("show", "project:lesson")
+        self.assertEqual(shown["feedback"]["useful"], 1)
+        self.assertEqual(len(self.data("index")), 2)
+        self.assertEqual(len(self.data("search", "constraint")), 1)
+        self.assertEqual(len(self.data("search", "broken")), 1)
+        (self.store / ".notice.json").unlink()
+        self.assertIn("article-damaged", self.run_cli("session", machine=False).stdout)
+        self.data(
+            "edit", "project:lesson", "--expect", healthy["revision"],
+            "--file", "-", body="Healthy replacement.",
+        )
+        self.data("remove", "project:broken", "--expect", broken["revision"])
+        self.assertEqual(self.data("status")[0]["findings"], [])
+
+    def test_failed_notification_preserves_committed_result(self):
+        self.add()
+        module = self.source_module()
+        output, diagnostics = io.StringIO(), io.StringIO()
+        with (
+            mock.patch.dict(os.environ, self.env),
+            mock.patch.object(module.Store, "notify", side_effect=OSError("No space")),
+            contextlib.redirect_stdout(output),
+            contextlib.redirect_stderr(diagnostics),
+        ):
+            result = module.main([
+                "--project-root", str(self.project), "--json",
+                "feedback", "project:lesson", "useful",
+            ])
+        self.assertEqual(result, 0)
+        self.assertEqual(json.loads(output.getvalue())["outcome"], "feedback")
+        self.assertIn("maintenance warning failed", diagnostics.getvalue())
+        self.assertEqual(self.data("show", "project:lesson")["feedback"]["useful"], 1)
+
+    def test_feedback_rejects_stale_revision_without_changes(self):
+        original = self.add()["revision"]
+        current = self.data(
+            "edit", "project:lesson", "--expect", original, "--file", "-",
+            body="Replacement.",
+        )["revision"]
+        self.run_cli(
+            "feedback", "project:lesson", "off-base", "--expect", original,
+            ok=False,
+        )
+        shown = self.data("show", "project:lesson")
+        self.assertEqual(shown["feedback"]["off-base"], 0)
+        self.assertEqual(shown["events"], [])
+        self.data("feedback", "project:lesson", "off-base", "--expect", current)
+        self.data("feedback", "project:lesson", "off-base")
+        events = self.data("show", "project:lesson")["events"]
+        self.assertEqual([event["revision"] for event in events], [current, None])
 
     def test_missing_stores_are_not_created_by_discovery(self):
         self.assertEqual(self.data("index"), [])
@@ -397,23 +490,74 @@ class MemoryTests(unittest.TestCase):
         original = json.loads(path.read_text())
         for invalid in ([1], {"version": True}, {}):
             path.write_text(json.dumps(invalid))
-            failure = self.run_cli("index", ok=False)
+            status = self.data("status")[0]
+            self.assertEqual(status["findings"][0]["kind"], "article-damaged")
+            self.assertEqual(self.data("index")[0]["id"], "project:lesson")
+            failure = self.run_cli("show", "project:lesson", ok=False)
             self.assertNotIn("Traceback", failure.stderr)
+            self.assertIn("Damaged metadata", failure.stderr)
         original["reads"] = -1
         path.write_text(json.dumps(original))
-        self.run_cli("usage", ok=False)
+        self.assertEqual(self.data("usage"), [])
+        self.assertEqual(self.data("path", "project:lesson"), str(path.parent))
+
+    def test_orphaned_publication_does_not_block_healthy_articles(self):
+        healthy = self.add()
+        orphan = self.store / "articles" / "orphan"
+        orphan.mkdir()
+        (orphan / "README.md").write_bytes(b"Incomplete.")
+        staged = self.store / ".publication-orphan" / "article"
+        staged.mkdir(parents=True)
+        (staged / "README.md").write_bytes(b"Not published.")
+        self.assertEqual(len(self.data("index")), 2)
+        status = self.data("status")[0]
+        self.assertEqual(status["usage"]["articles"], 2)
+        self.assertEqual(
+            status["usage"]["content_bytes"], len(b"A surprising constraint.\nIncomplete.")
+        )
+        self.assertEqual(status["findings"][0]["id"], "project:orphan")
+        self.assertEqual(self.data("path", "project:orphan"), str(orphan))
+        self.add("project:new")
+        self.data("remove", "project:lesson", "--expect", healthy["revision"])
+        # Recover without deleting evidence or requiring valid metadata.
+        orphan.rename(self.root / "recovered-orphan")
+        self.assertEqual(self.data("status")[0]["findings"], [])
+
+    def test_interrupted_initial_publication_is_not_discovered(self):
+        self.add("project:healthy")
+        module = self.source_module()
+        atomic = module.atomic
+
+        def fail_metadata(path, data):
+            if path.name == "metadata.json":
+                raise OSError("Simulated interrupted initial publication")
+            atomic(path, data)
+
+        with (
+            mock.patch.dict(os.environ, self.env),
+            mock.patch.object(module, "atomic", side_effect=fail_metadata),
+            mock.patch.object(module, "read_input", return_value="New article."),
+        ):
+            with self.assertRaises(OSError):
+                module.main([
+                    "--project-root", str(self.project),
+                    "add", "project:lesson", "--trigger", "When needed", "--file", "-",
+                ])
+        self.assertEqual([entry["id"] for entry in self.data("index")], ["project:healthy"])
+        self.assertFalse((self.store / "articles" / "lesson").exists())
+        self.assertEqual(list(self.store.glob(".publication-*")), [])
+        self.add()
+
+    def test_damaged_notice_does_not_block_discovery(self):
+        self.add()
+        (self.store / ".notice.json").write_text("{broken")
+        result = self.run_cli("index")
+        self.assertEqual(len(json.loads(result.stdout)), 1)
+        self.assertIn("ignoring damaged warning cooldown", result.stderr)
 
     def test_interrupted_pair_is_detected_and_can_be_discarded(self):
         original = self.add()["revision"]
-        source = Path(
-            os.environ.get(
-                "MEMORY_SOURCE",
-                Path(__file__).resolve().parents[1] / "src" / "memory.py",
-            )
-        )
-        spec = importlib.util.spec_from_file_location("memory_under_test", source)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = self.source_module()
         atomic = module.atomic
 
         def fail_metadata(path, data):
@@ -623,6 +767,7 @@ class MemoryTests(unittest.TestCase):
             "warnings/budget-near",
             "warnings/budget-exceeded",
             "warnings/article-large",
+            "warnings/article-damaged",
             "warnings/absolute-path",
         ):
             self.assertTrue(

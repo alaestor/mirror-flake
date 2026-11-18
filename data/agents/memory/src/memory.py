@@ -36,6 +36,9 @@ class MemoryError(Exception):
     pass
 
 
+DATA_ERRORS = (MemoryError, OSError, ValueError, KeyError, TypeError)
+
+
 def now():
     return dt.datetime.now(dt.UTC).isoformat()
 
@@ -73,7 +76,7 @@ def prompt(name):
     path = PROMPTS / (name + ".md")
     if not path.is_file():
         raise MemoryError(f"Unknown prompt: {name}")
-    return path.read_text()
+    return path.read_text(encoding="utf-8")
 
 
 def root_for_project(explicit):
@@ -148,7 +151,8 @@ def validate_state(state):
             if event["kind"] == "review":
                 require(event["verdict"] in feedback)
                 single_line(event["comment"] or "No comment", "comment", 1000)
-                revision(event["revision"])
+                if event["revision"] is not None:
+                    revision(event["revision"])
                 require(type(event["resolved"]) is bool)
                 if event["resolved"]:
                     single_line(event["resolution"], "resolution", 1000)
@@ -171,7 +175,7 @@ class Store:
                 Path(__file__).resolve().parents[1] / "settings.json",
             )
         )
-        self.config = json.loads(settings.read_text())
+        self.config = json.loads(settings.read_text(encoding="utf-8"))
         if (
             not isinstance(self.config, dict)
             or set(self.config) != SETTING_KEYS
@@ -181,6 +185,7 @@ class Store:
                 "Memory settings must define all five positive integer settings"
             )
         self.saved = {}
+        self.damaged = {}
 
     @contextlib.contextmanager
     def locked(self, create=False):
@@ -216,12 +221,27 @@ class Store:
                     raise MemoryError(
                         f"Managed memory files must not be symlinks: {directory}"
                     )
-                record = json.loads((directory / "metadata.json").read_text())
+                try:
+                    record = json.loads(
+                        (directory / "metadata.json").read_text(encoding="utf-8")
+                    )
+                    validate_state({"version": 1, "articles": {directory.name: record}})
+                except DATA_ERRORS as error:
+                    self.damaged[directory.name] = str(error)
+                    continue
                 self.state["articles"][directory.name] = record
                 self.saved[directory.name] = encoded(record)
             notice = self.root / ".notice.json"
             if notice.exists():
-                self.state["notice"] = json.loads(notice.read_text())
+                try:
+                    value = json.loads(notice.read_text(encoding="utf-8"))
+                    validate_state({"version": 1, "articles": {}, "notice": value})
+                    self.state["notice"] = value
+                except DATA_ERRORS as error:
+                    print(
+                        f"memory: ignoring damaged warning cooldown: {error}",
+                        file=sys.stderr,
+                    )
             validate_state(self.state)
             yield self
 
@@ -267,39 +287,72 @@ class Store:
         return size
 
     def body(self, record):
-        body = (self.directory(record["name"]) / "README.md").read_text()
-        if hashlib.sha256(body.encode()).hexdigest() != record["sha256"]:
+        body = (self.directory(record["name"]) / "README.md").read_bytes()
+        if hashlib.sha256(body).hexdigest() != record["sha256"]:
             raise MemoryError(
                 f"Incomplete or externally changed article {self.scope}:{record['name']}. "
                 f"Remove and recreate it, or restore it from Git. Metadata revision: {record['revision']}"
             )
-        return body
+        return body.decode("utf-8")
 
     def active(self):
         return self.state["articles"]
 
     def entry(self, name):
+        if name in self.damaged:
+            raise MemoryError(
+                f"Damaged metadata: {self.directory(name)}. Restore it from Git or "
+                "move the directory out of articles before recreating the memory."
+            )
         record = self.state["articles"].get(name)
         if record is None:
             raise MemoryError(f"Memory not found: {self.scope}:{name}")
         return record
 
     def index(self):
+        triggers = {name: r["trigger"] for name, r in self.active().items()}
+        triggers.update(
+            {name: "Damaged metadata; inspect with memory path" for name in self.damaged}
+        )
         return [
-            {"id": f"{self.scope}:{name}", "trigger": r["trigger"]}
-            for name, r in sorted(self.active().items())
+            {"id": f"{self.scope}:{name}", "trigger": trigger}
+            for name, trigger in sorted(triggers.items())
         ]
+
+    def search(self, query):
+        matches = []
+        for entry in self.index():
+            text = entry["id"] + "\n" + entry["trigger"]
+            name = entry["id"].split(":", 1)[1]
+            if name not in self.damaged:
+                try:
+                    text += "\n" + self.body(self.entry(name))
+                except DATA_ERRORS:
+                    pass  # Health reports damage; keep discovery available.
+            if query.casefold() in text.casefold():
+                matches.append(entry)
+        return matches
 
     def health(self):
         entries = self.index()
         index_bytes = sum(len(index_text(e).encode()) for e in entries)
-        content_bytes = 0
-        findings = []
+        content_bytes = sum(
+            self.content_size(name) for name in self.active().keys() | self.damaged.keys()
+        )
+        findings = [
+            {"kind": "article-damaged", "id": f"{self.scope}:{name}", "error": error}
+            for name, error in self.damaged.items()
+        ]
         for name, r in self.active().items():
-            body = self.body(r)
-            size = len(body.encode())
-            content_bytes += self.content_size(name)
             ident = f"{self.scope}:{name}"
+            try:
+                body = self.body(r)
+            except DATA_ERRORS as error:
+                findings.append(
+                    {"kind": "article-damaged", "id": ident, "error": str(error)}
+                )
+                body = ""
+            size = len(body.encode())
             if size > self.config["article_bytes"]:
                 findings.append({"kind": "article-large", "id": ident, "bytes": size})
             if re.search(r"(?:/home/|/Users/|/mnt/|/nix/store/)[^\s`]+", body):
@@ -349,6 +402,7 @@ class Store:
                     "budget-exceeded",
                     "article-large",
                     "absolute-path",
+                    "article-damaged",
                 )
                 else "warnings/open-review"
             )
@@ -363,7 +417,26 @@ class Store:
             updated=now(),
             sha256=hashlib.sha256(body.encode()).hexdigest(),
         )
-        atomic(self.directory(record["name"]) / "README.md", body.encode())
+        directory = self.directory(record["name"])
+        if record["name"] not in self.saved:
+            # Keep incomplete initial publications outside the discovered tree.
+            # A killed writer may leave staging behind, never an active article.
+            with tempfile.TemporaryDirectory(
+                prefix=".publication-", dir=self.root
+            ) as temporary:
+                staged = Path(temporary) / "article"
+                atomic(staged / "README.md", body.encode())
+                atomic(staged / "metadata.json", encoded(record))
+                directory.parent.mkdir(parents=True, exist_ok=True)
+                os.rename(staged, directory)
+                parent = os.open(directory.parent, os.O_RDONLY | os.O_DIRECTORY)
+                try:
+                    os.fsync(parent)
+                finally:
+                    os.close(parent)
+            self.saved[record["name"]] = encoded(record)
+            return
+        atomic(directory / "README.md", body.encode())
         # Individual writes are atomic, but the pair is not a transaction.
         # A crash can leave a mismatched disposable article, detected on read.
         self.save()
@@ -401,7 +474,7 @@ def single_line(value, field, limit):
 
 
 def read_input(file):
-    value = sys.stdin.read() if file == "-" else Path(file).read_text()
+    value = sys.stdin.read() if file == "-" else Path(file).read_bytes().decode("utf-8")
     if not value.strip():
         raise MemoryError("An empty memory is not useful")
     return value
@@ -462,6 +535,9 @@ def parser():
     q.add_argument("id")
     q.add_argument("verdict", choices=["useful", "relevant-unused", "off-base"])
     q.add_argument("--comment", default="")
+    q.add_argument(
+        "--expect", help="Revision retrieved by the reader; reject stale feedback"
+    )
     q = sub.add_parser("resolve")
     q.add_argument("id")
     q.add_argument("review")
@@ -521,20 +597,7 @@ def main(argv=None):
             if identity:
                 result = operate(store, name, args)
             elif c in ("index", "session", "search"):
-                entries = store.index()
-                if c == "search":
-                    entries = [
-                        e
-                        for e in entries
-                        if args.query.casefold()
-                        in (
-                            e["id"]
-                            + "\n"
-                            + e["trigger"]
-                            + "\n"
-                            + store.body(store.entry(e["id"].split(":")[1]))
-                        ).casefold()
-                    ]
+                entries = store.search(args.query) if c == "search" else store.index()
                 result.extend(entries)
             elif c == "usage":
                 result.extend(
@@ -566,7 +629,15 @@ def main(argv=None):
                 with contextlib.redirect_stderr(
                     sys.stdout if c == "session" and not args.json else sys.stderr
                 ):
-                    store.notify()
+                    try:
+                        store.notify()
+                    except DATA_ERRORS as error:
+                        # Diagnostics must not hide a committed result or invite
+                        # a retry of an already-applied feedback operation.
+                        print(
+                            f"memory: maintenance warning failed: {error}",
+                            file=sys.stderr,
+                        )
     if args.command == "session" and not args.json:
         if result:
             print(
@@ -633,9 +704,11 @@ def operate(store, name, a):
             "events": [],
         }
         return admit(store, name, record, body, None, a.file)
-    record = store.entry(name)
     if c == "path":
+        if name not in store.damaged:
+            store.entry(name)
         return str(store.directory(name))
+    record = store.entry(name)
     if c == "show":
         content = store.body(record)
         record["reads"] += 1
@@ -658,6 +731,8 @@ def operate(store, name, a):
     if c == "remove":
         del store.state["articles"][name]
     elif c == "feedback":
+        if a.expect is not None:
+            checked(record, a.expect)
         single_line(a.comment or "No comment", "comment", 1000)
         if a.verdict == "off-base" or a.comment:
             add_event(
@@ -665,7 +740,7 @@ def operate(store, name, a):
                 "review",
                 verdict=a.verdict,
                 comment=a.comment,
-                revision=record["revision"],
+                revision=a.expect,
                 resolved=False,
             )
         record["feedback"][a.verdict] += 1
@@ -765,6 +840,6 @@ def admit(store, name, record, body, previous, source):
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (MemoryError, OSError, ValueError, KeyError, TypeError) as error:
+    except DATA_ERRORS as error:
         print(f"memory: {error}", file=sys.stderr)
         sys.exit(2)

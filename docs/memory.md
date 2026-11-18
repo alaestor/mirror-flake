@@ -78,13 +78,18 @@ memory add project:compiler-cache \
 Record the surprising constraint, evidence, and practical workaround here.
 EOF
 memory edit project:compiler-cache --expect <revision> --file revised.md
-memory feedback project:compiler-cache useful
+memory feedback project:compiler-cache useful --expect <retrieved-revision>
 ```
 
 `show` counts reads, but neither discovery nor search does. Reads never imply
 usefulness. Feedback counters distinguish useful, relevant-unused, and off-base
 retrieval. Off-base feedback or a textual comment opens an editorial review.
-`memory --json show <id>` includes review IDs and revision-specific evidence.
+`memory --json show <id>` includes review IDs and their revision attribution.
+Supply `--expect <retrieved-revision>` with feedback to reject feedback after a
+concurrent edit. Reconsider stale feedback against the replacement article;
+do not fetch a new revision merely to retry it. Feedback without `--expect`
+remains accepted, but new reviews record a null revision rather than claiming
+that the reader evaluated the current content.
 Use `resolve <id> <review-id> --note 'explanation'` after addressing a review.
 Counters persist; review details are bounded. A full queue of unresolved reviews
 refuses new reviews instead of silently discarding them.
@@ -199,12 +204,30 @@ The editable `verification.md` prompt describes this agent-led procedure.
 
 CLI operations use a store lock and atomic individual file writes. README edits
 require the expected revision to avoid overwriting concurrent CLI work. This is
-not a transaction across a directory: an interrupted write can leave a mismatched
-README and metadata. A checksum detects that write-integrity issue. Discard and
-recreate the memory, or restore it through Git if the store is tracked. This
-checksum says nothing about whether a claim is true. Use the CLI for README and
-metadata changes; supporting files remain ordinary agent-authored files outside
-these revision checks.
+not a transaction across an existing directory: an interrupted edit can leave a
+mismatched README and metadata. A checksum of the stored UTF-8 bytes detects
+that write-integrity issue without normalizing line endings. This checksum says
+nothing about whether a claim is true. New articles publish through a staged
+directory and become discoverable only after both managed files are complete.
+A killed writer can leave an ignored `.publication-*` directory at the store
+root. Inspect leftovers before removing them; they are not indexed memories.
+
+Damaged articles appear as `article-damaged` maintenance findings without
+blocking healthy articles. Missing or malformed metadata produces a placeholder
+in discovery; its directory and content still count toward budgets. Usage and
+promotion reports omit records whose metadata cannot be interpreted. Search
+uses only intact content, plus available identifiers and triggers. Maintenance
+notification failures print diagnostics without hiding a successful operation's
+result or changing its exit status.
+
+Use `memory path <id>` to locate a damaged article, even when metadata is
+unreadable. Restore it through Git, or move the entire directory outside
+`articles/` before recreating it. Moving preserves evidence and supporting files.
+With intact metadata, `remove --expect <revision>` can instead discard it
+permanently. The CLI never silently repairs or deletes damaged articles.
+Use the CLI for README and metadata changes; supporting files remain ordinary
+agent-authored files outside these revision checks. A malformed warning-cooldown
+file is ignored with a diagnostic; it is not article evidence.
 
 `remove <id> --expect <revision>` permanently deletes the selected directory and
 all its contents, without following attached symlinks. There are no archives,
