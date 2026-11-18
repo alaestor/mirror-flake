@@ -42,10 +42,12 @@ assert lib.assertMsg (androidConfig.programs.nushell.settings.show_banner == fal
   "Droid must receive the shared Nushell configuration";
 assert lib.assertMsg desktopConfig.programs.nushell.loadSessionVariables
   "desktop must retain Nushell session-variable loading";
-assert lib.assertMsg (lib.all (config: lib.any (package: package.name == "ngc") config.home.packages) [
+assert lib.assertMsg (lib.all (config: lib.all (name:
+  lib.any (package: package.name == name) config.home.packages
+) [ "ngc" "pw" "lsblkrm" ]) [
   androidConfig
   desktopConfig
-]) "standard-terminal must package ngc on desktop and Droid";
+]) "standard-terminal must package ngc, pw, and lsblkrm on desktop and Droid";
 pkgs.runCommand "standard-terminal-test" {
   nativeBuildInputs = [ androidConfig.programs.nushell.package ];
   configFile = androidConfig.home.file."/tmp/terminal-fixture/.config/nushell/config.nu".source;

@@ -19,6 +19,9 @@
   joined by underscores and a random number of fully uppercased words.
   --words, --caps, and --sep override those defaults. Random choices use the
   operating system's random source, including word positions to uppercase.
+  `lsblkrm` lists removable block devices as a table, or preserves lsblk's
+  JSON structure with --json for structured consumers. A thin Nushell adapter
+  returns device records so its existing pipelines and table display work.
   `ngc` previews profile pruning and requires confirmation before store GC.
   It retains generations newer than `--older-than 14d`, the newest
   `--keep-last 5` per profile, and the selected generation. NixOS runs it

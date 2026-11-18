@@ -1,10 +1,11 @@
-# List removable block devices.
+# Adapt the shared command's JSON output to Nushell records.
 def lsblkrm [] {
-  lsblk -d -l -o NAME,SIZE,MODEL,TRAN,RM,RO --json
-    | from json
-    | get blockdevices
-    | where rm == true
-    | select name size model tran ro
+  let devices = (^lsblkrm --json | complete)
+  if $devices.exit_code != 0 {
+    print --stderr --no-newline $devices.stderr
+    error make {msg: "lsblkrm failed"}
+  }
+  $devices.stdout | from json | get blockdevices
 }
 
 # These Nushell commands are a prototype, not the long-term implementation.
