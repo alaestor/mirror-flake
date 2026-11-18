@@ -111,7 +111,6 @@
   (n "mal"   "My Anime List"        [{ template = "http://myanimelist.net/anime.php?q={searchTerms}"; }])
   (n "nya"   "Nyaa.si"              [{ template = "https://nyaa.si/?q={searchTerms}&f=0&c=0_0&s=seeders&o=desc"; }])
   (n "to"    "Anime Tosho New"      [{ template = "https://animetosho.net/search?q={searchTerms}"; }])
-  (n "bh"    "bthub"                [{ template = "https://bthub.cc/en/search/kw-{searchTerms}-1.html"; }])
   (n "im"    "IMDb"                 [{ template = "https://www.imdb.com/find/?q={searchTerms}"; }])
 # Applications, gaming, stores
   (n "am"    "Amazon (CA)"          [{ template = "https://www.amazon.ca/s?k={searchTerms}"; }])
