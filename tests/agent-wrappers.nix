@@ -95,8 +95,11 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 pkgs.
   # falling back to the native client or starting a VM session.
   mkdir mock-bin
   cat > mock-bin/agent-vm-session <<'SH'
-  #!${pkgs.runtimeShell}
-  touch "$AGENT_TEST_ARGS"
+  #!${pkgs.python3}/bin/python3
+  import json, os, pathlib, sys
+  pathlib.Path(os.environ['AGENT_TEST_ARGS']).write_text(json.dumps({
+      'cwd': os.getcwd(), 'argv': sys.argv[1:]}))
+  sys.exit(int(os.environ.get('AGENT_TEST_SESSION_STATUS', '0')))
   SH
   chmod +x mock-bin/agent-vm-session
   for executable in ${wrapper "cc"}/bin/cc ${wrapper "cx"}/bin/cx; do
@@ -107,6 +110,43 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 pkgs.
     grep -F 'outside every shared root' refused.err
     test ! -e "$AGENT_TEST_ARGS"
   done
+  # Successful isolated dispatch must retain the exact cwd and argv and name
+  # the native store executable, without executing that client on the host.
+  export AGENT_TEST_HOME="$PWD/isolated-home"
+  mkdir -p "$AGENT_TEST_HOME/Projects/two words/nested" "$AGENT_TEST_HOME/Projects-other"
+  ${pkgs.lib.concatMapStringsSep "\n" (name: ''
+    (
+      cd "$AGENT_TEST_HOME/Projects/two words/nested"
+      HOME="$AGENT_TEST_HOME" PATH="$NIX_BUILD_TOP/mock-bin:$PATH" \
+        ${wrapper name}/bin/${name} -- 'two words' "" $'a\nline' '; touch /tmp/never-run'
+    )
+    python3 - <<'PY'
+  import json, os, pathlib
+  call = json.loads(pathlib.Path(os.environ['AGENT_TEST_ARGS']).read_text())
+  cwd = os.environ['AGENT_TEST_HOME'] + '/Projects/two words/nested'
+  assert call['cwd'] == cwd, call
+  assert call['argv'] == ['--', '${pkgs.coreutils}/bin/env', '--chdir=' + cwd,
+      '${wrapper "${name}-native"}/bin/${name}-native', '--', 'two words', "", 'a\nline', '; touch /tmp/never-run'], call
+  assert not pathlib.Path(os.environ['AGENT_TEST_URL']).exists(), 'native fallback'
+  PY
+    rm "$AGENT_TEST_ARGS"
+    (
+      cd "$AGENT_TEST_HOME/Projects/two words/nested"
+      set +e
+      HOME="$AGENT_TEST_HOME" PATH="$NIX_BUILD_TOP/mock-bin:$PATH" \
+        AGENT_TEST_SESSION_STATUS=73 ${wrapper name}/bin/${name} -- fixture
+      test "$?" = 73
+    )
+    test ! -e "$AGENT_TEST_URL"
+    rm "$AGENT_TEST_ARGS"
+    (
+      cd "$AGENT_TEST_HOME/Projects-other"
+      if HOME="$AGENT_TEST_HOME" PATH="$NIX_BUILD_TOP/mock-bin:$PATH" \
+        ${wrapper name}/bin/${name} 2> "$NIX_BUILD_TOP/refused.err"; then exit 1; fi
+    )
+    grep -F 'outside every shared root' refused.err
+    test ! -e "$AGENT_TEST_ARGS"
+  '') [ "cc" "cx" ]}
   ${wrapper "cc-native"}/bin/cc-native sonnet 1m search plan -- 'literal prompt'
   grep -Fx 'sonnet[1m]' "$AGENT_TEST_ARGS"
   grep -F 'EnterPlanMode' "$AGENT_TEST_ARGS"
