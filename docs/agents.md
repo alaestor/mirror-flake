@@ -424,7 +424,9 @@ but cannot imperatively manage this metadata directory through group writes.
 
 The host key the guest presents is pinned in a scratch `known_hosts` computed
 from the same source the guest uses, so no session ever prompts for or writes a
-TOFU entry.
+TOFU entry. Only the required credential-materialization service creates that
+key; automatic sshd key generation is disabled to avoid replacing the pinned
+identity during a fresh-root boot.
 
 ## What the boundary is, and is not
 
@@ -500,7 +502,8 @@ The runtime check boots the production MicroVM inside a disposable NixOS host,
 using actual QEMU, virtiofs and vsock. It requires nested KVM and forwards the
 host CPU to the outer test VM. It exercises real system-manager authorization, session lifecycle,
 shared paths and numeric ownership, a read-only store, guest-local block state,
-and host Nix/restricted GPG channels. Tests must cover both an allowed operation
+host Nix/restricted GPG channels, and SSH-agent forwarding without sharing the
+private key. Tests must cover both an allowed operation
 and a denied one; configuration evaluation alone does not establish a boundary.
 Record executed coverage separately from a fixture that merely builds. No
 test uses personal private keys or accesses the production user manager.
