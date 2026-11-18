@@ -129,18 +129,6 @@ let
       }) ];
     }
     {
-      name = "cinny";
-      module = nixos.serve-cinny;
-      enabledConfig.homeserver = "example.test";
-      # No discrete boolean activation surface: enabling it only builds a
-      # package (serve.cinny.package), consumed by a domain composition.
-      activationPaths = [ ];
-      enabledAssertions = [ (config: {
-        assertion = lib.isDerivation config.serve.cinny.package;
-        message = "enabled Cinny did not produce its configured web artifact";
-      }) ];
-    }
-    {
       name = "dufs";
       module = nixos.serve-dufs;
       activationPaths = [ [ "services" "dufs" "enable" ] [ "security" "apparmor" "enable" ] ];
