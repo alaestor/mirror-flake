@@ -116,7 +116,8 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
       const ws = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
       sockets.push(ws);
       await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
-      let sequence = 0, failure = '';
+      let sequence = 0, failure = '', holdWrite = false, heldWrite = null;
+      const storageResponses = [];
       const pending = new Map();
       ws.onmessage = event => {
         const message = JSON.parse(event.data);
@@ -126,6 +127,13 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
           pending.delete(message.id);
           if (message.error) waiter.reject(new Error(message.error.message)); else waiter.resolve(message.result);
         } else if (message.method === 'Fetch.requestPaused') {
+          if (message.params.responseStatusCode) {
+            storageResponses.push({ method: message.params.request.method, status: message.params.responseStatusCode });
+          } else if (holdWrite && ['PATCH', 'POST'].includes(message.params.request.method)) {
+            holdWrite = false;
+            heldWrite = message.params.requestId;
+            return;
+          }
           const block = failure === 'all' || (failure === 'write' && ['PATCH', 'POST'].includes(message.params.request.method));
           send(block ? 'Fetch.failRequest' : 'Fetch.continueRequest', { requestId: message.params.requestId, ...(block ? { errorReason: 'Failed' } : {}) }).catch(() => {});
         }
@@ -161,6 +169,21 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
       await navigate(1);
       return {
         account, evaluate, navigate, send,
+        async holdNextWrite() {
+          holdWrite = true;
+          storageResponses.length = 0;
+          await send('Fetch.enable', { patterns: [
+            { urlPattern: '*user-storage*', requestStage: 'Request' },
+            { urlPattern: '*user-storage*', requestStage: 'Response' },
+          ] });
+        },
+        writeHeld: () => heldWrite !== null,
+        async releaseWrite() {
+          assert.ok(heldWrite, 'A real storage write must be held');
+          await send('Fetch.continueRequest', { requestId: heldWrite });
+          heldWrite = null;
+        },
+        storageResponses,
         async fail(mode) { failure = mode; await send('Fetch.enable', { patterns: [{ urlPattern: '*user-storage*' }] }); },
         async recover() { failure = ''; await send('Fetch.disable'); },
         close() { ws.close(); chrome.kill(); },
@@ -222,6 +245,31 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
     await waitFor(() => fresh.evaluate("document.querySelector('[data-testid=event-families]').textContent.includes('605 of 605 families')"), 'Show dimmed');
     await fresh.navigate(15);
     assert.equal(await fresh.evaluate(`${target}.dataset.dimmed`), 'true', 'Both panels share preferences');
+
+    // Stop both writes after their real reads, then commit one before releasing
+    // the other's stale write. This must exercise Grafana's 409 retry path.
+    const concurrentTargets = fixtures.slice(5, 7).map(fixture => {
+      const family = JSON.stringify([1, fixture.host, fixture.unit, fixture.source, fixture.priority, fixture.event]);
+      return `Array.from(document.querySelectorAll('tbody tr')).find(row => row.dataset.familyKey === ${JSON.stringify(family)})`;
+    });
+    await Promise.all([first.holdNextWrite(), fresh.holdNextWrite()]);
+    await Promise.all([first.evaluate(`${concurrentTargets[0]}.querySelector('button').click()`),
+      fresh.evaluate(`${concurrentTargets[1]}.querySelector('button').click()`)]);
+    await waitFor(() => first.writeHeld() && fresh.writeHeld(), 'Both writes read the same pre-update state');
+    await first.releaseWrite();
+    await waitFor(() => first.evaluate(`${concurrentTargets[0]}?.dataset.dimmed === 'true' && !${concurrentTargets[0]}.querySelector('button').disabled`), 'First conflicting write committed');
+    await fresh.releaseWrite();
+    await waitFor(() => fresh.evaluate(`${concurrentTargets[1]}?.dataset.dimmed === 'true' && !${concurrentTargets[1]}.querySelector('button').disabled`), 'Stale write retried successfully');
+    assert.ok(fresh.storageResponses.some(response => response.method === 'PATCH' && response.status === 409), 'Real Grafana storage rejected the stale resource version');
+    await Promise.all([first.recover(), fresh.recover()]);
+    await fresh.navigate(15);
+    for (const row of concurrentTargets) assert.equal(await fresh.evaluate(`${row}.dataset.dimmed`), 'true', 'Neither concurrent change was lost');
+    assert.equal(await fresh.evaluate(`${target}.dataset.dimmed`), 'true', 'Earlier preferences survived the conflict');
+    // Restore the original single dimmed family for the failure cases below.
+    for (const row of concurrentTargets) {
+      await fresh.evaluate(`${row}.querySelector('button').click()`);
+      await waitFor(() => fresh.evaluate(`${row}?.dataset.dimmed === 'false' && !${row}.querySelector('button').disabled`), 'Concurrent fixture preference removed');
+    }
     await fresh.fail('write');
     await fresh.evaluate("document.querySelector('tr[data-dimmed=false] button').click()");
     await waitFor(() => fresh.evaluate("document.querySelector('[role=alert]')?.textContent.includes('not applied')"), 'Visible save failure');
@@ -240,7 +288,7 @@ allow_loading_unsigned_plugins = fleet-event-families-panel
     await waitFor(() => fresh.evaluate(`${target}?.dataset.dimmed === 'true' && !${target}.querySelector('button').disabled`), 'Read failure recovery');
     await fresh.evaluate(`${target}.querySelector('button').click()`);
     await waitFor(() => fresh.evaluate(`${target}?.dataset.dimmed === 'false'`), 'Undim family');
-    console.log('PASS: GUI dim/hide/undim, server persistence across profiles, user and family isolation, shared panels, pagination, global filtering/sorting, scrolling, truncation, Explore links, and visible storage failures');
+    console.log('PASS: GUI dim/hide/undim, server persistence across profiles, user and family isolation, real concurrent-write conflict/retry, shared panels, pagination, global filtering/sorting, scrolling, truncation, Explore links, and visible storage failures');
   } catch (error) {
     for (const name of await fs.readdir(root)) {
       if (name.startsWith('chromium-') && name.endsWith('.log')) {

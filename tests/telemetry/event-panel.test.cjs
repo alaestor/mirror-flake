@@ -95,7 +95,7 @@ test('saved dimming and view state survive a fresh store and undim restores visi
   assert.deepEqual(storage.read().dimmed, []);
 });
 
-test('independent tabs merge changes using fresh atomic updates', async () => {
+test('merge callbacks preserve independent changes under atomic storage', async () => {
   const storage = backend(), first = model.createPreferenceStore(), second = model.createPreferenceStore();
   await Promise.all([first.load(storage), second.load(storage)]);
   await Promise.all([first.setDimmed(storage, 'first', true), second.setDimmed(storage, 'second', true)]);
