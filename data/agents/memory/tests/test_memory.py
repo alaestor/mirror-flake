@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Exercise the public CLI with isolated stores, including refusal paths."""
 
-import concurrent.futures
 import contextlib
+import fcntl
+import hashlib
 import importlib.util
 import io
 import json
@@ -11,6 +12,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -449,34 +451,53 @@ class MemoryTests(unittest.TestCase):
 
     def test_concurrent_edits_allow_exactly_one_winner(self):
         original = self.add()["revision"]
-
-        def edit(i):
-            return subprocess.run(
-                COMMAND
-                + [
-                    "--project-root",
-                    str(self.project),
-                    "--json",
-                    "edit",
-                    "project:lesson",
-                    "--expect",
-                    original,
-                    "--file",
-                    "-",
-                ],
-                env=self.env,
-                input=f"Claim {i}",
-                text=True,
-                check=False,
-                capture_output=True,
-            )
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-            results = list(pool.map(edit, range(2)))
-        self.assertEqual(sorted(r.returncode for r in results), [0, 2])
-        self.assertIn(
-            self.data("show", "project:lesson")["content"], ["Claim 0", "Claim 1"]
-        )
+        probes = [self.root / f"writer-{i}" for i in range(2)]
+        processes = []
+        try:
+            # Both real CLI processes must contend for an already-held lock.
+            # sitecustomize only observes flock; it still calls the real kernel
+            # primitive. A removed lock cannot pass through serial scheduling.
+            with (self.store / ".lock").open("a") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                for i, probe in enumerate(probes):
+                    process = subprocess.Popen(
+                        COMMAND + ["--project-root", str(self.project), "--json",
+                                   "edit", "project:lesson", "--expect", original,
+                                   "--file", "-"],
+                        env={**self.env,
+                             "PYTHONPATH": str(Path(__file__).parent / "fixtures"),
+                             "MEMORY_LOCK_PROBE": str(probe)},
+                        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE, text=True,
+                    )
+                    processes.append(process)
+                    process.stdin.write(f"Claim {i}")
+                    process.stdin.close()
+                    process.stdin = None
+                deadline = time.monotonic() + 5
+                while not all(probe.with_suffix(".attempt").exists() for probe in probes):
+                    for process in processes:
+                        if process.poll() is not None:
+                            self.fail(f"Writer exited before contention: {process.communicate()}")
+                    self.assertLess(time.monotonic(), deadline, "Writers did not attempt the store lock")
+                    time.sleep(0.01)
+                self.assertFalse(any(probe.with_suffix(".acquired").exists() for probe in probes))
+                self.assertTrue(all(process.poll() is None for process in processes))
+            outputs = [process.communicate(timeout=10) for process in processes]
+            self.assertEqual(sorted(process.returncode for process in processes), [0, 2], outputs)
+            winner = next(i for i, process in enumerate(processes) if process.returncode == 0)
+            self.assertIn("Stale revision", outputs[1 - winner][1])
+            shown = self.data("show", "project:lesson")
+            self.assertEqual(shown["content"], f"Claim {winner}")
+            self.assertEqual(shown["revision"], json.loads(outputs[winner][0])["revision"])
+            metadata = json.loads((self.store / "articles/lesson/metadata.json").read_text())
+            self.assertEqual(metadata["revision"], shown["revision"])
+            self.assertEqual(metadata["sha256"], hashlib.sha256(shown["content"].encode()).hexdigest())
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=5)
 
     def test_external_readme_changes_are_detected(self):
         self.add()
