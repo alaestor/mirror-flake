@@ -2,6 +2,7 @@
 {
   nixos = [
     ./hardware.nix
+    ./remapper.nix
     (import ./networking.nix {
       inherit inputs;
       lan = fleet.lan;

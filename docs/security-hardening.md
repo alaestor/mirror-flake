@@ -77,6 +77,26 @@ host-specific account override.
 
 ## Service filesystem and device boundaries
 
+### Desktop input and the private cache
+
+APC's remapper runs as a dedicated unprivileged account. Udev grants only the
+selected receiver interface and uinput; it has no general input-group membership.
+The device cgroup permits the input major because hotplug changes event minors,
+while DAC limits which event nodes it can open. Uinput still allows synthetic
+keyboard events. Filesystem, capability, and network restrictions reduce the
+remaining authority. `checks.x86_64-linux.remapper` creates synthetic devices and
+tests mapping, a missing receiver, denied unrelated input, and changed-minor
+unplug/replug using the real host fragment. Real receiver behavior still needs
+verification after an approved deployment.
+
+The binary cache keeps its dynamic non-root identity and daemon connection, but
+hides home/NAS/media paths, uses private devices and temporary storage, and drops
+all capabilities. PID 1 supplies the signing key as a credential. The cache's
+store and signing authority are intentional. `checks.x86_64-linux.nix-cache`
+tests the production service sandbox and actual HTTP substitutions with a
+disposable signing key, including rejection without trust. Its ingress remains
+host-configurable and is not changed by these process restrictions.
+
 ### Caddy reverse proxy
 
 Caddy can write only its configured data and log directories, private runtime

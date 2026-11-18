@@ -75,6 +75,25 @@
 
         systemd.services.nix-serve = lib.mkIf secret.exists {
           after = [ "agenix.service" ];
+          serviceConfig = {
+            NoNewPrivileges = true;
+            CapabilityBoundingSet = "";
+            AmbientCapabilities = "";
+            ProtectSystem = "strict";
+            ProtectHome = true;
+            # Only the store and daemon socket are needed, not NAS shares
+            # or other mounted user data. Root supplies the signing credential.
+            InaccessiblePaths = [ "/mnt" "/media" ];
+            PrivateTmp = true;
+            PrivateDevices = true;
+            ProtectKernelTunables = true;
+            ProtectKernelModules = true;
+            ProtectControlGroups = true;
+            RestrictSUIDSGID = true;
+            LockPersonality = true;
+            RestrictAddressFamilies = [ "AF_UNIX" "AF_INET" "AF_INET6" ];
+            ReadOnlyPaths = [ "/run" ];
+          };
         };
 
         networking.firewall.interfaces.${cfg.privateInterface}.allowedTCPPorts =
