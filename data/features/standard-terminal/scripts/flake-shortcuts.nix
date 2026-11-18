@@ -138,6 +138,7 @@ let
             ${if isNixOnDroid then ''printf 'ntest: nix-on-droid has no test action\n' >&2; return 2'' else ''command=(nixos-rebuild test)''}
             ;;
           hswitch) command=(home-manager switch -b backup) ;;
+          hbuild) command=(home-manager build) ;;
           *)
             printf 'nflake-target: unknown shortcut: %s\n' "$shortcut" >&2
             return 2
@@ -208,6 +209,35 @@ let
       exec nflake-target show "$@"
     '';
   };
+
+  refreshCaddy = pkgs.writeShellApplication {
+    name = "nup-refresh-caddy";
+    runtimeInputs = [ pkgs.coreutils pkgs.jq ];
+    text = builtins.readFile ./nup-refresh-caddy.sh;
+  };
+
+  nup = pkgs.writeShellApplication {
+    name = "nup";
+    runtimeInputs = [ backend refreshCaddy ];
+    text = ''
+      if [ "$#" -ne 0 ]; then
+        printf 'Usage: nup\n' >&2
+        exit 2
+      fi
+      target=$(nflake-target show)
+      base="''${target%%#*}"
+      case "$base" in
+        path:* | /* | .*) ;;
+        *:*) exec nix flake update --flake "$base" ;;
+      esac
+      directory=$(nflake-target local-path)
+      cd -- "$directory"
+      nix flake update
+      if [ -f data/serve/caddy/source.json ]; then
+        nup-refresh-caddy
+      fi
+    '';
+  };
 in
 {
   name = "flake-shortcuts";
@@ -218,6 +248,9 @@ in
       backend
       ncd
       nwhere
+      nup
+      refreshCaddy
+      (mkShortcut "hbuild")
       (mkShortcut "hswitch")
       (mkShortcut "nboot")
       (mkShortcut "ndry")

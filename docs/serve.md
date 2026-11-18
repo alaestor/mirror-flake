@@ -133,10 +133,14 @@ domain graphs and makes ownership of the public listener explicit.
 ### Plugin source updates
 
 Caddy's plugin source hash depends on both the pinned Caddy version and the
-plugin set. The Nushell `nup` helper updates the lockfile, then builds the
-configured proxy's source bundle. If that derivation reports a hash mismatch,
-the helper updates `data/serve/caddy/source.json` and rebuilds the source to
-verify it. It does not compile Caddy or rebuild the host.
+plugin set. The shell-independent `nup` command updates the cached flake
+target's lockfile. For local checkouts containing `data/serve/caddy/source.json`,
+it then builds the configured proxy's source bundle. Remote references are
+passed to `nix flake update --flake` without a local hash refresh. Seed the
+shared target cache with a successful rebuild shortcut using `--flake`;
+`nwhere` prints the current reference. If the source derivation reports a hash
+mismatch, the helper updates `data/serve/caddy/source.json` and rebuilds the
+source to verify it. It does not compile Caddy or rebuild the host.
 
 Other failures leave the hash unchanged. A failed verification restores the
 previous hash but retains the updated lockfile for diagnosis. Review the hash

@@ -11,6 +11,10 @@
   Bash and Nushell functions adapt the external ncd helper so it can change
   the current shell's directory to the cached local flake root.
   `nwhere` prints that cached flake reference without fetching or changing it.
+  `hbuild` uses the same cached target and --flake override as `hswitch`.
+  `nup` updates the cached flake, automatically repairing and verifying the
+  Caddy plugin source hash for local checkouts containing its source manifest.
+  `nup-refresh-caddy` performs only that repair from the current flake root.
   `ngc` previews profile pruning and requires confirmation before store GC.
   It retains generations newer than `--older-than 14d`, the newest
   `--keep-last 5` per profile, and the selected generation. NixOS runs it

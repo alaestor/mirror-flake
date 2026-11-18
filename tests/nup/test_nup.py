@@ -1,4 +1,5 @@
 import json
+from itertools import product
 import os
 from pathlib import Path
 import subprocess
@@ -7,9 +8,7 @@ import tempfile
 import unittest
 
 
-HELPERS = Path(os.environ.get(
-    "FLAKE_HELPERS", Path(__file__).resolve().parents[2] / "data/programs/nushell/flake-helpers.nu"
-))
+SHORTCUTS = Path(os.environ["FLAKE_SHORTCUTS"]) / "bin"
 OLD = "sha256-" + "A" * 43 + "="
 NEW = "sha256-" + "B" * 43 + "="
 TARGET = ".#nixosConfigurations.lanser.config.services.caddy.package.src"
@@ -43,7 +42,7 @@ elif args[0] == "build":
         sys.exit(1)
     drv = "/nix/store/dependency.drv" if scenario == "wrong-drv" else "/nix/store/test-caddy-src.drv"
     old = "sha256-" + ("C" if scenario == "wrong-specified" else "A") * 43 + "="
-    new = "sha256-" + "B" * 43 + "="
+    new = "sha256-" + ("A" if scenario == "unchanged-hash" else "B") * 43 + "="
     if scenario == "invalid-hash":
         new = "not-a-hash"
     diagnostic = f"error: hash mismatch in fixed-output derivation '{drv}':\n         specified: {old}\n            got:    {new}\n"
@@ -66,10 +65,13 @@ class NupTests(unittest.TestCase):
             ("wrong-specified", False, OLD, 1),
             ("invalid-hash", False, OLD, 1),
             ("ambiguous", False, OLD, 1),
+            ("unchanged-hash", False, OLD, 1),
             ("verify-failure", False, OLD, 2),
         ]
-        for scenario, success, expected_hash, builds in cases:
-            with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as temporary:
+        for (scenario, success, expected_hash, builds), command in product(cases, ["nup", "nup-refresh-caddy"]):
+            if command == "nup-refresh-caddy" and scenario == "update-failure":
+                continue
+            with self.subTest(scenario=scenario, command=command), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary) / "flake with spaces"
                 root.mkdir()
                 source = root / "data/serve/caddy/source.json"
@@ -77,17 +79,21 @@ class NupTests(unittest.TestCase):
                 original = json.dumps({"hash": OLD}) + "\n"
                 source.write_text(original)
                 (root / "flake.lock").write_text("original")
+                (root / "flake.nix").touch()
                 binary = root / "bin"
                 binary.mkdir()
                 nix = binary / "nix"
                 nix.write_text(f"#!{sys.executable}\n" + STUB)
                 nix.chmod(0o755)
-                helper = root / "helpers.nu"
-                helper.write_text(HELPERS.read_text().replace("@LOCAL_FLAKE@", str(root)) + "\nnup\n")
+                state = Path(temporary) / "state"
+                cache = state / "nix-flake-shortcuts/target"
+                cache.parent.mkdir(parents=True)
+                cache.write_text(f"path:{root}#test-host\n")
                 result = subprocess.run(
-                    ["nu", "--no-config-file", str(helper)],
-                    cwd=temporary,
-                    env={**os.environ, "PATH": str(binary) + os.pathsep + os.environ["PATH"], "SCENARIO": scenario},
+                    [str(SHORTCUTS / command)],
+                    cwd=temporary if command == "nup" else root,
+                    env={**os.environ, "PATH": str(binary) + os.pathsep + os.environ["PATH"], "SCENARIO": scenario,
+                         "XDG_STATE_HOME": str(state)},
                     capture_output=True, text=True, timeout=15,
                 )
                 self.assertEqual(result.returncode == 0, success, result.stdout + result.stderr)
@@ -95,9 +101,51 @@ class NupTests(unittest.TestCase):
                 if expected_hash == OLD:
                     self.assertEqual(source.read_text(), original)
                 calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()]
-                self.assertEqual(calls[0], ["flake", "update"])
+                if command == "nup":
+                    self.assertEqual(calls[0], ["flake", "update"])
+                else:
+                    self.assertFalse(any(call[0] == "flake" for call in calls))
                 self.assertEqual([call for call in calls if call[0] == "build"], [["build", "--no-link", TARGET]] * builds)
-                self.assertEqual((root / "flake.lock").read_text(), "original" if scenario == "update-failure" else "updated")
+                self.assertEqual((root / "flake.lock").read_text(),
+                                 "original" if scenario == "update-failure" or command != "nup" else "updated")
+
+    def test_target_selection(self):
+        for kind in ["missing", "remote", "local-without-caddy", "missing-directory"]:
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                state = root / "state"
+                cache = state / "nix-flake-shortcuts/target"
+                cache.parent.mkdir(parents=True)
+                if kind != "missing":
+                    target = {"remote": "github:example/dotfiles#host",
+                              "local-without-caddy": str(root),
+                              "missing-directory": str(root / "absent")}[kind]
+                    cache.write_text(target + "\n")
+                (root / "flake.nix").touch()
+                binary = root / "bin"
+                binary.mkdir()
+                nix = binary / "nix"
+                nix.write_text(f"#!{sys.executable}\n" + STUB)
+                nix.chmod(0o755)
+                result = subprocess.run(
+                    [str(SHORTCUTS / "nup")], cwd=root,
+                    env={**os.environ, "PATH": str(binary) + os.pathsep + os.environ["PATH"],
+                         "XDG_STATE_HOME": str(state), "SCENARIO": "cached"},
+                    capture_output=True, text=True, timeout=15,
+                )
+                self.assertEqual(result.returncode == 0, kind in ["remote", "local-without-caddy"], result.stderr)
+                log = root / "calls.jsonl"
+                calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+                expected = {"remote": [["flake", "update", "--flake", "github:example/dotfiles"]],
+                            "local-without-caddy": [["flake", "update"]]}.get(kind, [])
+                self.assertEqual(calls, expected)
+
+    def test_reject_arguments(self):
+        for command in ["nup", "nup-refresh-caddy"]:
+            with self.subTest(command=command):
+                result = subprocess.run([str(SHORTCUTS / command), "unexpected"], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("Usage:", result.stderr)
 
 
 if __name__ == "__main__":

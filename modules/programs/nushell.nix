@@ -10,19 +10,10 @@
       ...
     }:
     let
-      hasNasVault = lib.hasAttrByPath [ "hostContext" "nas" "vaultMountpoint" ] options;
       shortcuts = self.data.read "programs/nushell/shortcuts.nu";
       passwordHelper = builtins.replaceStrings [ "@DICEWARE@" ] [ (lib.getExe pkgs.diceware) ] (
         self.data.read "programs/nushell/diceware-helper.nu"
       );
-      flakeHelper =
-        if !hasNasVault then
-          ""
-        else
-          builtins.replaceStrings
-            [ "@LOCAL_FLAKE@" ]
-            [ "${config.hostContext.nas.vaultMountpoint}/.dotfiles/flake" ]
-            (self.data.read "programs/nushell/flake-helpers.nu");
     in
     {
       home.packages = with pkgs; [
@@ -55,7 +46,6 @@
           ${shortcuts}
           ${self.data.read "programs/nushell/fish-protocol.nu"}
           ${passwordHelper}
-          ${flakeHelper}
         '';
       } // lib.optionalAttrs (options.programs.nushell ? loadSessionVariables) {
         loadSessionVariables = lib.mkDefault true;

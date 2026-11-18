@@ -8,10 +8,12 @@ pkgs.runCommand "flake-shortcuts-test" { } ''
   mkdir -p "$TMPDIR/stubs"
   cat > "$TMPDIR/stubs/home-manager" <<'SH'
   #!${pkgs.runtimeShell}
+  printf '%s\n' "$@" > "$HOME_MANAGER_CALL"
   exit 0
   SH
   chmod +x "$TMPDIR/stubs/home-manager"
   export PATH="$TMPDIR/stubs:$PATH"
+  export HOME_MANAGER_CALL="$TMPDIR/home-manager-call"
 
   for shortcuts in ${shortcuts false} ${shortcuts true}; do
     export XDG_STATE_HOME="$TMPDIR/$(basename "$shortcuts")"
@@ -25,11 +27,22 @@ pkgs.runCommand "flake-shortcuts-test" { } ''
     grep -F 'no flake target is cached' error
     test ! -e "$cache"
 
-    "$shortcuts/bin/hswitch" --flake 'github:example/dotfiles#test-host'
+    target='github:example/dotfiles#test-host'
+    "$shortcuts/bin/hswitch" --flake "$target"
     cp "$cache" expected
     "$shortcuts/bin/nwhere" > actual
     cmp expected actual
     cmp expected "$cache"
+
+    "$shortcuts/bin/hbuild"
+    printf '%s\n' build --flake "$target" > expected-call
+    cmp expected-call "$HOME_MANAGER_CALL"
+    cmp expected "$cache"
+
+    "$shortcuts/bin/hbuild" --flake 'github:example/other#user'
+    printf '%s\n' build --flake 'github:example/other#user' > expected-call
+    cmp expected-call "$HOME_MANAGER_CALL"
+    "$shortcuts/bin/hswitch" --flake "$target"
 
     mkdir -p "$TMPDIR/flake with spaces"
     target="path:$TMPDIR/flake with spaces#test-host"
