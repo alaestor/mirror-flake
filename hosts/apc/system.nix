@@ -158,6 +158,9 @@ in
     # account is trusted. This is why the grant exists and why it cannot be
     # avoided while nixpkgs is input-addressed.
     #
+    # WARN(SECURITY): Noblesse is intentionally root-trusted on APC through
+    # this account. The shared host store is a required build-cache benefit;
+    # the forced SSH command does not remove this trust relationship.
     # Trust here is store-poisoning power, hence root-equivalent, hence it goes
     # to a dedicated non-interactive account rather than `user`: `user` is what
     # every interactive session and every agent process on this host runs as,

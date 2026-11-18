@@ -20,9 +20,16 @@ let
     networking.useNetworkd = true;
   };
   disabled = evaluate { };
+  readonly = evaluate { nas.pocket = { enable = true; readonly = true; }; };
   addressUnit = "network-addresses-storage.service";
   afterNetwork = config: config.systemd.targets.network.after or [ ];
   failures = lib.concatLists [
+    (lib.optional (!(builtins.all (option: lib.elem option scripted.fileSystems."/mnt/Pocket".options)
+      [ "nosuid" "nodev" ]) || lib.elem "ro" scripted.fileSystems."/mnt/Pocket".options
+      || lib.elem "noexec" scripted.fileSystems."/mnt/Pocket".options)
+      "NAS data mounts must reject privileged content without removing writes or ordinary execution")
+    (lib.optional (!(lib.elem "ro" readonly.fileSystems."/mnt/Pocket".options))
+      "NAS must preserve explicit read-only mounts")
     (lib.optional (!(lib.elem addressUnit (afterNetwork scripted)))
       "NAS must keep scripted addresses until network.target stops")
     (lib.optional (lib.elem addressUnit (afterNetwork networkd))

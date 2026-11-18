@@ -64,6 +64,10 @@
             options = [
               "nfsvers=4.2"
               "noatime"
+              # Data/development shares stay writable and executable, but
+              # cannot supply privileged executables or local device nodes.
+              "nosuid"
+              "nodev"
               # Services that consume a share order themselves against its
               # mount unit, so the share is mounted for the whole time anything
               # needs it. `nofail` keeps an unreachable NAS from failing the

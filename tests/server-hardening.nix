@@ -30,12 +30,12 @@ let
     }
     {
       assertion = config.networking.firewall.enable
-        && config.security.apparmor.enable
+        && !config.security.apparmor.enable
         && config.security.sudo-rs.enable
         && !config.security.sudo.enable
         && config.security.sudo-rs.execWheelOnly
         && config.security.protectKernelImage;
-      message = "Hardening must retain the firewall, MAC infrastructure, sudo policy, and kexec protection";
+      message = "Hardening must retain firewall/sudo/kexec protection without enabling unused AppArmor";
     }
   ];
   failures = map (check: check.message) (builtins.filter (check: !check.assertion) checks);

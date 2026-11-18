@@ -412,11 +412,20 @@ It also does not cover every agent-adjacent tool on a host, by design. It
 exists for agentic CLI harnesses run through wrappers (`cc`/`cx`),
 where the whole point is reducing blast radius for a process that runs
 unattended. Zed's built-in agent (`modules/programs/zed.nix`'s
-`trust_all_worktrees`, `modules/aspects/ai-coding-local.nix`'s
+worktree trust, `modules/aspects/ai-coding-local.nix`'s
 `tool_permissions`) runs natively on the host with a GUI and a human present,
 which is a different trust model with its own mitigations (interactive
 review, no unattended sessions) rather than this one. If a host-level tool
 grant like that starts running unattended, it needs this boundary too.
+
+Zed no longer trusts every worktree automatically. For personal development,
+grant recursive parent-directory trust once through Zed's trust dialog to the
+personal project root and the flake checkout. Other locations still
+require a decision unless already trusted. Zed persists these grants in its own
+database, not a supported settings path list; Home Manager does not rewrite it
+or revoke prior grants. This is convenience policy, not filesystem confinement.
+SSH and restricted GPG forwarding into CLI guests remain intentional for
+remote access and token-confirmed signing. The VM is not a credential boundary.
 
 ## Extending
 

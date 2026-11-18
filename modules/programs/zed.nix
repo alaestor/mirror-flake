@@ -105,7 +105,9 @@
           # driving it, which is a different trust model with its own
           # mitigations (interactive review, no unattended sessions) rather
           # than the VM's isolation guarantee.
-          session.trust_all_worktrees = lib.mkDefault true;
+          # Parent-directory trust is a one-time UI grant persisted by Zed,
+          # not a settings path list. See docs/agents.md for the local roots.
+          session.trust_all_worktrees = lib.mkDefault false;
           telemetry = {
             diagnostics = lib.mkDefault false;
             metrics = lib.mkDefault false;

@@ -1,8 +1,8 @@
 /**
   Baseline kernel and service hardening for network-facing server hosts.
 
-  Routing and address-family policy belong to the host. AppArmor is available
-  for service-owned profiles; enabling it does not confine every workload.
+  Routing and address-family policy belong to the host. Services with tested
+  AppArmor profiles enable the mechanism themselves; the baseline does not.
   See docs/security-hardening.md for the policy and validation requirements.
 */
 {
@@ -68,10 +68,6 @@
           enable = true;
           package = pkgs.sudo-rs;
           execWheelOnly = true;
-        };
-        apparmor = {
-          enable = true;
-          killUnconfinedConfinables = true;
         };
       };
 

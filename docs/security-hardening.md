@@ -1,7 +1,7 @@
 # Host hardening
 
 `server-hardening` supplies shared kernel restrictions, a host firewall,
-sudo-rs policy, and AppArmor infrastructure. It does not define a host's network
+sudo-rs policy. It does not enable unused AppArmor infrastructure or define a host's network
 topology or promise that every service is confined.
 
 ## Ownership
@@ -33,7 +33,8 @@ interface value cannot opt out of a global value of one. Network managers can
 also change interface values after boot.
 
 Services own their users, filesystem permissions, systemd sandboxes, and any
-AppArmor profiles. Enabling AppArmor makes the mechanism available; it does not
+AppArmor profiles. A service with a tested profile also enables AppArmor, as
+Dufs does. Other hosts leave it disabled. Enabling it makes the mechanism available; it does not
 load the profiles shipped on its include path or confine unprofiled programs.
 Adding a profile requires tests of normal operations and an operation that must
 be denied, plus a controlled rollout to already running processes.
@@ -43,6 +44,12 @@ baseline retains forced page-table isolation, but does not force Intel KVM
 cache-flushing parameters on unrelated processors.
 
 ## Service accounts and shared storage
+
+NAS client mounts use `nosuid,nodev`. They preserve normal writes and execution,
+but ignore executable privilege bits/file capabilities and refuse to interpret
+device-special files as local devices. Development shares intentionally do not
+use `noexec`. These flags do not protect writable data from deletion by its
+owner; recovery requires independent snapshots or backups at the storage owner.
 
 Jellyfin defaults to its dedicated account and hides home directories. Grant
 that account read and directory-traversal access to the media it needs at the
