@@ -79,8 +79,13 @@ class CleanupTest(unittest.TestCase):
              patch("builtins.input", side_effect=answer if callable(answer) else lambda _: answer), \
              patch.object(ngc.subprocess, "run") as run, \
              contextlib.redirect_stdout(io.StringIO()):
+            self.subprocess_run = run
             if fail:
-                run.side_effect = subprocess.CalledProcessError(1, "nix-env")
+                def fail_pruning(command, **kwargs):
+                    if command[0] == "nix-env":
+                        raise subprocess.CalledProcessError(1, command)
+                    return subprocess.CompletedProcess(command, 0)
+                run.side_effect = fail_pruning
             result = ngc.cleanup(ngc.arguments(["--older-than", "100s", "--keep-last", "2"]
                                              + (["--clean-roots"] if roots else [])), self.state)
         return result, run.call_args_list
@@ -103,8 +108,17 @@ class CleanupTest(unittest.TestCase):
         self.assertEqual(self.run_cleanup(eof), (1, []))
 
     def test_profile_failure_prevents_gc(self):
-        with self.assertRaises(subprocess.CalledProcessError):
-            self.run_cleanup(fail=True)
+        root, target = self.root("result-dev")
+        for clean_roots in [False, True]:
+            with self.subTest(clean_roots=clean_roots):
+                with self.assertRaises(subprocess.CalledProcessError) as failure:
+                    self.run_cleanup(roots=clean_roots, fail=True)
+                command = ["nix-env", "--profile", str(self.profile),
+                           "--delete-generations", "2", "8"]
+                self.assertEqual(failure.exception.cmd, command)
+                self.subprocess_run.assert_called_once_with(command, check=True)
+                self.assertTrue(root.is_symlink())
+                self.assertTrue(target.is_symlink())
 
     def test_selected_generation_changed_during_confirmation(self):
         def select(_):
