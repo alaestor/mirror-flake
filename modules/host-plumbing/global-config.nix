@@ -10,6 +10,19 @@
   let
     default_locale = "en_CA.UTF-8";
     default_timezone = "America/Toronto";
+    logs = inputs.self.fleet.logging;
+    journalSettings = {
+      SystemMaxUse = lib.mkDefault logs.journalMaxUse;
+      RuntimeMaxUse = lib.mkDefault logs.runtimeJournalMaxUse;
+      MaxRetentionSec = lib.mkDefault "${toString logs.retentionDays}day";
+      MaxFileSec = lib.mkDefault "${toString logs.journalRotationDays}day";
+    };
+    coreSettings = {
+      Storage = lib.mkDefault "none";
+      ProcessSizeMax = lib.mkDefault 0;
+      # Bound old dumps too; disabling processing does not erase them.
+      MaxUse = lib.mkDefault "1G";
+    };
   in
   {
 
@@ -36,15 +49,9 @@
 
     nixpkgs.config.allowUnfree = lib.mkDefault true;
 
-    # Unbounded by default: journald only ships Storage/RateLimit, and
-    # coredump.conf's [Coredump] section is empty, so both the journal and
-    # `/var/lib/systemd/coredump` grow forever. These are vacuum-style caps —
-    # journald deletes its oldest archived (rotated) journal files once the
-    # total exceeds SystemMaxUse, the same as `journalctl --vacuum-size=`,
-    # and systemd-coredump does the same for its coredump directory once
-    # MaxUse is exceeded — so hosts still get to keep recent history, just
-    # not unboundedly.
-    #
+    # Journald rotates and expires its own files, independently of logrotate.
+    # Age is a maximum, not guaranteed history: size limits can expire it sooner.
+    # Disable both core storage and processing to avoid temporary dump files.
     # `services.journald.settings` and `systemd.coredump.settings`
     # (drop-in-based) replaced `extraConfig` in newer nixpkgs;
     # `cryptid-nixpkgs` is deliberately pinned old for reproducibility and
@@ -52,21 +59,26 @@
     # breaking the other host.
     services.journald =
       if options.services.journald ? settings then
-        { settings.Journal.SystemMaxUse = lib.mkDefault "1G"; }
+        { settings.Journal = journalSettings; }
       else
         {
           extraConfig = lib.mkDefault ''
-            SystemMaxUse=1G
+            SystemMaxUse=${logs.journalMaxUse}
+            RuntimeMaxUse=${logs.runtimeJournalMaxUse}
+            MaxRetentionSec=${toString logs.retentionDays}day
+            MaxFileSec=${toString logs.journalRotationDays}day
           '';
         };
 
     systemd.coredump =
       if options.systemd.coredump ? settings then
-        { settings.Coredump.MaxUse = lib.mkDefault "1G"; }
+        { settings.Coredump = coreSettings; }
       else
         {
           extraConfig = lib.mkDefault ''
             MaxUse=1G
+            Storage=none
+            ProcessSizeMax=0
           '';
         };
 

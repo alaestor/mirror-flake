@@ -205,7 +205,14 @@ observer.
 
 ## State and failure behavior
 
-State stays on local disk. Loki retains logs for two weeks by default;
+State stays on local disk. `fleet.logging.retentionDays` supplies the shared
+maximum log age for local journals and Loki, currently one year. Local journals
+rotate at least weekly and have a 15G persistent limit and 128M volatile limit;
+size limits can remove history sooner. Rotation does not mean deletion after a
+week. Journald owns its binary files; do not apply logrotate to them.
+Ordinary file logs need their service's own rotation policy.
+
+Loki uses its compactor for age-based deletion, not weekly journal rotation.
 Prometheus retains metrics for up to 30 days or its configured size limit,
 whichever expires first. Loki compaction deletes asynchronously, so retention
 is not a hard disk quota. Monitor disk usage and tune retention to actual volume.

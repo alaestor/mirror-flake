@@ -111,7 +111,7 @@ in
         };
         logRetention = lib.mkOption {
           type = lib.types.nonEmptyStr;
-          default = "336h";
+          default = "${toString (24 * self.fleet.logging.retentionDays)}h";
           description = "Loki retention duration, minimum 24h.";
         };
         metricsRetention = lib.mkOption {

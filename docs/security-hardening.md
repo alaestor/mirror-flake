@@ -45,6 +45,15 @@ cache-flushing parameters on unrelated processors.
 
 ## Service accounts and shared storage
 
+Registry hosts disable crash-dump storage and processing with `Storage=none`
+and `ProcessSizeMax=0`, while retaining crash-event logging. This avoids both
+persistent dumps and temporary memory images used for backtraces. Existing
+dumps are not deleted by this change and remain subject to tmpfiles cleanup.
+See [systemd's configuration](https://www.freedesktop.org/software/systemd/man/latest/coredump.conf.html).
+Local journal retention consumes `fleet.logging`; see [telemetry](telemetry.md).
+Rebuild/reboot scheduling remains an operator procedure rather than an automatic
+flake policy. Boot-time changes still require a reboot to take effect.
+
 NAS client mounts use `nosuid,nodev`. They preserve normal writes and execution,
 but ignore executable privilege bits/file capabilities and refuse to interpret
 device-special files as local devices. Development shares intentionally do not

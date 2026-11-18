@@ -61,6 +61,18 @@ let
   };
 in
 {
+  options.flake.fleet.logging = mkOption {
+    description = "Shared maximum log age and local journal resource limits.";
+    type = types.submodule {
+      options = {
+        retentionDays = mkOption { type = types.ints.positive; description = "Maximum age for local and centrally collected logs, in days."; };
+        journalRotationDays = mkOption { type = types.ints.positive; description = "Maximum age of an active journal file before rotation."; };
+        journalMaxUse = mkOption { type = types.nonEmptyStr; description = "Persistent journal disk cap in systemd size syntax."; };
+        runtimeJournalMaxUse = mkOption { type = types.nonEmptyStr; description = "Volatile journal memory cap in systemd size syntax."; };
+      };
+    };
+  };
+
   options.flake.fleet.telemetry = mkOption {
     description = "Default telemetry destination and explicit NixOS scrape membership.";
     type = types.submodule {
