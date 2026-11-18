@@ -22,9 +22,15 @@ let
     find ()
     {
         echo x >> "$AGENT_FIND_GUARD_TEST_MARKER";
-        command find "$@"
+        printf '%s\0' "$@" > "$AGENT_FIND_GUARD_TEST_ARGS"
     }
     export -f find
+  '';
+
+  # Neither delegation path may perform a real search if refusal regresses.
+  syntheticFind = pkgs.writeShellScriptBin "find" ''
+    echo x >> "$AGENT_FIND_GUARD_TEST_COMMAND_MARKER"
+    printf '%s\0' "$@" > "$AGENT_FIND_GUARD_TEST_ARGS"
   '';
 
   # A standalone probe script rather than an inline string re-executed
@@ -37,27 +43,34 @@ let
     esac
     source ${guard}
     : > "$AGENT_FIND_GUARD_TEST_MARKER"
+    : > "$AGENT_FIND_GUARD_TEST_COMMAND_MARKER"
+    : > "$AGENT_FIND_GUARD_TEST_ARGS"
     err="$(find "''${@:2}" 2>&1 1>/dev/null)"
     status=$?
     echo "status=$status"
     echo "upstream_calls=$(wc -l < "$AGENT_FIND_GUARD_TEST_MARKER")"
+    echo "command_calls=$(wc -l < "$AGENT_FIND_GUARD_TEST_COMMAND_MARKER")"
     echo "stderr=$err"
   '';
 in
 pkgs.runCommand "agent-find-guard-test"
   {
-    nativeBuildInputs = [ pkgs.findutils ];
+    nativeBuildInputs = [ syntheticFind ];
   }
   ''
     set -u
     fail=0
     export AGENT_FIND_GUARD_TEST_MARKER="$PWD/upstream-calls.marker"
+    export AGENT_FIND_GUARD_TEST_COMMAND_MARKER="$PWD/command-calls.marker"
+    export AGENT_FIND_GUARD_TEST_ARGS="$PWD/find-args"
 
     check() {
       local desc="$1" input="$2" expect_status="$3" expect_calls="$4" expect_stderr_re="$5"
-      local got_status got_calls got_stderr
+      local expect_command_calls="''${6:-0}"
+      local got_status got_calls got_command_calls got_stderr
       got_status="$(grep -oP '(?<=^status=).*' <<< "$input")"
       got_calls="$(grep -oP '(?<=^upstream_calls=).*' <<< "$input")"
+      got_command_calls="$(grep -oP '(?<=^command_calls=).*' <<< "$input")"
       got_stderr="$(grep -oP '(?<=^stderr=).*' <<< "$input")"
       if [[ "$got_status" != "$expect_status" ]]; then
         echo "FAIL ($desc): expected exit $expect_status, got $got_status" >&2
@@ -65,6 +78,10 @@ pkgs.runCommand "agent-find-guard-test"
       fi
       if [[ "$got_calls" != "$expect_calls" ]]; then
         echo "FAIL ($desc): expected $expect_calls upstream call(s), got $got_calls" >&2
+        fail=1
+      fi
+      if [[ "$got_command_calls" != "$expect_command_calls" ]]; then
+        echo "FAIL ($desc): expected $expect_command_calls command call(s), got $got_command_calls" >&2
         fail=1
       fi
       if [[ -n "$expect_stderr_re" && ! "$got_stderr" =~ $expect_stderr_re ]]; then
@@ -78,12 +95,12 @@ pkgs.runCommand "agent-find-guard-test"
     }
 
     # No pre-existing 'find' export (Codex's shape): the guard still blocks
-    # root and otherwise defers to plain findutils; nothing to capture, so
+    # root and otherwise defers to the PATH command; nothing to capture, so
     # no warning either.
     check "no upstream, root" \
       "$(${bash} ${probe} without-upstream /)" 1 0 "refusing to search filesystem root"
     check "no upstream, scoped" \
-      "$(${bash} ${probe} without-upstream /nix -maxdepth 0)" 0 0 ""
+      "$(${bash} ${probe} without-upstream /nix -maxdepth 0)" 0 0 "" 1
 
     # A Claude-shaped exported 'find' function: the guard must capture it as
     # `_agent_find_upstream` (proven by the synthetic function's own call
@@ -97,6 +114,21 @@ pkgs.runCommand "agent-find-guard-test"
       "$(${bash} ${probe} with-upstream /tmp/..)" 1 0 "refusing to search filesystem root"
     check "root after a scoped path" \
       "$(${bash} ${probe} with-upstream /nix /)" 1 0 "refusing to search filesystem root"
+
+    for mode in with-upstream without-upstream; do
+      for option in -H -L -P -O3 --; do
+        check "$mode, $option root" \
+          "$(${bash} ${probe} "$mode" "$option" /)" 1 0 "refusing to search filesystem root"
+      done
+      check "$mode, debug and traversal options before root" \
+        "$(${bash} ${probe} "$mode" -D tree -L /)" 1 0 "refusing to search filesystem root"
+      check "$mode, implicit root" \
+        "$(cd / && ${bash} ${probe} "$mode" -L -maxdepth 0)" 1 0 "refusing to search filesystem root"
+    done
+    check "leading options, scoped path" \
+      "$(${bash} ${probe} with-upstream -D tree -L /nix -maxdepth 0)" 0 1 ""
+    printf '%s\0' -D tree -L /nix -maxdepth 0 > expected-args
+    cmp expected-args "$AGENT_FIND_GUARD_TEST_ARGS"
 
     # FIND_ALLOW_ROOT=1 overrides the refusal and still reaches upstream.
     check "override, root" \

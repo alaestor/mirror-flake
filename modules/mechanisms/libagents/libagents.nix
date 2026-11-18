@@ -84,8 +84,22 @@ let
           "agent-find-guard: could not capture the exported 'find' function; check tests/agent-find-guard.nix against the new shape" >&2
       fi
       find() {
-        local arg path paths=()
+        local arg path leading=1 debug_arg=0 paths=()
         for arg in "$@"; do
+          if (( debug_arg )); then
+            debug_arg=0
+            continue
+          fi
+          if (( leading )); then
+            # Global findutils options precede paths, unlike expression
+            # predicates. Inspect paths after them without changing argv.
+            case "$arg" in
+              -H | -L | -P | -O[0-3]) continue ;;
+              -D) debug_arg=1; continue ;;
+              --) leading=0; continue ;;
+            esac
+          fi
+          leading=0
           case "$arg" in
             -* | '(' | ')' | '!' | ',') break ;;
             *) paths+=("$arg") ;;
