@@ -25,6 +25,8 @@ in
     modules =
       (with inputs.self.modules.nixos; [
         agent-vm
+        # WARN(SECURITY): weakens physical security posture
+        # APC deliberately permits graphical and console auto-login.
         auto-login
         crypto
         hifi-audio

@@ -34,6 +34,9 @@ in
       };
 
       config = {
+        # WARN(SECURITY): weakens physical security posture
+        # Graphical auto-login bypasses a login password. Getty auto-login
+        # also provides an unlocked shell independently of a desktop lock.
         services.displayManager.autoLogin = {
           enable = true;
           user = cfg.user;

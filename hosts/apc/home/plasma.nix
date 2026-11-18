@@ -1,6 +1,9 @@
 { lib, ... }:
 {
   programs.plasma = {
+    # WARN(SECURITY): weakens physical security posture
+    # Idle/resume locking remains mutable and is currently disabled on APC.
+    # Physical access is outside this workstation's threat model.
     input.mice = lib.mkAfter [
       {
         enable = true;
