@@ -171,19 +171,19 @@ pkgs.runCommand "agent-wrappers-test" { nativeBuildInputs = [ pkgs.python3 pkgs.
   ${wrapper "cc-native"}/bin/cc-native 1m -- --model=sonnet
   grep -Fx -- '--model=sonnet[1m]' "$AGENT_TEST_ARGS"
   ${wrapper "cx-native"}/bin/cx-native sol
-  grep -Fx 'gpt-6.1-sol' "$AGENT_TEST_ARGS"
+  grep -Fx 'gpt-6.2-sol' "$AGENT_TEST_ARGS"
   ${wrapper "cx-native"}/bin/cx-native sol terra hi -- terra
   python3 - <<'PY'
   import pathlib
   args = pathlib.Path('args').read_text().splitlines()
   assert args[args.index('--model') + 1] == 'gpt-6.1-terra'
-  assert 'gpt-6.1-sol' not in args
+  assert 'gpt-6.2-sol' not in args
   assert 'model_reasoning_effort="high"' in args
   assert args[-1] == 'terra'
   PY
   ${wrapper "cx-native"}/bin/cx-native astra hi -- sol
   test "$(cat "$AGENT_TEST_DIRECTIVES")" = ${pkgs.lib.escapeShellArg (pkgs.lib.getExe directivePackage)}
-  grep -Fx 'gpt-6-astra' "$AGENT_TEST_ARGS"
+  grep -Fx 'gpt-6.2-astra' "$AGENT_TEST_ARGS"
   grep -Fx 'model_reasoning_effort="high"' "$AGENT_TEST_ARGS"
   grep -Fx 'sol' "$AGENT_TEST_ARGS"
   grep -Fx ${pkgs.lib.escapeShellArg (guardState "false")} "$AGENT_TEST_ARGS"

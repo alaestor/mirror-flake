@@ -70,8 +70,8 @@
         guard) context_guard=true ;;
         luna) model="gpt-6-luna" ;;
         terra) model="gpt-6.1-terra" ;;
-        sol) model="gpt-6.1-sol" ;;
-        astra) model="gpt-6-astra" ;;
+        sol) model="gpt-6.2-sol" ;;
+        astra) model="gpt-6.2-astra" ;;
         lo|low) effort="low" ;;
         med|medium) effort="medium" ;;
         hi|high) effort="high" ;;
