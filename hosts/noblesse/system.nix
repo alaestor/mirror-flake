@@ -1,4 +1,4 @@
-{ tailnet }:
+{ builderSshPort, ports, tailnet }:
 { config, lib, pkgs, ... }:
 {
 
@@ -8,6 +8,7 @@
   };
 
   ssh-host = {
+    port = ports.ssh;
     comment = "generated host key (${config.hostIdentity.name})";
     allowUsers = [ config.hostIdentity.primaryUser ];
   };
@@ -27,7 +28,7 @@
   # root-equivalent over its store, so it is a dedicated forced-command account
   # instead of the interactive one.
   nix.extraOptions = lib.mkAfter ''
-    builders = ssh://nixremote@apc.${tailnet.dnsSuffix} aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
+    builders = ssh://nixremote@apc.${tailnet.dnsSuffix}:${toString builderSshPort} aarch64-linux,x86_64-linux /data/data/com.termux.nix/files/home/.ssh/id_ed25519_noblesse 8 10
     builders-use-substitutes = true
   '';
 

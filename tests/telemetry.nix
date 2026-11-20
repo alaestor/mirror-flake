@@ -26,7 +26,9 @@ let
       telemetry = {
         interface = "testvpn";
         pushUrl = "http://override.test/push";
+        alloyHttpPort = 12346;
       };
+      services.prometheus.port = 9091;
     }
   ];
   dashboard = inputs.self.data.readJSON "features/telemetry/dashboards/fleet.json";
@@ -105,6 +107,14 @@ let
     grafanaAuthentication = !server.services.grafana.settings."auth.anonymous".enabled
       && !server.services.grafana.settings.users.allow_sign_up;
     customPushUrl = custom.telemetry.pushUrl == "http://override.test/push";
+    customAlloyHttp = lib.elem "--server.http.listen-addr=127.0.0.1:12346"
+      custom.services.alloy.extraFlags;
+    customPrometheusClients = lib.any (source:
+      source.type == "prometheus" && source.url == "http://127.0.0.1:9091"
+    ) custom.services.grafana.provision.datasources.settings.datasources
+      && lib.any (job: job.job_name == "collector"
+        && lib.any (target: target.targets == [ "127.0.0.1:9091" ]) job.static_configs
+      ) custom.services.prometheus.scrapeConfigs;
     customInterface = custom.systemd.sockets.telemetry-grafana.socketConfig.BindToDevice == "testvpn";
     customIngress = custom.networking.firewall.interfaces.testvpn.allowedTCPPorts == [ 3039 3100 9100 ];
   };

@@ -1,5 +1,5 @@
 /**
-  Typed, public, non-secret state shared by multiple repository consumers.
+  Typed, public, non-secret shared facts and fixed port assignments.
 
   Fleet records are declarative flake outputs. They describe shared facts, not
   evaluated hosts, credentials, storage paths, or machine topology.
@@ -7,6 +7,18 @@
 { lib, ... }:
 let
   inherit (lib) mkOption types;
+
+  fixedPort = types.ints.between 1 65535;
+  portAssignment = types.oneOf [
+    fixedPort
+    (types.listOf fixedPort)
+    (types.submodule {
+      options = {
+        from = mkOption { type = fixedPort; description = "First port in the range."; };
+        to = mkOption { type = fixedPort; description = "Last port in the range."; };
+      };
+    })
+  ];
 
   tailnetType = types.submodule {
     options = {
@@ -61,6 +73,11 @@ let
   };
 in
 {
+  options.flake.fleet.ports = mkOption {
+    type = types.attrsOf (types.attrsOf portAssignment);
+    description = "Explicit port assignments grouped by host, plus shared protocol and endpoint ports.";
+  };
+
   options.flake.fleet.logging = mkOption {
     description = "Shared maximum log age and local journal resource limits.";
     type = types.submodule {

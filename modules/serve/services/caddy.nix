@@ -12,6 +12,7 @@
     let
       cfg = config.serve.caddy;
       adminSocket = "/run/caddy/admin.sock";
+      ports = self.fleet.ports.shared;
     in
     {
       options.serve.caddy = {
@@ -52,6 +53,8 @@
           globalConfig = ''
             admin unix/${adminSocket}|0600
             default_bind ${cfg.bindAddress}
+            http_port ${toString ports.caddy-http}
+            https_port ${toString ports.caddy-https}
             cerberus {
               difficulty 12
               max_pending 512

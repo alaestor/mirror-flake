@@ -2,11 +2,12 @@
   Host-level (non-microVM) agent coding setup pointed at a local LM Studio
   server, with a curated favorites list of local models.
 */
-{ inputs, ... }:
+{ inputs, self, ... }:
 {
   flake.modules.homeManager.ai-coding-local =
     { pkgs, ... }:
     let
+      lmStudioPort = toString self.fleet.ports.shared.lm-studio;
       preferredModel = "qwen/qwen3.8-27b";
       preferred = {
         provider = "lmstudio";
@@ -97,13 +98,13 @@
             ];
           };
         };
-        language_models.lmstudio.api_url = "http://127.0.0.1:1234/api/v0";
+        language_models.lmstudio.api_url = "http://127.0.0.1:${lmStudioPort}/api/v0";
         edit_predictions = {
           provider = "open_ai_compatible_api";
           open_ai_compatible_api = {
             max_output_tokens = 256;
             model = preferredModel;
-            api_url = "http://localhost:1234";
+            api_url = "http://localhost:${lmStudioPort}";
           };
           allow_data_collection = "no";
         };

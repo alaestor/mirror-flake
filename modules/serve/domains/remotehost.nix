@@ -12,6 +12,8 @@
 
       dufs = config.serve.dufs;
       jellyfin = config.serve.jellyfin;
+      ports = inputs.self.fleet.ports.shared;
+      jellyfinAltPort = toString ports.jellyfin-https-alt;
 
       domain = {
         primary = "remotehost.cc";
@@ -26,10 +28,10 @@
 
       networking.firewall.allowedTCPPorts =
         lib.optionals publicHttpEnabled [
-          80
-          443
+          ports.caddy-http
+          ports.caddy-https
         ]
-        ++ lib.optional jellyfinEnabled 44344;
+        ++ lib.optional jellyfinEnabled ports.jellyfin-https-alt;
 
       services.caddy.virtualHosts = lib.optionalAttrs dufsEnabled {
         "media.${domain.primary}" = {
@@ -49,7 +51,7 @@
         };
       }
       // lib.optionalAttrs jellyfinEnabled {
-        "jellyfin.${domain.primary}, jellyfin.${domain.primary}:44344, ${domain.secondary}, ${domain.secondary}:44344" = {
+        "jellyfin.${domain.primary}, jellyfin.${domain.primary}:${jellyfinAltPort}, ${domain.secondary}, ${domain.secondary}:${jellyfinAltPort}" = {
           extraConfig = ''
             tls {
               key_type rsa4096

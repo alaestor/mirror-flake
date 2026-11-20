@@ -27,9 +27,11 @@ in
       forgejo = config.serve.forgejo;
 
       matrix = config.serve.matrix;
+      ports = inputs.self.fleet.ports.shared;
+      federationPort = toString ports.matrix-federation;
       matrixVirtualHost =
         if matrixEnabled then
-          "${matrixDomain}, ${matrixDomain}:8448"
+          "${matrixDomain}, ${matrixDomain}:${federationPort}"
         else
           matrixDomain;
       headscale = config.services.headscale;
@@ -76,10 +78,10 @@ in
 
       networking.firewall.allowedTCPPorts =
         lib.optionals publicHttpEnabled [
-          80
-          443
+          ports.caddy-http
+          ports.caddy-https
         ]
-        ++ lib.optional matrixEnabled 8448;
+        ++ lib.optional matrixEnabled ports.matrix-federation;
 
       services.headscale.settings.server_url = lib.mkIf headscaleEnabled (
         lib.mkDefault coordinationUrl
@@ -94,7 +96,7 @@ in
           ${lib.optionalString matrixEnabled ''
             handle /.well-known/matrix/server {
               header Content-Type application/json
-              respond `{"m.server": "${matrixDomain}:8448"}` 200
+              respond `{"m.server": "${matrixDomain}:${federationPort}"}` 200
             }
 
             handle /.well-known/matrix/client {

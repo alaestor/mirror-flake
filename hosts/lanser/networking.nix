@@ -1,4 +1,4 @@
-{ lan }:
+{ lan, ports }:
 {
   networking = {
     useDHCP = false;
@@ -21,7 +21,7 @@
       interface = "enp4s0";
     };
     firewall = {
-      allowedUDPPorts = [ 51820 ];
+      allowedUDPPorts = [ ports.wireguard-firewall ];
       checkReversePath = false;
     };
   };

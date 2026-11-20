@@ -4,11 +4,13 @@
     ./hardware.nix
     #inputs.self.modules.nixos.lxqt
     inputs.self.modules.nixos.auto-login
-    (import ./networking.nix { lan = fleet.lan; })
+    (import ./networking.nix { lan = fleet.lan; ports = fleet.ports.lanser; })
     (import ./system.nix {
       inherit inputs;
       tailnet = fleet.tailnets."0x04cc";
       lan = fleet.lan;
+      ports = fleet.ports.lanser;
+      sharedPorts = fleet.ports.shared;
     })
   ];
 

@@ -1,4 +1,4 @@
-{ inputs, lan, tailnet }:
+{ inputs, lan, lm-studio, ports, tailnet }:
 { config, lib, ... }:
 {
   age.secrets.apc-wireguard-private-key = {
@@ -48,8 +48,8 @@
       enable = lib.mkForce true;
       allowPing = false;
       allowedTCPPorts = [
-        1234 # LM Studio's API (modules/aspects/ai-coding-local.nix), exposed to the LAN on purpose.
-        2234 # for soulseek
+        lm-studio # Exposed to the LAN on purpose.
+        ports.soulseek
       ];
       # `agent-vm.forwardPorts` binds the agent VM's web UI on every address
       # so it can be reached from a phone; admitting it here and nowhere else

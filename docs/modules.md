@@ -71,7 +71,7 @@ These concepts are not generic reusable configuration modules.
 
 | Kind | Owns |
 |---|---|
-| Fleet | Typed, public, non-secret facts intentionally shared by more than one repository consumer. It never exposes an evaluated host configuration. |
+| Fleet | Typed, public, non-secret shared facts and the [port plan](ports.md). It never exposes an evaluated host configuration. |
 | Host | One concrete machine's identity, compatibility baseline, selected reusable modules, and private implementation fragments. |
 | Preference | A person's identity and choices that follow them across hosts, rather than reusable policy. |
 | Attachment | The final Home Manager refinements for one user on one host, plus that attachment's activation mode. |
@@ -95,7 +95,8 @@ and lifecycle. Do not eliminate duplication with unstructured imports.
 
 Move repeated concrete values to fleet only when every consumer intentionally
 shares one fact and one owner. Similar-looking machine facts with independent
-ownership remain host-local.
+ownership remain host-local. The port plan is a deliberate exception for
+discoverability: host-specific port assignments are grouped by host in one file.
 
 The same rule governs scope generally, not just duplicated policy. Something
 used by one owner lives with that owner; a second genuine consumer is what

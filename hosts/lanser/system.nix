@@ -1,4 +1,4 @@
-{ inputs, tailnet, lan }:
+{ inputs, tailnet, lan, ports, sharedPorts }:
 {
   config,
   lib,
@@ -65,6 +65,7 @@ in
   };
 
   ssh-host = {
+    port = ports.ssh;
     allowUsers = [ username ];
     comment = "lanser-hostkey";
   };
@@ -79,7 +80,18 @@ in
     services.enable = true;
   };
 
-  telemetry-server.enable = true;
+  telemetry = {
+    alloyHttpPort = ports.alloy-http;
+    metricsBackendPort = ports.node-exporter;
+  };
+  telemetry-server = {
+    enable = true;
+    grafanaPort = ports.grafana;
+    grafanaBackendPort = ports.grafana-backend;
+    ingressPort = sharedPorts.telemetry-ingress;
+    ingressBackendPort = ports.telemetry-ingress-backend;
+    lokiPort = ports.loki;
+  };
 
   serve = {
     caddy = {
@@ -89,6 +101,7 @@ in
     cinny.enable = true;
     dufs = {
       enable = true;
+      port = ports.dufs;
       authFile = config.age.secrets.lanser-dufs-auth.path;
       shares = {
         Anime = "${config.nas.vault.mountpoint}/Media/Anime";
@@ -100,25 +113,23 @@ in
     forgejo = {
       enable = true;
       dataRoot = "${config.nas.services.mountpoint}/forgejo";
-      # headplane (behind serve.headscale) defaults to 3000 too; avoid the
-      # clash since this host runs both.
-      port = 3001;
-      # Router forwards external 38502 -> this host's real sshd (port 22,
-      # via ssh-host), so git clone URLs advertise the port people can
-      # actually reach from outside the LAN/tailnet.
-      sshPort = 38502;
+      port = ports.forgejo;
+      # Router forwards the advertised port to this host's sshd.
+      sshPort = ports.forgejo-ssh-public;
     };
     headscale = {
       enable = true;
       adminAllowedCIDRs = [ lan.cidr ];
       cookieSecretFile = config.age.secrets.lanser-headplane-cookie-secret.path;
     };
-    jellyfin.enable = true;
-    matrix.enable = true;
+    jellyfin = { enable = true; port = ports.jellyfin; };
+    matrix = { enable = true; port = ports.matrix; };
     static-site-0x04.enable = true;
     static-site-bokunopi.enable = true;
     torrenting = {
       enable = true;
+      webuiPort = ports.qbittorrent-web;
+      torrentingPort = ports.qbittorrent-peers;
       wireguardConfigFile = config.age.secrets.lanser-torrenting-wireguard-config.path;
     };
   };
@@ -183,6 +194,11 @@ in
   };
 
   services = {
+    tailscale.port = ports.tailscale;
+    prometheus.port = ports.prometheus;
+    headscale.port = ports.headscale;
+    headplane.settings.server.port = ports.headplane;
+
     # TODO(workaround): use stable Tuwunel until unstable supplies system AWS-LC; tracked in https://github.com/NixOS/nixpkgs/issues/570938
     matrix-tuwunel.package =
       inputs.stable-nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}.matrix-tuwunel;

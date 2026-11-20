@@ -40,7 +40,7 @@ reverse proxy.
 A service owns its local implementation:
 
 - package and systemd configuration;
-- local listener address and port;
+- wiring the listener address and the deployment's port into the daemon;
 - service user and runtime paths;
 - reusable, opinionated defaults; and
 - packages or checks tightly coupled to that service.
@@ -48,6 +48,10 @@ A service owns its local implementation:
 Services should listen on loopback or another private interface by default and
 must not open public firewall ports. Use `lib.mkDefault` for values that the
 domain or host is expected to refine.
+
+Set deployed fixed listener ports from the [port plan](ports.md). Use those
+same assignments or effective daemon settings for proxy routes and firewall
+rules. A port assignment never enables a service or opens a firewall by itself.
 
 A simplified service looks like:
 

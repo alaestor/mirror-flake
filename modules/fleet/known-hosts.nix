@@ -14,6 +14,6 @@
   flake.fleet.knownHosts."git.0x04.cc" = {
     # lanser's Forgejo instance; git-over-SSH via the router's external
     # NAT port-forward (see serve.forgejo.sshPort on lanser).
-    "[git.0x04.cc]:38502" = [ self.data.vars.sshHostPublicKeys.lanser ];
+    "[git.0x04.cc]:${toString self.fleet.ports.lanser.forgejo-ssh-public}" = [ self.data.vars.sshHostPublicKeys.lanser ];
   };
 }

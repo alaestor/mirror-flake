@@ -24,7 +24,7 @@ remain relative. This keeps moving a component from changing its dependencies.
 | `modules/features/` | Reusable capabilities with neutral, typed interfaces. |
 | `modules/mechanisms/` | Shared infrastructure other modules build on, each directory or file owning its whole concern. |
 | `modules/aspects/` | High-level, composable bundles of features and their interoperability policy. |
-| `modules/fleet/` | Typed, public, non-secret facts shared by multiple repository consumers. |
+| `modules/fleet/` | Typed, public, non-secret shared facts and the port plan. |
 | `modules/serve/` | Parent of `services/` and `domains/`; no modules of its own. |
 | `modules/serve/services/` | Disabled-by-default hosted-service features exported as `serve-*`. |
 | `modules/serve/domains/` | Disabled-by-default public ingress compositions exported as `domain-*`. |
@@ -121,9 +121,21 @@ ownership boundaries. Fleet state is typed, public, and non-secret; hosts must
 consume it directly rather than evaluating another host. Repeated policy should
 move from host fragments to the narrowest reusable typed module only when its
 semantics and lifecycle are shared. Repeated concrete values belong in fleet
-only when every consumer intentionally shares one source of truth.
+only when every consumer intentionally shares one source of truth, except for
+the port plan below.
 
 Use `lib.mkDefault` for policy intended to be refined. Preferences and host-specific refinements usually use ordinary definitions. Module order is not “last definition wins”; use priorities, `lib.mkBefore`, and `lib.mkAfter`. Reserve `lib.mkForce` for deliberate conflict resolution.
+
+### Port assignments
+
+Read [`docs/ports.md`](docs/ports.md) before adding or changing a listener.
+Declare deployed fixed TCP and UDP ports in `modules/fleet/ports.nix` and wire
+them into supported service options explicitly, even when the value matches
+upstream. Keep remote and local assignments in the same host block. Use
+`service` or `service-purpose` keys and reserve `shared` for common contracts.
+Firewalls and bind addresses stay in the configuration that owns them. Do not
+add shadow assignments for fixed upstream or runtime-selected binds; check
+actual sockets and service readiness when changing a deployment.
 
 ### Coding agents and isolation
 

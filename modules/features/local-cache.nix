@@ -17,7 +17,7 @@ let
     };
     port = lib.mkOption {
       type = lib.types.port;
-      default = 5000;
+      default = self.fleet.ports.apc.nix-cache;
       description = "HTTP port of the trusted local binary cache.";
     };
     rotation = lib.mkOption {

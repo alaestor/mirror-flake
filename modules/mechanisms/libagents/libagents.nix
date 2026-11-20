@@ -386,7 +386,7 @@ let
   # The port table remains separate: it coordinates a Home Manager wrapper and
   # a NixOS firewall rule, rather than contributing guest state.
   webPorts = {
-    deepseek = 3080;
+    deepseek = self.fleet.ports.shared.deepseek-web;
   };
 
   environmentFor = home: (vmContributionsFor home (builtins.attrNames harnesses)).guestEnvironment;

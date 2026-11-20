@@ -43,18 +43,23 @@ in
         };
         pushUrl = lib.mkOption {
           type = lib.types.nonEmptyStr;
-          default = "http://${server}:3100/loki/api/v1/push";
+          default = "http://${server}:${toString fleet.ports.shared.telemetry-ingress}/loki/api/v1/push";
           description = "Loki-compatible ingestion URL, normally over the tailnet.";
         };
         metricsPort = lib.mkOption {
           type = lib.types.port;
-          default = 9100;
+          default = fleet.ports.shared.telemetry-metrics;
           description = "Interface-bound node exporter port.";
         };
         metricsBackendPort = lib.mkOption {
           type = lib.types.port;
           default = 19100;
           description = "Loopback-only node exporter port.";
+        };
+        alloyHttpPort = lib.mkOption {
+          type = lib.types.port;
+          default = 12345;
+          description = "Loopback-only Alloy HTTP port.";
         };
         extraConfig = lib.mkOption {
           type = lib.types.lines;
@@ -101,7 +106,7 @@ in
             "--disable-reporting"
             # Loki WAL is runtime-gated as experimental in the pinned Alloy.
             "--stability.level=experimental"
-            "--server.http.listen-addr=127.0.0.1:12345"
+            "--server.http.listen-addr=127.0.0.1:${toString cfg.alloyHttpPort}"
           ];
         };
         services.prometheus.exporters.node = {

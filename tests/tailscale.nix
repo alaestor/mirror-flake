@@ -15,6 +15,7 @@ let
         coordinationUrl = "https://coordination.example.test";
         dnsSuffix = "tailnet.example.test";
       }; }
+      { flake.fleet.ports.shared.telemetry-metrics = 9190; }
       ../modules/features/tailscale.nix
       ../modules/aspects/tailnet-client.nix
     ];
@@ -57,6 +58,10 @@ let
     {
       assertion = aspectConfig.telemetry.enable && !rawConfig.services.alloy.enable;
       message = "tailnet composition must enroll telemetry without changing the raw Tailscale feature";
+    }
+    {
+      assertion = aspectConfig.telemetry.metricsPort == 9190;
+      message = "tailnet composition must use the fleet metrics port";
     }
     {
       assertion = rawConfig.tailscale.loginServer == null;

@@ -18,6 +18,7 @@
 }:
 let
   tailnet = config.flake.fleet.tailnets."0x04cc";
+  ports = config.flake.fleet.ports.shared;
 in
 {
   flake.modules.homeManager.tailnet-known-hosts =
@@ -43,6 +44,7 @@ in
 
       telemetry.enable = lib.mkDefault config.tailscale.enable;
       telemetry.interface = lib.mkDefault config.services.tailscale.interfaceName;
+      telemetry.metricsPort = lib.mkDefault ports.telemetry-metrics;
 
       tailscale = {
         enable = lib.mkDefault true;

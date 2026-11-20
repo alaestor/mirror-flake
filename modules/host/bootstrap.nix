@@ -2,7 +2,10 @@
   bootstrap: minimal NixOS installation ISO with remote SSH access, used
   to install other hosts.
 */
-{ inputs, lib, ... }:
+{ config, inputs, lib, ... }:
+let
+  ports = config.flake.fleet.ports.bootstrap;
+in
 {
   host.bootstrap = {
     description = "Minimal NixOS installation ISO with remote SSH access.";
@@ -23,6 +26,7 @@
 
           services.openssh.settings.PermitRootLogin = "prohibit-password";
           boot.kexec.enable = lib.mkForce true;
+          ssh-host.port = ports.ssh;
           ssh-host.allowUsers = [ config.hostIdentity.primaryUser ];
           services.getty.autologinUser = lib.mkForce config.hostIdentity.primaryUser;
 

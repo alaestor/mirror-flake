@@ -323,6 +323,7 @@ let
     }:
     let
       anyChannel = lib.any (c: c.enable or false) (builtins.attrValues channels);
+      guestSshPort = self.fleet.ports.shared.agent-vm-guest-ssh;
       useNixDaemon = channels.nixDaemon.enable or false;
       hostKeyCredentialName = "agent_vm_ssh_host_key";
 
@@ -404,7 +405,7 @@ let
             proto = "tcp";
             host.address = "127.0.0.1";
             host.port = sshHostPort;
-            guest.port = 22;
+            guest.port = guestSshPort;
           }
         ];
 
@@ -508,6 +509,7 @@ let
 
       services.openssh = {
         enable = true;
+        ports = [ guestSshPort ];
         # Only the credential service may create this identity. Automatic
         # key generation races materialization and can replace the pinned
         # key on a fresh tmpfs root, making later boots fail strict checking.

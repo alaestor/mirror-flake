@@ -168,8 +168,9 @@ signing keys must never enter the repository or Nix store.
 
 `flake.modules.nixos.local-cache` and
 `flake.modules.nixOnDroid.local-cache` are enabled on import. They default to
-`http://apc.tailnet.0x04.cc:5000` and trust the corresponding first-rotation
-public key. If that public file is absent, they warn and leave the existing
+the shared tailnet cache endpoint and trust the corresponding first-rotation
+public key. The client and server use the same [port assignment](ports.md).
+If that public file is absent, they warn and leave the existing
 substituters unchanged. `flake.modules.nixos.serve-nix-cache` is the separate,
 disabled-by-default service that exposes a host's store through `nix-serve`;
 the serving host must enable it explicitly and owns its private-interface

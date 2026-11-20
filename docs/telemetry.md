@@ -16,6 +16,9 @@ log shipping; also add its name to scrape membership for metrics. Override
 
 ## Network and trust
 
+The [port plan](ports.md) specifies the shared metrics and ingestion ports so
+clients and the collector agree. Each host's record sets its local backends.
+
 Socket proxies use explicit IPv4 listeners when `networking.enableIPv6` is
 false, and dual-stack listeners otherwise. Both retain device binding and the
 same interface-scoped firewall rules. A dual-stack socket cannot serve as the

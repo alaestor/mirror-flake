@@ -1,4 +1,4 @@
-{ inputs, lan }:
+{ inputs, lan, ports }:
 {
   config,
   lib,
@@ -34,6 +34,7 @@ in
   # contribute one either.
   agent-vm = {
     enable = true;
+    sshHostPort = ports.agent-vm-ssh;
     # Same two roots `claude-code.nix`'s bubblewrap sandbox has always
     # allowed (`sandboxWritableRoots`): `cc` run through
     # `agent-vm-session`) needs the guest to be able to see whatever the
@@ -65,8 +66,19 @@ in
     lifecycle.lingerSeconds = 10 * 60;
   };
 
-  serve.nix-cache.enable = true;
+  serve.nix-cache = {
+    enable = true;
+    port = ports.nix-cache;
+  };
 
+  services.printing.listenAddresses = [ "localhost:${toString ports.cups}" ];
+  services.tailscale.port = ports.tailscale;
+  telemetry = {
+    alloyHttpPort = ports.alloy-http;
+    metricsBackendPort = ports.node-exporter;
+  };
+
+  ssh-host.port = ports.ssh;
   ssh-host.authorizedKeys = [
     inputs.self.data.vars.sshClientPublicKeys.noblesse
     # TODO: Temporary; remove Armatus access when no longer needed

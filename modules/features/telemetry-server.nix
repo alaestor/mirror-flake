@@ -27,6 +27,7 @@ in
     }:
     let
       cfg = config.telemetry-server;
+      prometheusAddress = "127.0.0.1:${toString config.services.prometheus.port}";
       eventPanelManifest = self.data.readJSON "features/telemetry/event-panel/plugin.json";
       eventPanel =
         pkgs.runCommand eventPanelManifest.id
@@ -91,7 +92,7 @@ in
         };
         ingressPort = lib.mkOption {
           type = lib.types.port;
-          default = 3100;
+          default = fleet.ports.shared.telemetry-ingress;
           description = "Tailnet log-push port.";
         };
         ingressBackendPort = lib.mkOption {
@@ -260,7 +261,7 @@ in
             }
             {
               job_name = "collector";
-              static_configs = [ { targets = [ "127.0.0.1:9090" ]; } ];
+              static_configs = [ { targets = [ prometheusAddress ]; } ];
             }
           ];
         };
@@ -319,7 +320,7 @@ in
                 uid = "telemetry-prometheus";
                 type = "prometheus";
                 access = "proxy";
-                url = "http://127.0.0.1:9090";
+                url = "http://${prometheusAddress}";
               }
             ];
             dashboards.settings.providers = [

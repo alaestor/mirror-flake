@@ -7,6 +7,7 @@
     { config, lib, ... }:
     let
       domain = "bokunopi.co";
+      ports = inputs.self.fleet.ports.shared;
 
       staticSiteEnabled = config.serve.static-site-bokunopi.enable;
       staticSite = config.serve.static-site-bokunopi;
@@ -17,8 +18,8 @@
       ];
 
       networking.firewall.allowedTCPPorts = lib.optionals staticSiteEnabled [
-        80
-        443
+        ports.caddy-http
+        ports.caddy-https
       ];
 
       services.caddy.virtualHosts = lib.optionalAttrs staticSiteEnabled {

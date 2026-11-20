@@ -1,13 +1,23 @@
-{ inputs }:
+{ inputs, ports }:
 { config, ... }:
 let
   username = config.hostIdentity.primaryUser;
 in
 {
   ssh-host = {
+    port = ports.ssh;
     allowUsers = [ username ];
     authorizedKeys = [ inputs.self.data.vars.sshClientPublicKeys.apc ];
-    initrd.enable = true;
+    initrd = {
+      enable = true;
+      port = ports.ssh-initrd;
+    };
+  };
+
+  services.tailscale.port = ports.tailscale;
+  telemetry = {
+    alloyHttpPort = ports.alloy-http;
+    metricsBackendPort = ports.node-exporter;
   };
 
   standard-disk.impermanence = {
