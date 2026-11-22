@@ -270,6 +270,7 @@ let
           SHIFT+c script-message-to copyPasteTime copyFrame
           SHIFT+s screenshot video
           SHIFT+t cycle ontop
+          SHIFT+w screenshot window
           SPACE cycle pause
           UP add volume 1
           WHEEL_DOWN add volume -2
