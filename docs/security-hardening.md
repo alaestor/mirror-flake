@@ -91,11 +91,13 @@ verification after an approved deployment.
 
 The binary cache keeps its dynamic non-root identity and daemon connection, but
 hides home/NAS/media paths, uses private devices and temporary storage, and drops
-all capabilities. PID 1 supplies the signing key as a credential. The cache's
-store and signing authority are intentional. `checks.x86_64-linux.nix-cache`
-tests the production service sandbox and actual HTTP substitutions with a
-disposable signing key, including rejection without trust. Its ingress remains
-host-configurable and is not changed by these process restrictions.
+all capabilities. Tmpfiles creates `/media` if absent so systemd can mask it at
+startup, even if nothing is mounted there yet. PID 1 supplies the signing key
+as a credential. The cache's store and signing authority are intentional.
+`checks.x86_64-linux.nix-cache` tests the production service sandbox and actual
+HTTP substitutions with a disposable signing key, including rejection without
+trust. Its ingress remains host-configurable and is not changed by these
+process restrictions.
 
 ### Caddy reverse proxy
 

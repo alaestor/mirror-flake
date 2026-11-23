@@ -73,6 +73,10 @@
           secretKeyFile = config.nix-store-signing.secretPath;
         };
 
+        # Give systemd a mount point to mask even on hosts without /media.
+        # Do not change permissions or ownership on an existing mount point.
+        systemd.tmpfiles.rules = lib.mkIf secret.exists [ "d /media :0755 :root :root -" ];
+
         systemd.services.nix-serve = lib.mkIf secret.exists {
           after = [ "agenix.service" ];
           serviceConfig = {

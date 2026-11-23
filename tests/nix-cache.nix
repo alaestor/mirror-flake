@@ -48,8 +48,6 @@ pkgs.testers.runNixOSTest {
           "f /home/fixture/sentinel 0644 root root - forbidden"
           "d /mnt/fixture 0755 root root -"
           "f /mnt/fixture/sentinel 0644 root root - forbidden"
-          "d /media/fixture 0755 root root -"
-          "f /media/fixture/sentinel 0644 root root - forbidden"
         ];
       };
     };
@@ -64,12 +62,30 @@ pkgs.testers.runNixOSTest {
     server.wait_for_unit("multi-user.target")
     client.wait_for_unit("multi-user.target")
     server.succeed("nix-store --generate-binary-cache-key cache.example.test /run/cache-secret /tmp/cache-public; chmod 600 /run/cache-secret")
-    server.succeed("systemctl start nix-serve")
-    server.wait_for_unit("nix-serve.service")
+    server.succeed("test -d /media && systemctl start nix-serve")
     client.wait_until_succeeds("curl --fail --max-time 5 http://server:5000/nix-cache-info")
     with subtest("the production sandbox passes allowed and denied access probes"):
         server.succeed("test ! -e /tmp/cache-private-positive")
         server.succeed("test ! -e /run/cache-forbidden")
+    with subtest("files and mounts added under /media stay hidden from the running cache"):
+        as_cache = (
+            'nsenter -t "$(systemctl show -p MainPID --value nix-serve)" -m '
+            '-G "$(id -g nix-serve)" -S "$(id -u nix-serve)" -- '
+        )
+        server.succeed(as_cache + "test -r ${payload}")
+        server.succeed("mkdir /media/fixture && install -m 0644 /dev/null /media/fixture/sentinel")
+        server.succeed(as_cache + "test ! -r /media/fixture/sentinel")
+        server.succeed(
+            "mount -t tmpfs -o mode=0755 tmpfs /media/fixture && "
+            "install -m 0644 /dev/null /media/fixture/sentinel"
+        )
+        server.succeed(as_cache + "test ! -r /media/fixture/sentinel")
+        server.succeed(
+            "umount /media/fixture && mount -t tmpfs -o mode=0755 tmpfs /media && "
+            "install -m 0644 /dev/null /media/sentinel"
+        )
+        server.succeed(as_cache + "test ! -r /media/sentinel")
+        server.succeed("umount /media")
     with subtest("real substitutions require the disposable trusted signature"):
         client.fail("nix path-info ${payload}")
         client.fail("nix copy --from http://server:5000 --option trusted-public-keys \"\" ${payload}")
