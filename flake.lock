@@ -59,11 +59,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795288420,
-        "narHash": "sha256-jSJ7DREzHMAJtOLjOnElu8PxmM0bO5fw31irPR1XyVM=",
+        "lastModified": 1795466640,
+        "narHash": "sha256-gGDjn7NLeUQPhs+K2q8OztDQdcap1rbgf75oDL3yh9c=",
         "ref": "refs/heads/main",
-        "rev": "b85fd5d1ba8e4c9b4465e30b8a55941835c8b40c",
-        "revCount": 74,
+        "rev": "77fb3a8f8424f07eff224392cec1744ced2b2737",
+        "revCount": 75,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/pkgs.git"
       },
@@ -79,11 +79,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794943722,
-        "narHash": "sha256-Qkh6uNyMsic61gfyOO8VXnC+HEBdti6Xe2kKiMf66O0=",
+        "lastModified": 1795325060,
+        "narHash": "sha256-XYoMPsqRFZ6jOaYI1KAAu8fzqif4tkCX8mhEKrViDXQ=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "5643e73425b85ac359ba2aaf83deae8ce1cd7968",
+        "rev": "6480d7d8533b88c78cc6dcda395ab89cd546e450",
         "type": "github"
       },
       "original": {
@@ -95,11 +95,11 @@
     },
     "android-nixpkgs": {
       "locked": {
-        "lastModified": 1795137884,
-        "narHash": "sha256-xVwloUjz7paCDnvN5dkrasmAGV+O6uyRUPFHxv2w3VA=",
-        "rev": "ab5c18fdedfc8f9bbc9d773f10a540790e2787a7",
+        "lastModified": 1795370043,
+        "narHash": "sha256-RThZ6/XvhVczW74iClJaGo9+fXjvfm5mvvzTy6hrcYU=",
+        "rev": "0dc498bfe49baeb18b0f9891e800b53bb2603193",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/26.05/nixos-26.05.14894.ab5c18fdedfc/nixexprs.tar.zst"
+        "url": "https://releases.nixos.org/nixos/26.05/nixos-26.05.15079.0dc498bfe49b/nixexprs.tar.zst"
       },
       "original": {
         "type": "tarball",
@@ -148,11 +148,11 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1795271154,
-        "narHash": "sha256-t8y9AJnMGKocSzgShD/8BfRjyf14uQRqJ2uPbZEBNKU=",
+        "lastModified": 1795437548,
+        "narHash": "sha256-O0Zb3Z7FU7nlmGsJPsPNbhZUKCDByNWuyu5VxFC2hkE=",
         "owner": "Moraxyc",
         "repo": "deepseek-harness.nix",
-        "rev": "d6a93e11f7b2907a83c84e01c952de2068ac43fb",
+        "rev": "a92d9693962f1c5ed045563e4540330a63619829",
         "type": "github"
       },
       "original": {
@@ -200,11 +200,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1794001999,
-        "narHash": "sha256-+Gdml4PvobbeejOvrVUiI9EVR3f3neXc9sr7SvQSikI=",
+        "lastModified": 1795382502,
+        "narHash": "sha256-TMlnJzL6OSH0hU+l7uPhYWE50/1svb5jL3Jdu8k0EWE=",
         "ref": "refs/heads/main",
-        "rev": "ae810935c7c5329f06890ac9f80b9129ef8fd201",
-        "revCount": 96,
+        "rev": "853782e8bc12f779e351c7bafb1c449614a48890",
+        "revCount": 97,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative"
       },
@@ -355,11 +355,11 @@
         "spectrum": "spectrum"
       },
       "locked": {
-        "lastModified": 1795106485,
-        "narHash": "sha256-cK+o/P3zE/1GW68p0URGGaI0mx8fAj2EAyG9CNmOII0=",
+        "lastModified": 1795298370,
+        "narHash": "sha256-mruPu1cqOVBxPiRwrh6r1tnX1OAzMggy+rDk6YuqhK8=",
         "owner": "microvm-nix",
         "repo": "microvm.nix",
-        "rev": "d70265960646e506757f8364e8585c17a06050e7",
+        "rev": "430a46d03ef15f1b8b715fafa85f21847960b783",
         "type": "github"
       },
       "original": {
@@ -464,11 +464,11 @@
         "nmd": "nmd"
       },
       "locked": {
-        "lastModified": 1793577586,
-        "narHash": "sha256-7Fhi86IbuJ0qZIsa6jEwDmdQeHyMpQPhgwBjtUez8Ms=",
+        "lastModified": 1795465182,
+        "narHash": "sha256-1REXdwUknLlh1YgDdOzk8j4Grv3sJEA1wErYmZLg4fw=",
         "ref": "better-cross-compile-1",
-        "rev": "5c5756fff161ba1a28350a5f17a7d51b8552c6aa",
-        "revCount": 469,
+        "rev": "bb112330b79c159dc1c406a01ac6fd26e24b77db",
+        "revCount": 470,
         "type": "git",
         "url": "https://git.0x04.cc/alaestor/fork-nix-on-droid.git"
       },
@@ -485,11 +485,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795270739,
-        "narHash": "sha256-x6Xm7pweplmSNhmrdLMx1oZw8tZzhFoYKsq7f+vHpE4=",
+        "lastModified": 1795379121,
+        "narHash": "sha256-ozYI9QzZHThJ6gek0zw3U7VWtbij7GWMoIyKeVUHB04=",
         "owner": "BirdeeHub",
         "repo": "nix-wrapper-modules",
-        "rev": "e1e6cc3094ce733b82a0b4345c1bd3eb0776a709",
+        "rev": "c35c43d2e5be66fe1172a1772fe81d1fa0a6ac96",
         "type": "github"
       },
       "original": {
@@ -671,11 +671,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794943722,
-        "narHash": "sha256-Qkh6uNyMsic61gfyOO8VXnC+HEBdti6Xe2kKiMf66O0=",
+        "lastModified": 1795325060,
+        "narHash": "sha256-XYoMPsqRFZ6jOaYI1KAAu8fzqif4tkCX8mhEKrViDXQ=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "5643e73425b85ac359ba2aaf83deae8ce1cd7968",
+        "rev": "6480d7d8533b88c78cc6dcda395ab89cd546e450",
         "type": "github"
       },
       "original": {
@@ -687,11 +687,11 @@
     },
     "stable-nixpkgs": {
       "locked": {
-        "lastModified": 1795137884,
-        "narHash": "sha256-xVwloUjz7paCDnvN5dkrasmAGV+O6uyRUPFHxv2w3VA=",
-        "rev": "ab5c18fdedfc8f9bbc9d773f10a540790e2787a7",
+        "lastModified": 1795370043,
+        "narHash": "sha256-RThZ6/XvhVczW74iClJaGo9+fXjvfm5mvvzTy6hrcYU=",
+        "rev": "0dc498bfe49baeb18b0f9891e800b53bb2603193",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/26.05/nixos-26.05.14894.ab5c18fdedfc/nixexprs.tar.zst"
+        "url": "https://releases.nixos.org/nixos/26.05/nixos-26.05.15079.0dc498bfe49b/nixexprs.tar.zst"
       },
       "original": {
         "type": "tarball",
@@ -741,11 +741,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795268568,
-        "narHash": "sha256-1RJm4DEu7YHJv94sjSY7sjqT+kHx/AUwmtUN4dtFBUo=",
+        "lastModified": 1795366757,
+        "narHash": "sha256-Tp4Kh4R7ID1f2mMCDlb2PiFQ/DZZsnXB2u2juWN+TT4=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "6857c7f7c338ad181729c52071386b0d3afa24bc",
+        "rev": "3b8140d21fa0a70b1b38c2ed29853dfe686234a6",
         "type": "github"
       },
       "original": {
