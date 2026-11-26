@@ -9,7 +9,6 @@ adguard-generic
 adguard-mobile
 easyprivacy
 LegitimateURLShortener
-adguard-spyware
 adguard-spyware-url
 block-lan
 urlhaus-1

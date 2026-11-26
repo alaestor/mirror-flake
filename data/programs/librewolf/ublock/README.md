@@ -1,15 +1,16 @@
+# uBlock Origin policy
 
-uBlock Origin exposed policy-based management in the form of [managed_storage.json](https://github.com/gorhill/uBlock/blob/master/platform/common/managed_storage.json).
+The [LibreWolf module](../../../../modules/programs/librewolf.nix) passes
+`adminSettings` as a Firefox managed-storage object. uBlock Origin
+[accepts an object or a JSON string](https://github.com/gorhill/uBlock/blob/master/src/js/storage.js)
+and reapplies the managed settings at startup. Add permanent changes to the
+managed lists, custom filters, or dynamic rules in this directory. Dashboard
+edits to those settings do not replace the managed copy.
 
-When used with Firefox's policy (via mkFirefoxModule.nix) ...
-```
-"3rdparty".Extensions = {
-  "uBlock0@raymondhill.net".adminSettings = {
-  ...
-```
+Advanced mode is intentional. Third-party requests are blocked by default.
+For a broken site, add a `noop` from the affected site to the specific resource
+host, rather than to that host globally. Use a site-wide third-party `noop`
+if the site needs too many exceptions. Both forms let static filter lists
+continue to apply. The browser's cookie settings are separate.
 
-Per the link above, `adminSettings` requires "a valid JSON string compliant with uBO's backup format" and states that "all entries present will overwrite local settings." Ideal for declarative management.
-
-While it would be easier just to slap the backup file here, I've decided to keep these text files separate for ease of maintainability.
-
-They're gathered by using the backup file in addition to exporting from uBO's various configuration tabs. Some reformatting is required: separate the `hostnameSwitches` from the dynamic filtering rules export, and format `trusted` and `filterLists` to multiline without quotes or punctuation.
+`trusted.txt` and `hostnameSwitches.txt` are retained exports, not policy.

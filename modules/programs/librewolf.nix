@@ -1,16 +1,13 @@
 
 /**
-  LibreWolf, declaratively configured with hardened defaults, a stylus
-  extension, and pinned bookmarks/search engines from `data/`.
+  LibreWolf with managed browser policy, bookmarks, search engines, and uBlock
+  Origin rules. Add lasting uBlock exceptions to the rule file under `data/`.
+  The browser retains cookies and site storage on exit so logins can persist.
+  It also keeps browsing and download history so session restore can reopen
+  tabs. DRM stays enabled for protected playback.
 */
-{ inputs, self, ... }:
+{ self, ... }:
 {
-  nucleus.inputs.firefox-extensions-declarative = {
-    url = "git+https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative";
-    inputs.nixpkgs.follows = "unstable-nixpkgs";
-    inputs.flake-parts.follows = "flake-parts";
-  };
-
   flake.modules.homeManager.librewolf =
     { lib, pkgs, ... }:
     let
@@ -28,51 +25,22 @@
         id = 0;
         name = "${default-profile-name}";
         isDefault = true;
-        extensions.packages = [
-        #  inputs.firefox-extensions-declarative.packages.${pkgs.stdenv.hostPlatform.system}.stylus-declarative
-        ];
         settings = {
-          "extensions.autoDisableScopes"                          = 0; # automatically enable installed extensions
           "browser.uiCustomization.state"                         = builtins.replaceStrings ["\n" "  "] ["" ""] (self.data.read "programs/librewolf/firefox/uiCustomizationState.json");
-          "image.http.accept"                                     = "image/avif,image/png,image/jpeg,*/*"; # try to dissuade webp...
+          # Ask servers for other formats first. This does not disable WebP decoding.
+          "image.http.accept"                                     = "image/avif,image/png,image/jpeg,*/*";
           "media.autoplay.blocking_policy"                        = 0; #  0=interaction, 1=interaction that times out, 3=click to play
           "findbar.highlightAll"                                  = true;
-          "general.smoothScroll"                                  = false;
           "widget.gtk.overlay-scrollbars.enabled"                 = false; # static size, push content
         # One-off search buttons
           "browser.urlbar.shortcuts.bookmarks"                    = false;
           "browser.urlbar.shortcuts.history"                      = false;
-          "browser.urlbar.shortcuts.tabs"                         = false;
-        # these settings can't be in firefox's global policies
+        # Profile settings
           "security.sandbox.gpu.level"                            = 1;
           "privacy.donottrackheader.enabled"                      = true;
-          "devtools.debugger.remote-enabled"                      = false;
-          "security.cert_pinning.enforcement_level"               = 2;
-          "security.pki.crlite_mode"                              = 2;
-          "security.remote_settings.crlite_filters.enabled"       = true;
           "security.ssl.enable_false_start"                       = false;
-          "security.ssl.disable_session_identifiers"              = false;
-          "security.tls.enable_post_handshake_auth"               = true;
-          # weak ssl ciphers
-          "security.ssl3.deprecated.rsa_des_ede3_sha"             = false;
-          "security.ssl3.dhe_rsa_aes_128_sha"                     = false;
-          "security.ssl3.dhe_rsa_aes_256_sha"                     = false;
-          "security.ssl3.ecdhe_rsa_aes_128_sha"                   = false;
-          "security.ssl3.ecdhe_rsa_aes_256_sha"                   = false;
-          # these are inheritted by TLS:
-          "security.ssl3.rsa_aes_128_sha"                         = false;
-          "security.ssl3.rsa_aes_256_sha"                         = false;
-          "security.ssl3.ecdhe_ecdsa_aes_128_sha"                 = false;
-          "security.ssl3.ecdhe_ecdsa_aes_256_sha"                 = false;
-          # "good enough"
-          #"security.ssl3.rsa_aes_128_gcm_sha256"                 = false;
-          #"security.ssl3.rsa_aes_256_gcm_sha384"                 = false;
-          #"security.ssl3.ecdhe_ecdsa_aes_128_gcm_sha256"         = false;
-          #"security.ssl3.ecdhe_rsa_aes_128_gcm_sha256"           = false;
-          #"security.ssl3.ecdhe_rsa_aes_256_gcm_sha384"           = false;
-          #"security.ssl3.ecdhe_ecdsa_aes_256_gcm_sha384"         = false;
-          #"security.ssl3.ecdhe_ecdsa_chacha20_poly1305_sha256"   = false;
-          #"security.ssl3.ecdhe_rsa_chacha20_poly1305_sha256"     = false;
+          # Reset the old profile override. Post-handshake client auth interferes with HTTP/2.
+          "security.tls.enable_post_handshake_auth"               = false;
         };
 
         search    = import (self.data.path "programs/librewolf/firefox/searchengines.nix");
@@ -104,7 +72,6 @@
             id = 4;
           };
         };
-        #*/
       };
     };
 
@@ -112,12 +79,7 @@
       SearchBar = "unified";
       DisplayMenuBar = "default-off";
       DisplayBookmarksToolbar = "never";
-    # updaters
-      AppAutoUpdate = false;
-      BackgroundAppUpdate = false;
-      #ExtensionUpdate = false;
-      DisableAppUpdate = true;
-      DisableSystemAddonUpdate = true;
+    # Nix owns browser updates. Leave LibreWolf's updater defaults alone.
     # 'features'
       PasswordManagerEnabled = false;
       AutofillAddressEnabled = false;
@@ -135,16 +97,11 @@
       DisableProfileRefresh = true;
       DisableSetDesktopBackground = true;           # The set-wallpaper context menu item for images
       DisablePasswordReveal = false;                # WARN(security): should disable
-      DisableBuiltinPDFViewer = true;
-      PDFjs = {
-        Enabled = false;
-        EnablePermissions = false;
-      };
+      PDFjs.Enabled = false;
      # behavior
-      StartDownloadsInTempDirectory = true;
-      PromptForDownloadLocation = true;             # require user action
+      StartDownloadsInTempDirectory = true;         # LibreWolf default; stage downloads in temporary storage.
+      PromptForDownloadLocation = true;             # LibreWolf default; always ask where to save.
       DontCheckDefaultBrowser = true;
-      PostQuantumKeyAgreementEnabled = true;
       OfferToSaveLogins = false;
       HardwareAcceleration = true;                  # WARN(privacy): set false to resist more fingerprinting
       #OverrideFirstRunPage = "";
@@ -153,7 +110,7 @@
       NetworkPrediction = false;
       #NoDefaultBookmarks = true;
       SearchSuggestEnabled = false;
-      EncryptedMediaExtensions = {                  # WARN(freedom): DRM is enabled
+      EncryptedMediaExtensions = {                  # Convenience: allow protected media playback.
         Enabled = true;
         Locked = true;
       };
@@ -163,20 +120,30 @@
         Cryptomining = true;
         Fingerprinting = true;
         EmailTracking = true;
-        SocialTracking = true;                      # WARN(compatibility): blocking may cause issues
       };
-      SanitizeOnShutdown = {
-        Locked = true;
-      # keep
-        History = false;                            # WARN(privacy): local threat liability
-        Cookies = false;                            # WARN(security): local threat liability
-        Sessions = false;                           # WARN(security): local threat liability
-        SiteSettings = false;
-      # purge
-        Cache = false;
-        Downloads = true;
+      ClearOnShutdown = {
+        BrowsingHistoryAndDownloads = false;         # Clearing history here also erases saved tabs.
+        CookiesAndStorage = false;
         FormData = true;
-        OfflineApps = true;
+        Cache = false;
+        SiteSettings = false;                       # Keep site permissions.
+      };
+
+      SSLVersionMin = "tls1.2";                     # LibreWolf default; do not allow older TLS.
+      # Leave certificate revocation to LibreWolf's CRLite and OCSP defaults.
+      # Keep TLS 1.3 and TLS 1.2 ECDHE with AEAD. Disable CBC and static RSA.
+      DisabledCiphers = {
+        TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA = true;
+        TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA = true;
+        TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA = true;
+        TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA = true;
+        TLS_DHE_RSA_WITH_AES_128_CBC_SHA = true;
+        TLS_DHE_RSA_WITH_AES_256_CBC_SHA = true;
+        TLS_RSA_WITH_AES_128_CBC_SHA = true;
+        TLS_RSA_WITH_AES_256_CBC_SHA = true;
+        TLS_RSA_WITH_3DES_EDE_CBC_SHA = true;
+        TLS_RSA_WITH_AES_128_GCM_SHA256 = true;
+        TLS_RSA_WITH_AES_256_GCM_SHA384 = true;
       };
 
       UserMessaging = {
@@ -249,7 +216,6 @@
         (allow   "cookie-quick-manager"           "{60f82f00-9ad5-4de5-b31c-b16a47c51558}")
         (allow   "user-agent-string-switcher"     "{a6c4a591-f1b2-4f03-b3ff-767e5bedf4e7}")
         (allow   "tabzen"                         "tabzen@tabzen.org")
-        (allow   "stylus-declarative"             "{7a7a4a92-a2a0-41d1-9fd7-1e92480d612d}") # NOTE: unsigned, requires setting `xpinstall.signatures.required = false`
         (allow   "wayback-machine_new"            "wayback_machine@mozilla.org")
         (allow   "proton-vpn-firefox-extension"   "vpn@proton.ch")
         (allow   "darkreader"                     "addon@darkreader.org")
@@ -279,12 +245,6 @@
       ];
 
       "3rdparty".Extensions = {
-        "{7a7a4a92-a2a0-41d1-9fd7-1e92480d612d}".styles = [
-          {
-            code = self.data.read "programs/librewolf/stylus/opentogethertube.user.css";
-          }
-        ];
-
         "uBlock0@raymondhill.net".adminSettings = {
           userSettings = {
             uiTheme = "dark";
@@ -307,10 +267,11 @@
         # ui
         "extensions.activeThemeID"                                    = "firefox-compact-dark@mozilla.org";
         # general
-        "xpinstall.signatures.required"                               = false; # WARN(security): degrades posture but required for unsigned declarative-fork extensions.
+        "xpinstall.signatures.required"                               = true; # LibreWolf default; require signed extensions.
+        # LibreWolf default; lock strict protection for this profile.
         "browser.contentblocking.category"                            = { Value = "strict"; Status = "locked"; };
         "browser.aboutConfig.showWarning"                             = false;
-        "browser.startup.page"                                        = 3; # Resume
+        "browser.startup.page"                                        = 3; # Convenience: reopen tabs from the last session.
         "browser.uidensity"                                           = 1; # compact tab bar
         "browser.search.suggest.enabled"                              = false;
         "browser.search.suggest.enabled.private"                      = false;
@@ -318,9 +279,6 @@
         "browser.urlbar.suggest.searches"                             = false;
         "browser.urlbar.suggest.clipboard"                            = false;
         "browser.urlbar.suggest.bookmark"                             = true;
-        "browser.urlbar.suggest.quicksuggest"                         = true;
-        "browser.urlbar.quicksuggest.enabled"                         = true;
-        "browser.urlbar.quicksuggest.scenario"                        = "history";
         "browser.urlbar.showSearchSuggestionsFirst"                   = false;
         "browser.urlbar.autoFill.adaptiveHistory.enabled"             = true;
         "browser.urlbar.richSuggestions.featureGate"                  = false;
@@ -328,11 +286,9 @@
         "browser.urlbar.mdn.featureGate"                              = false;
         "browser.urlbar.weather.featureGate"                          = false;
         "browser.urlbar.trending.featureGate"                         = false;
-        "browser.download.useDownloadDir"                             = true;
-        "browser.download.start_downloads_in_tmp_dir"                 = true;
-        "browser.helperApps.deleteTempFileOnExit"                     = true;
         "browser.uitour.enabled"                                      = false;
-        "browser.safebrowsing.downloads.enabled"                      = true;
+        # Keep download checks off even if site checks are enabled.
+        "browser.safebrowsing.downloads.enabled"                      = false;
         "browser.safebrowsing.downloads.remote.enabled"               = false;
         "browser.toolbars.bookmarks.visibility"                       = "never";
         "browser.translations.enable"                                 = false;
@@ -341,41 +297,24 @@
         "browser.rights.3.shown"                                      = true;
         "browser.dom.window.dump.enabled"                             = false;
         "privacy.userContext.enabled"                                 = true;
-        "privacy.globalprivacycontrol.enabled"                        = true;
+        "privacy.globalprivacycontrol.enabled"                        = true; # LibreWolf default; always send GPC.
         # security
         "extensions.quarantinedDomains.enabled"                       = true;
         "dom.private-attribution.submission.enabled"                  = false;
         "security.insecure_connection_text.enabled"                   = true;
         "security.insecure_connection_text.pbmode.enabled"            = true;
-        "security.ssl.require_safe_negotiation"                       = true;
-        "security.tls.hello_downgrade_check"                          = false;
-        "security.tls.enable_0rtt_data"                               = false;
-        "security.pki.certificate_transparency.mode"                  = 2;
-        "security.OCSP.enabled"                                       = 1;
-        "security.OCSP.require"                                       = true;
+        "security.ssl.require_safe_negotiation"                       = true; # LibreWolf default; require secure renegotiation.
+        "security.tls.hello_downgrade_check"                           = true; # LibreWolf default; detect downgrades.
+        "security.tls.enable_0rtt_data"                                = false; # LibreWolf default; avoid replayable early data.
         "gfx.webrender.all"                                           = true;
         "browser.send_pings"                                          = false;
-        "network.http.spdy.enabled"                                   = false;
         "network.connectivity-service.enabled"                        = false;
-        "network.cookie.cookieBehavior.optInPartitioning"             = true;
         "network.http.speculative-parallel-limit"                     = 0;
         "network.trr.mode"                                            = 5;
-        "security.tls.version.enable-deprecated"                      = false;
+        "security.tls.version.enable-deprecated"                      = false; # LibreWolf default; disallow the legacy fallback.
         "dom.battery.enabled"                                         = false;
-        "dom.security.https_only_mode"                                = true;
         "dom.security.https_only_mode_pbm"                            = true;
-        "dom.security.https_only_mode_ever_enabled"                   = true;
-        "dom.security.https_only_mode_ever_enabled_pbm"               = true;
-        "dom.security.https_only_mode.upgrade_local"                  = true;
         "dom.security.https_only_mode_send_http_background_request"   = false;
-        # WARN(security): local threat liability; disable disk caching
-        /*
-        "browser.cache.offline.enable"                                = false;
-        "browser.cache.disk.enable"                                   = false;
-        "browser.cache.disk_cache_ssl"                                = false;
-        "browser.cache.memory.enable"                                 = false;
-        "browser.cache.insecure.enable"                               = false;
-        */
 
         # ux
         "browser.warnOnQuitShortcut"                                  = false;

@@ -62,17 +62,6 @@
     };
     url = "github:nix-community/disko";
   };
-  firefox-extensions-declarative = {
-    inputs = {
-      flake-parts = {
-        follows = "flake-parts";
-      };
-      nixpkgs = {
-        follows = "unstable-nixpkgs";
-      };
-    };
-    url = "git+https://git.0x04.cc/alaestor/mirror-firefox-extensions-declarative";
-  };
   flake-parts = {
     inputs = {
       nixpkgs-lib = {
