@@ -148,12 +148,12 @@
 
       UserMessaging = {
         Locked                   = true;
-        SkipOnboarding           = true;  # Don’t show onboarding messages on the new tab page
-        ExtensionRecommendations = false; # Don’t recommend extensions while the user is visiting web pages
-        FeatureRecommendations   = false; # Don’t recommend browser features
-        MoreFromMozilla          = false; # Don’t show the “More from Mozilla” section in Preferences
-        UrlbarInterventions      = false; # Don’t offer suggestions in the URL bar
-        WhatsNew                 = false; # Remove the “What’s New” icon and menuitem
+        SkipOnboarding           = true;  # Don't show onboarding messages on the new tab page
+        ExtensionRecommendations = false; # Don't recommend extensions while the user is visiting web pages
+        FeatureRecommendations   = false; # Don't recommend browser features
+        MoreFromMozilla          = false; # Don't show the "More from Mozilla" section in Preferences
+        UrlbarInterventions      = false; # Don't offer suggestions in the URL bar
+        WhatsNew                 = false; # Remove the "What's New" icon and menuitem
       };
 
       UseSystemPrintDialog = true;
