@@ -224,6 +224,20 @@ in
 
   programs.virt-manager.enable = true;
 
+  # Volatile scratch space for downloads. The size is a cap, not reserved RAM.
+  fileSystems."${home}/tmp" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [
+      "size=4G"
+      "noswap"
+      "nodev"
+      "nosuid"
+      "mode=0700"
+      "uid=${toString config.users.users.${username}.uid}"
+    ];
+  };
+
   steam-gaming = {
     enable = true;
     remotePlay.openFirewall = true;
